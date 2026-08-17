@@ -1,0 +1,15 @@
+{
+  "artifact_sha256": "886f19690a52014b5386b499f3250b8ab166cc86d91375756e352c9248e3da6c",
+  "files": [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "journey.json",
+    "README.md"
+  ],
+  "receipt_ids": [
+    "QR-010e9151c2b941bf",
+    "QR-2b6ee113ff454a89",
+    "QR-167b36f17c274283"
+  ]
+}

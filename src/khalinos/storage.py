@@ -1,0 +1,109 @@
+"""Cloud and local run stores with immutable evidence paths."""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Protocol
+
+from google.cloud import firestore, storage
+
+from khalinos.models import RunRecord, UserBrief, utc_now
+
+
+class RunStore(Protocol):
+    def create(self, record: RunRecord, brief: UserBrief) -> None: ...
+    def read_brief(self, run_id: str) -> UserBrief: ...
+    def read_record(self, run_id: str) -> RunRecord: ...
+    def update(self, record: RunRecord) -> None: ...
+    def put_json(self, run_id: str, relative: str, payload: dict | list) -> str: ...
+    def put_file(self, run_id: str, relative: str, source: Path, content_type: str) -> str: ...
+
+
+class LocalRunStore:
+    def __init__(self, root: Path):
+        self.root = root.resolve()
+
+    def _run(self, run_id: str) -> Path:
+        return self.root / "runs" / run_id
+
+    def create(self, record: RunRecord, brief: UserBrief) -> None:
+        root = self._run(record.run_id)
+        root.mkdir(parents=True, exist_ok=False)
+        (root / "brief.json").write_text(brief.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        self.update(record)
+
+    def read_brief(self, run_id: str) -> UserBrief:
+        return UserBrief.model_validate_json((self._run(run_id) / "brief.json").read_text(encoding="utf-8"))
+
+    def read_record(self, run_id: str) -> RunRecord:
+        return RunRecord.model_validate_json((self._run(run_id) / "record.json").read_text(encoding="utf-8"))
+
+    def update(self, record: RunRecord) -> None:
+        record = record.model_copy(update={"updated_at": utc_now()})
+        target = self._run(record.run_id) / "record.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(record.model_dump_json(indent=2) + "\n", encoding="utf-8")
+
+    def put_json(self, run_id: str, relative: str, payload: dict | list) -> str:
+        target = self._run(run_id) / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return str(target)
+
+    def put_file(self, run_id: str, relative: str, source: Path, content_type: str) -> str:
+        del content_type
+        target = self._run(run_id) / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(source.read_bytes())
+        return str(target)
+
+
+class CloudRunStore:
+    def __init__(self, *, project: str | None = None, bucket: str | None = None):
+        self.project = project or os.environ["GOOGLE_CLOUD_PROJECT"]
+        self.bucket_name = bucket or os.environ["KHALINOS_BUCKET"]
+        self.firestore = firestore.Client(project=self.project)
+        self.bucket = storage.Client(project=self.project).bucket(self.bucket_name)
+
+    def _doc(self, run_id: str):
+        return self.firestore.collection("khalinos_runs").document(run_id)
+
+    def _blob(self, run_id: str, relative: str):
+        return self.bucket.blob(f"runs/{run_id}/{relative}")
+
+    def create(self, record: RunRecord, brief: UserBrief) -> None:
+        self._blob(record.run_id, "brief.json").upload_from_string(
+            brief.model_dump_json(indent=2) + "\n",
+            content_type="application/json",
+            if_generation_match=0,
+        )
+        self._doc(record.run_id).create(record.model_dump(mode="json"))
+
+    def read_brief(self, run_id: str) -> UserBrief:
+        return UserBrief.model_validate_json(self._blob(run_id, "brief.json").download_as_text())
+
+    def read_record(self, run_id: str) -> RunRecord:
+        snapshot = self._doc(run_id).get()
+        if not snapshot.exists:
+            raise FileNotFoundError(run_id)
+        return RunRecord.model_validate(snapshot.to_dict())
+
+    def update(self, record: RunRecord) -> None:
+        record = record.model_copy(update={"updated_at": utc_now()})
+        self._doc(record.run_id).set(record.model_dump(mode="json"))
+
+    def put_json(self, run_id: str, relative: str, payload: dict | list) -> str:
+        blob = self._blob(run_id, relative)
+        blob.upload_from_string(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            content_type="application/json",
+        )
+        return f"gs://{self.bucket_name}/{blob.name}"
+
+    def put_file(self, run_id: str, relative: str, source: Path, content_type: str) -> str:
+        blob = self._blob(run_id, relative)
+        blob.upload_from_filename(str(source), content_type=content_type)
+        return f"gs://{self.bucket_name}/{blob.name}"
+

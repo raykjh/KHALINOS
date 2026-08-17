@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "khalinos"
+version = "0.1.0"
+description = "Evidence-gated autonomous project execution on Gemini, Google ADK, and Google Cloud"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.133,<1",
+  "google-adk==2.6.2",
+  "google-cloud-firestore==2.21.0",
+  "google-cloud-run==0.10.19",
+  "google-cloud-storage==3.3.1",
+  "playwright==1.54.0",
+  "pydantic>=2.12,<3",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.4,<9", "pytest-asyncio>=1.1,<2", "httpx>=0.28,<1"]
+
+[project.scripts]
+khalinos = "khalinos.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/khalinos"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

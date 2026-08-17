@@ -1,0 +1,59 @@
+{
+  "receipt_id": "QR-167b36f17c274283",
+  "quest_id": "Q3",
+  "quest_sha256": "ec1384b2c8abf46c628adf5d17960c761d3da5565583bbd647221e2ef2756b71",
+  "parent_receipt_id": "QR-2b6ee113ff454a89",
+  "artifact_sha256": "886f19690a52014b5386b499f3250b8ab166cc86d91375756e352c9248e3da6c",
+  "deterministic_evidence": {
+    "passed": true,
+    "checks": {
+      "exact_authorized_files": true,
+      "bounded_size": true,
+      "no_external_network_or_dynamic_code": true,
+      "html_document": true,
+      "accessible_controls": true,
+      "responsive_css": true,
+      "no_placeholders": true,
+      "browser_journeys": true,
+      "console_clean": true
+    },
+    "issues": [],
+    "screenshot_names": [
+      "journey-01.png"
+    ]
+  },
+  "independent_verification": {
+    "findings": [
+      {
+        "criterion": "All options and their scores are saved to localStorage on any change and restored on page reload.",
+        "passed": true,
+        "evidence": "The app.js file implements loadState() and saveState() using localStorage.setItem('signal_board_options', ...) and localStorage.getItem('signal_board_options'), which are called on initialization and any state changes (adding, scoring, deleting, clearing)."
+      },
+      {
+        "criterion": "A 'Clear Board' button is available, which prompts the user for confirmation before wiping the state.",
+        "passed": true,
+        "evidence": "The index.html contains a button with id 'clear-board-btn'. The app.js file binds a click event listener to this button that triggers a confirm() dialog before clearing the options array and saving the empty state."
+      },
+      {
+        "criterion": "When cleared, the board returns to an informative empty state.",
+        "passed": true,
+        "evidence": "The index.html contains a div with id 'empty-state' containing informative text. The render() function in app.js toggles the display of this element to 'block' and hides the options grid when the options array is empty."
+      },
+      {
+        "criterion": "All interactive elements (inputs, buttons, scoring controls) are fully keyboard-navigable and focus-visible.",
+        "passed": true,
+        "evidence": "The styles.css file defines a high-contrast focus-visible outline (*:focus-visible { outline: 3px solid var(--accent-gold); outline-offset: 2px; }). Interactive elements are standard HTML buttons and inputs, which are natively keyboard-navigable."
+      },
+      {
+        "criterion": "A journey.json file is provided to document the primary user flow, and a README.md explains the application setup.",
+        "passed": true,
+        "evidence": "Both journey.json and README.md are present in the artifact with complete, non-placeholder content mapping the user flow and explaining the application features."
+      }
+    ],
+    "verdict": "PASS",
+    "repair_instructions": []
+  },
+  "repair_rounds": 0,
+  "state": "passed",
+  "created_at": "2026-08-17T23:51:40.782542+00:00"
+}

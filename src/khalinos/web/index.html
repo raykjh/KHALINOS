@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KHALINOS — From brief to verified result</title>
+  <style>
+    :root { color-scheme: dark; --ink:#f4f0e7; --muted:#a5b1b8; --gold:#e9bf62; --panel:#111b24; --line:#293845; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font:16px/1.5 Inter,system-ui,sans-serif; color:var(--ink); background:#071018; }
+    main { width:min(1040px,92vw); margin:auto; padding:64px 0; }
+    header { display:grid; gap:14px; margin-bottom:36px; }
+    .eyebrow { color:var(--gold); letter-spacing:.18em; text-transform:uppercase; font-size:13px; }
+    h1 { margin:0; font:600 clamp(42px,8vw,78px)/1 Georgia,serif; color:var(--gold); }
+    h2 { margin:0; font-size:25px; }
+    p { margin:0; color:var(--muted); max-width:760px; }
+    .grid { display:grid; grid-template-columns:1.1fr .9fr; gap:24px; }
+    section { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px; }
+    label { display:grid; gap:7px; margin:15px 0; font-weight:650; }
+    input,textarea { width:100%; border:1px solid #3b4b57; border-radius:10px; background:#09131b; color:var(--ink); padding:12px; font:inherit; }
+    textarea { min-height:110px; resize:vertical; }
+    button { border:0; border-radius:10px; padding:13px 18px; background:var(--gold); color:#15202a; font-weight:800; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:wait; }
+    ol { padding-left:20px; color:var(--muted); }
+    #status { margin-top:18px; white-space:pre-wrap; color:#9de1d6; }
+    .stack { display:grid; gap:16px; }
+    @media (max-width:800px) { .grid { grid-template-columns:1fr; } main { padding:36px 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">Evidence-gated autonomous execution</span>
+    <h1>KHALINOS</h1>
+    <p>Give one bounded product brief. Gemini agents on Google Cloud plan the Quest chain, create the artifact, run an isolated browser, repair failures, and accept only evidence-backed results.</p>
+  </header>
+  <div class="grid">
+    <section>
+      <h2>Start one autonomous run</h2>
+      <form id="briefForm">
+        <label>Project name<input id="projectName" required minlength="2" value="Signal Board"></label>
+        <label>Goal<textarea id="goal" required minlength="30">Create a focused single-page decision board that lets a user add options, score each option from 1 to 5, and immediately see the highest-scoring choice. Persist the board locally and provide a clear empty state.</textarea></label>
+        <label>Acceptance criteria<textarea id="criteria" required>Users can add and remove decision options.
+Users can score every option from 1 to 5.
+The leading option updates immediately and survives reload.
+The interface is keyboard accessible and responsive.</textarea></label>
+        <button id="submitButton" type="submit">Authorize and run</button>
+      </form>
+      <div id="status" role="status" aria-live="polite"></div>
+    </section>
+    <section class="stack">
+      <h2>What happens after submit</h2>
+      <ol>
+        <li>Project Owner issues a bounded Quest chain.</li>
+        <li>Accountable Maker builds each verified increment.</li>
+        <li>An isolated Chromium run produces runtime evidence.</li>
+        <li>Independent Verifier accepts or routes a repair.</li>
+        <li>Only an unbroken receipt chain reaches PASS.</li>
+      </ol>
+      <p>Runtime: Gemini 3.5 Flash · Google ADK · Vertex AI · Cloud Run · Firestore · Cloud Storage</p>
+    </section>
+  </div>
+</main>
+<script>
+const form = document.querySelector('#briefForm');
+const statusBox = document.querySelector('#status');
+const submitButton = document.querySelector('#submitButton');
+let pollTimer;
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  clearTimeout(pollTimer);
+  submitButton.disabled = true;
+  statusBox.textContent = 'Submitting immutable brief…';
+  const acceptance = document.querySelector('#criteria').value.split('\n').map(v => v.trim()).filter(Boolean);
+  try {
+    const response = await fetch('/api/runs', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({
+      project_name: document.querySelector('#projectName').value,
+      goal: document.querySelector('#goal').value,
+      acceptance_criteria: acceptance,
+      constraints: ['No external network calls in the generated product.', 'Use only the authorized five-file browser micro-app surface.']
+    })});
+    if (!response.ok) throw new Error(await response.text());
+    const payload = await response.json();
+    statusBox.textContent = `Run ${payload.record.run_id}\nQueued on Google Cloud.`;
+    poll(payload.record.run_id);
+  } catch (error) {
+    statusBox.textContent = `Submission failed: ${error.message}`;
+    submitButton.disabled = false;
+  }
+});
+async function poll(runId) {
+  try {
+    const response = await fetch(`/api/runs/${runId}`);
+    const record = await response.json();
+    statusBox.textContent = `Run ${runId}\n${record.status.toUpperCase()} — ${record.message}\nModel calls: ${record.model_calls}\nReceipts: ${record.completed_receipt_ids.length}`;
+    if (['passed','blocked','failed'].includes(record.status)) { submitButton.disabled = false; return; }
+    pollTimer = setTimeout(() => poll(runId), 3000);
+  } catch (error) {
+    statusBox.textContent = `Status check failed: ${error.message}`;
+    submitButton.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
+

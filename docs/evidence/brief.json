@@ -1,0 +1,26 @@
+{
+  "project_name": "Signal Board",
+  "goal": "Create a polished, responsive single-page decision board where a small team can add options, score each option from 1 to 5, immediately see the current leader, retain the board after a page reload, and clear the board safely.",
+  "constraints": [
+    "No server-side application data dependency in the generated product; use browser-local persistence.",
+    "Keyboard-accessible controls and readable responsive layout.",
+    "No external assets, libraries, network calls, placeholder copy, or unfinished controls.",
+    "The interface should feel presentation-ready rather than like a developer prototype."
+  ],
+  "acceptance_criteria": [
+    "A user can add at least three named options and each option appears on the board.",
+    "A user can set or change a 1-to-5 score for every option and the displayed leader updates immediately with deterministic tie handling.",
+    "Reloading the page preserves options and scores in browser-local storage.",
+    "Clearing the board requires confirmation and returns to an informative empty state.",
+    "The complete primary journey works at desktop and narrow mobile viewport sizes with no console errors."
+  ],
+  "max_quests": 4,
+  "max_repairs_per_quest": 2,
+  "authorized_output_files": [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "journey.json",
+    "README.md"
+  ]
+}
