@@ -84,7 +84,7 @@ SVG, Canvas, vanilla JavaScript, and the trusted local image. No external URLs, 
 network calls, data URLs, arbitrary code execution, placeholders, or unfinished controls.
 Every form control must have an explicit label or aria-label. journey.json must use exactly
 {{"journeys":[...]}}. Every journey must have a bounded name and non-empty steps, must omit
-criteria, and must use only the
+criterion, and must use only the
 approved typed steps such as {{"click":"CSS selector"}}, {{"press":"Keyboard key"}}, and
 {{"assert_text":"visible text"}}. styles.css must include a real @media responsive layout.
 Do not use @import. Return only the required ArtifactBundle schema.

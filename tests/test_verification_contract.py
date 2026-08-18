@@ -53,7 +53,7 @@ def complete_journeys() -> list[dict]:
     return [
         {
             "name": "safe reveal expands",
-            "criteria": [CRITERIA[0]],
+            "criterion": CRITERIA[0],
             "random_seed": 7,
             "steps": [
             {"assert_count": {"selector": ".cell.revealed", "operator": "eq", "value": 0}},
@@ -63,7 +63,7 @@ def complete_journeys() -> list[dict]:
         },
         {
             "name": "status exposes completion",
-            "criteria": [CRITERIA[1]],
+            "criterion": CRITERIA[1],
             "steps": [
             {"click": "#reveal"},
             {"assert_attribute": {"selector": "#status", "name": "data-state", "operator": "eq", "value": "complete"}},
@@ -73,7 +73,7 @@ def complete_journeys() -> list[dict]:
         },
         {
             "name": "flag expires",
-            "criteria": [CRITERIA[2]],
+            "criterion": CRITERIA[2],
             "steps": [
             {"click": "#flag"},
             {"assert_class": {"selector": "#flag", "includes": ["flagged"], "excludes": []}},
@@ -84,7 +84,7 @@ def complete_journeys() -> list[dict]:
         },
         {
             "name": "seeded random value",
-            "criteria": [CRITERIA[3]],
+            "criterion": CRITERIA[3],
             "random_seed": 7,
             "steps": [{"assert_text": "0.238781"}],
         },

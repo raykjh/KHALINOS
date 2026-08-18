@@ -44,8 +44,8 @@ eval, dynamic code loading, analytics, or placeholder TODOs. The UI must be in E
 responsive, keyboard accessible, visually coherent, and actually interactive.
 
 journey.json must contain {"journeys":[...]} with at least one journey. Each journey has
-a name, a criteria array containing exactly one exact active-Quest acceptance-criterion string
-that it proves, an optional random_seed integer, and ordered steps. Use separate journeys when
+a name, a criterion field containing one exact active-Quest acceptance-criterion string that
+it proves, an optional random_seed integer, and ordered steps. Use separate journeys when
 a Quest has multiple criteria. Supported typed steps are
 {"click":"CSS selector"}, {"right_click":"CSS selector"}, {"press":"Keyboard key"},
 {"wait_ms":1..12000}, {"assert_text":"visible text"},
@@ -53,7 +53,7 @@ a Quest has multiple criteria. Supported typed steps are
 {"assert_attribute":{"selector":"CSS selector","name":"attribute","operator":"eq|contains|not_equals","value":"text"}},
 {"assert_class":{"selector":"CSS selector","includes":["class"],"excludes":["class"]}},
 or {"assert_state":{"selector":"CSS selector","state":"visible|hidden|enabled|disabled|checked|unchecked"}}.
-Do not emit arbitrary JavaScript. Every active criterion must be named by at least one journey
+Do not emit arbitrary JavaScript. Every active criterion must be named by exactly one or more journeys
 and backed by a typed assertion that observes its runtime result; clicks, waits, screenshots,
 source code, and README claims alone are not proof. Selectors must point to real controls in
 index.html and the journey must prove the active Quest behavior. Preserve
@@ -110,7 +110,7 @@ journey.json must contain exactly the wrapper {"journeys":[...]} with at least o
 Each visual-foundation journey has a name and ordered steps. A step must use the same typed
 journey actions documented for the Maker, including {"click":"CSS selector"},
 {"press":"Keyboard key"}, and {"assert_text":"visible text"}. Visual foundations must omit
-criteria because no Quest is active during visual selection. Do not use type, selector, text, or key fields as
+criterion because no Quest is active during visual selection. Do not use type, selector, text, or key fields as
 a different step schema, and never emit arbitrary JavaScript. The journey must
 exercise real controls and produce a meaningful rendered screenshot. Keep revision_summary
 concise and under 500 characters. Return only the required schema.

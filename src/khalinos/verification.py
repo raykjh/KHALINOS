@@ -222,20 +222,16 @@ def verify_bundle(
             context = browser.new_context(viewport={"width": 1280, "height": 720})
             console_errors: list[str] = []
             for index, entry in enumerate(journeys, start=1):
-                if not isinstance(entry, dict) or not set(entry).issubset({"name", "criteria", "random_seed", "steps"}):
-                    raise ValueError("each journey may contain only name, criteria, random_seed, and steps")
+                if not isinstance(entry, dict) or not set(entry).issubset({"name", "criterion", "random_seed", "steps"}):
+                    raise ValueError("each journey may contain only name, criterion, random_seed, and steps")
                 name_value = entry.get("name")
                 if not isinstance(name_value, str) or not name_value.strip() or len(name_value) > 120:
                     raise ValueError("each journey requires a bounded name")
-                claims = entry.get("criteria", [])
-                if not isinstance(claims, list) or not all(isinstance(item, str) for item in claims):
-                    raise ValueError("journey criteria must be a list of exact criterion strings")
-                if len(claims) != len(set(claims)) or any(item not in required for item in claims):
-                    raise ValueError("journey criteria must be unique exact active-Quest criteria")
-                if required and len(claims) != 1:
-                    raise ValueError("each active-Quest journey must prove exactly one acceptance criterion")
-                if not required and claims:
-                    raise ValueError("visual-foundation journeys cannot claim inactive Quest criteria")
+                claimed = entry.get("criterion")
+                if required and (not isinstance(claimed, str) or claimed not in required):
+                    raise ValueError("each active-Quest journey criterion must exactly match one active criterion")
+                if not required and claimed is not None:
+                    raise ValueError("visual-foundation journeys cannot claim an inactive Quest criterion")
                 steps = entry.get("steps", [])
                 if not isinstance(steps, list) or not steps or len(steps) > MAX_STEPS_PER_JOURNEY:
                     raise ValueError(f"each journey requires 1..{MAX_STEPS_PER_JOURNEY} steps")
@@ -280,10 +276,10 @@ def verify_bundle(
                         assertion_summaries.append(_assertion_summary(page, action, value))
                     else:
                         raise ValueError(f"unsupported journey step: {step}")
-                if claims and not assertion_summaries:
+                if claimed is not None and not assertion_summaries:
                     raise ValueError(f"journey {name_value!r} claims criteria without a runtime assertion")
-                for criterion in claims:
-                    criterion_evidence[criterion].extend(
+                if claimed is not None:
+                    criterion_evidence[claimed].extend(
                         f"journey={name_value!r}; seed={seed!r}; {summary}" for summary in assertion_summaries
                     )
                 name = f"journey-{index:02d}.png"
