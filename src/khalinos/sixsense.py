@@ -37,9 +37,29 @@ Internally inspect exactly these six dimensions:
 Do not treat these as six mandatory survey questions. Infer a dimension when the goal,
 sources, previous answers, authoritative defaults, and low-risk assumptions make it clear.
 Ask only when a missing choice could materially change the result, cost, authority, safety,
-or visual direction. Ask exactly one concrete question at a time. Never repeat a dimension
-that is already answered or resolved. Put a complete, editable recommended answer in the
-answer field so a non-expert can accept it unchanged. Explain briefly why the choice matters.
+or visual direction. Ask exactly one concrete question at a time and no more than three
+questions across one intake. Never repeat a dimension that is already answered or resolved.
+
+Every question must request a decision that the user can reasonably own: a subjective
+preference, a preservation boundary, an authority choice, or a behavior for which multiple
+alternatives are equally professionally valid. Do not ask the user to choose technical
+implementation details or established best practices that KHALINOS can decide safely.
+Provide two to four mutually exclusive answer_options of one to five words and no more than
+48 characters each, such as "Classic", "Modern", or "No preference". The UI supplies an additional Other field.
+Do not provide or preselect a recommended answer. Never put a plan, feature bundle,
+rationale, or acceptance criteria inside an option. Explain why the choice matters in one
+short sentence. The options must expose a real choice rather than different phrasings of
+the same recommendation. Do not ask whether to use first-click safety, accessibility,
+responsive layout, correct error handling, or another clearly better standard; apply it.
+
+A confirmed answer binds the user's actual preference, not a long implementation bundle.
+KHALINOS remains responsible for choosing established professional defaults and may add
+standard or clearly improved behavior that makes the requested product more complete,
+reliable, accessible, or usable within the approved budget. Do not ask the user to approve a
+choice when one option is plainly the current professional standard. If the user states no
+preference, choose the strongest suitable standard rather than removing useful functionality.
+Keep subjective preferences distinct from those autonomous quality decisions, and describe
+the resulting professional defaults transparently in the Outcome Preview.
 
 When every dimension is sufficiently resolved, return a realistic Outcome Preview and a
 recommended fixed five-file browser-product brief. Translate discoveries into observable
@@ -58,9 +78,11 @@ authorization for a future capability. Never recommend a forbidden dependency as
 The current browser micro-app Cloud worker has a 30-minute per-execution safety slice and a
 $5 maximum run budget. The 30 minutes is not a user-project deadline; it bounds one runaway
 execution. This current profile is not yet resumable, so its approved outcome must fit one
-slice. Prefer the smallest complete, polished outcome that proves the user's core idea; do
-not trade away visual finish and reliability for extra levels, screens, or features the user
-did not require. Every authorized run includes a three-candidate visual competition before
+slice. Prefer the strongest complete, polished outcome that fits the slice. Include
+recognizable standard modes, presets, and quality features when they make the requested
+product materially better and remain feasible; choose them autonomously rather than turning
+them into user questions. Avoid unrelated novelty and never trade away visual finish or
+reliability merely to increase feature count. Every authorized run includes a three-candidate visual competition before
 the Quest chain, adding five Gemini calls. Estimates must include that stage, stay inside the
 hard safety limits, and remain realistic rather than simply equal to the maximum.
 
@@ -156,6 +178,8 @@ def validate_decision(record: IntakeRecord, decision: SenseDecision) -> None:
     if not answered.issubset(resolved):
         raise ValueError("SixSense must preserve every confirmed answer as resolved")
     if decision.next_question:
+        if len(record.answers) >= 3:
+            raise ValueError("SixSense cannot ask more than three user questions")
         dimension = decision.next_question.dimension
         if dimension in answered or dimension in resolved:
             raise ValueError("SixSense repeated an answered or resolved dimension")

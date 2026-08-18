@@ -54,3 +54,16 @@ def test_project_mode_can_switch_cleanly_before_goal_entry() -> None:
     assert "chooseWork('existing')" in html
     assert "Outcome discovery · autonomous execution" not in html
     assert "SixSense resolves what matters" not in html
+
+
+def test_goal_has_no_leading_example_and_sixsense_requires_a_real_choice() -> None:
+    html = WEB.read_text(encoding="utf-8")
+    goal = re.search(r'<textarea id="goal"[^>]*>', html)
+    assert goal is not None
+    assert "placeholder=" not in goal.group(0)
+    assert 'id="answerOptions"' in html
+    assert "question.answer_options" in html
+    assert "Confirm this choice" in html
+    assert 'id="userChoices"' in html
+    assert "KHALINOS applied professional defaults" in html
+    assert "$('#answer').value=question.recommended_answer" not in html

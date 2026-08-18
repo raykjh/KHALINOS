@@ -70,7 +70,7 @@ class AdaptiveFake:
                 next_question=SenseQuestion(
                     dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
                     question="Which visual direction should distinguish the finished product from a generic template?",
-                    recommended_answer="Use an editorial layout, warm brass accents, restrained motion, and strong hierarchy.",
+                    answer_options=["Editorial and warm", "Minimal and neutral", "Playful and colorful"],
                     why_it_matters="Visual direction materially changes layout, styling, and the evidence used for approval.",
                 ),
             )
@@ -101,7 +101,7 @@ async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tm
         record.intake_id,
         IntakeAnswer(
             dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
-            answer=record.current_question.recommended_answer,
+            answer=record.current_question.answer_options[0],
         ),
         store=store,
         agent=agent,
@@ -154,7 +154,7 @@ async def test_revision_keeps_sources_and_restarts_discovery(tmp_path) -> None:
     first = await start_intake(request, store=store, agent=agent)
     first = await answer_intake(
         first.intake_id,
-        IntakeAnswer(dimension=first.current_question.dimension, answer=first.current_question.recommended_answer),
+        IntakeAnswer(dimension=first.current_question.dimension, answer=first.current_question.answer_options[0]),
         store=store,
         agent=agent,
     )
@@ -185,11 +185,58 @@ def test_sixsense_cannot_repeat_a_resolved_dimension() -> None:
         next_question=SenseQuestion(
             dimension=SenseDimension.REQUIRED_ENABLERS,
             question="Which required external capability should the product use for its primary workflow?",
-            recommended_answer="Use only capabilities already available in the approved browser runtime.",
+            answer_options=["Approved browser runtime only", "Request a future capability"],
             why_it_matters="The dependency changes feasibility and execution authority.",
         ),
     )
     with pytest.raises(ValueError, match="repeated"):
+        validate_decision(record, decision)
+
+
+def test_sixsense_question_requires_short_real_choices() -> None:
+    with pytest.raises(ValueError, match="distinct"):
+        SenseQuestion(
+            dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
+            question="Should the finished game use a classic or modern visual direction?",
+            answer_options=["Classic", "classic"],
+            why_it_matters="The choice changes the visual language of the finished game.",
+        )
+    with pytest.raises(ValueError, match="48 characters"):
+        SenseQuestion(
+            dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
+            question="Should the finished game use a classic or modern visual direction?",
+            answer_options=["Classic", "A detailed modern option with implementation instructions and feature requirements"],
+            why_it_matters="The choice changes the visual language of the finished game.",
+        )
+
+
+def test_sixsense_stops_asking_after_three_user_decisions() -> None:
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="b" * 32,
+        project_name="Minesweeper",
+        goal="Create a classic Minesweeper game for a modern web browser.",
+        answers={
+            SenseDimension.EXPERIENCE_VISUAL_DIRECTION.value: "Classic",
+            SenseDimension.OPERATING_CONTEXT.value: "Desktop only",
+            SenseDimension.COMPLETION_QUALITY_STANDARD.value: "Safe first click",
+        },
+        resolved_dimensions=[
+            SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
+            SenseDimension.OPERATING_CONTEXT,
+            SenseDimension.COMPLETION_QUALITY_STANDARD,
+        ],
+    )
+    decision = SenseDecision(
+        status="question",
+        resolved_dimensions=record.resolved_dimensions,
+        next_question=SenseQuestion(
+            dimension=SenseDimension.AUTHORITY_BUDGET_DELIVERY,
+            question="Should KHALINOS use the standard bounded delivery profile?",
+            answer_options=["Use standard profile", "Stop before execution"],
+            why_it_matters="This determines whether autonomous execution is authorized.",
+        ),
+    )
+    with pytest.raises(ValueError, match="more than three"):
         validate_decision(record, decision)
 
 

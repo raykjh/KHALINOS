@@ -7,9 +7,9 @@ import json
 import re
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 
 def utc_now() -> str:
@@ -168,11 +168,21 @@ class IntakeCreate(BaseModel):
     upload_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
 
 
+ShortAnswerOption = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=48)]
+
+
 class SenseQuestion(BaseModel):
     dimension: SenseDimension
-    question: str = Field(min_length=15, max_length=700)
-    recommended_answer: str = Field(min_length=10, max_length=2000)
-    why_it_matters: str = Field(min_length=10, max_length=500)
+    question: str = Field(min_length=15, max_length=240)
+    answer_options: list[ShortAnswerOption] = Field(min_length=2, max_length=4)
+    why_it_matters: str = Field(min_length=10, max_length=240)
+
+    @model_validator(mode="after")
+    def concise_distinct_choices(self) -> "SenseQuestion":
+        normalized = [item.strip().casefold() for item in self.answer_options]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("answer options must be distinct")
+        return self
 
 
 class ExecutionEstimate(BaseModel):

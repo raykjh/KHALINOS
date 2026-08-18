@@ -40,6 +40,10 @@
     textarea { min-height:150px; resize:vertical; }
     .recommendation { border-left:3px solid var(--gold); padding:14px 16px; background:rgba(233,196,106,.07); border-radius:0 10px 10px 0; margin:18px 0; }
     .recommendation small { color:var(--gold); font-weight:800; text-transform:uppercase; letter-spacing:.1em; }
+    .choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:18px 0; }
+    .choice { background:rgba(255,252,237,.78); color:#34442c; border:1px solid #96a080; text-align:left; }
+    .choice:hover,.choice.selected { border-color:#4f703f; box-shadow:0 0 0 3px rgba(79,112,63,.14); }
+    .choice em { display:block; margin-top:3px; color:#6f785f; font-size:11px; font-style:normal; font-weight:600; }
     .actions { display:flex; gap:11px; flex-wrap:wrap; margin-top:24px; }
     button { border:0; border-radius:11px; padding:13px 19px; background:var(--gold); color:#142029; font-weight:850; cursor:pointer; font:inherit; }
     button.secondary { background:transparent; color:var(--ink); border:1px solid #405460; }
@@ -184,7 +188,7 @@
         <h2>What should change or exist when this is finished?</h2>
         <p class="lead" id="goalContext">Plain language is enough. SixSense will identify missing decisions and propose professional defaults.</p>
         <label>Project name<input id="projectName" value="My project" minlength="2" required></label>
-        <label>Goal<textarea id="goal" minlength="20" required placeholder="For example: Fix the project so WASD and arrow-key movement work without changing the existing game rules or visuals."></textarea></label>
+        <label>Goal<textarea id="goal" minlength="20" required></textarea></label>
         <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Submit goal</button></div>
       </div>
 
@@ -193,9 +197,10 @@
         <h2 id="questionText">Reviewing the goal…</h2>
         <div class="progress"><span id="senseProgress"></span></div>
         <div class="recommendation"><small>Why this matters</small><p id="questionWhy"></p></div>
-        <label>Your answer<textarea id="answer"></textarea></label>
-        <p>SixSense has placed its recommended answer in the field. Accept it unchanged or edit it before continuing.</p>
-        <div class="actions"><button id="submitAnswer">Use this answer</button></div>
+        <div class="choice-grid" id="answerOptions"></div>
+        <label>Other or more specific answer (optional)<textarea id="answer" placeholder="Type a short answer only if none of the choices fit."></textarea></label>
+        <p>Choose one concise option, or write your own. KHALINOS will not treat related features as approved.</p>
+        <div class="actions"><button id="submitAnswer" disabled>Confirm this choice</button></div>
       </div>
 
       <div class="step" id="previewStep">
@@ -204,6 +209,7 @@
         <p class="lead" id="finalResult"></p>
         <div class="preview-grid">
           <article class="card wide"><h3>Submitted material</h3><p id="materialSummary"></p></article>
+          <article class="card wide"><h3>Your choices</h3><ul id="userChoices"></ul></article>
           <article class="card wide"><h3>Visual direction</h3><p id="visualDirection"></p></article>
           <article class="card"><h3>Required enablers</h3><ul id="enablers"></ul></article>
           <article class="card"><h3>Exclusions & preservation</h3><ul id="exclusions"></ul></article>
@@ -367,11 +373,14 @@ $('#beginSensing').addEventListener('click',async()=>{
 function renderIntake(){
   if(intake.status==='ready'){renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');
-  show('senses'); const resolved=intake.resolved_dimensions.length;
-  $('#questionKicker').textContent=`SixSense · ${question.dimension.replaceAll('_',' ')} · ${resolved+1} decision${resolved?'s':''}`;
+  show('senses');const asked=Object.keys(intake.answers||{}).length;
+  $('#questionKicker').textContent=`SixSense · ${question.dimension.replaceAll('_',' ')} · Question ${asked+1} of at most 3`;
   $('#questionText').textContent=question.question; $('#questionWhy').textContent=question.why_it_matters;
-  $('#answer').value=question.recommended_answer; $('#senseProgress').style.width=`${Math.max(12,(resolved+1)/6*100)}%`;
+  $('#answer').value='';$('#submitAnswer').disabled=true;$('#answerOptions').innerHTML=question.answer_options.map(option=>`<button class="choice" type="button" data-answer="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('');
+  $('#answerOptions').querySelectorAll('[data-answer]').forEach(button=>button.addEventListener('click',()=>{$('#answer').value=button.dataset.answer;$('#answerOptions').querySelectorAll('.choice').forEach(item=>item.classList.toggle('selected',item===button));$('#submitAnswer').disabled=false;}));
+  $('#senseProgress').style.width=`${Math.max(16,(asked+1)/3*100)}%`;
 }
+$('#answer').addEventListener('input',()=>{$('#answerOptions').querySelectorAll('.choice').forEach(item=>item.classList.remove('selected'));$('#submitAnswer').disabled=!$('#answer').value.trim();});
 $('#submitAnswer').addEventListener('click',async()=>{
   if(!$('#answer').value.trim())return; const button=$('#submitAnswer'); busy(button,true,'Checking what remains…');
   try{
@@ -384,6 +393,7 @@ const escapeHtml=value=>{const node=document.createElement('span');node.textCont
 function renderPreview(){
   show('preview'); const p=intake.preview; $('#previewTitle').textContent=`${intake.project_name} · Expected final result`; $('#finalResult').textContent=p.final_result;
   $('#materialSummary').textContent=intake.material_inspection?`${intake.material_inspection.recommended_work_mode.replaceAll('_',' ').toUpperCase()} — ${intake.material_inspection.summary}`:'No material inspection was recorded.';
+  const choices=Object.entries(intake.answers||{}).map(([dimension,answer])=>`${dimension.replaceAll('_',' ')}: ${answer}`);list('#userChoices',choices.length?choices:['No subjective choice was required; KHALINOS applied professional defaults.']);
   $('#visualDirection').textContent=p.visual_direction;list('#enablers',p.required_enablers);list('#exclusions',p.exclusions_and_preservation);list('#context',p.operating_context);list('#quality',p.completion_and_quality);list('#authority',p.authority_budget_and_delivery);
   const e=p.estimate;$('#estimate').innerHTML=`<span>${e.quest_count} Quests</span><span>$${e.cost_usd_min.toFixed(2)}–$${e.cost_usd_max.toFixed(2)}</span><span>${e.duration_minutes_min}–${e.duration_minutes_max} min</span>`;
 }
