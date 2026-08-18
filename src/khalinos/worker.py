@@ -7,6 +7,7 @@ import json
 import os
 
 from khalinos.agents import AgentTeam
+from khalinos.browser_toolpack import BROWSER_PRODUCT_TOOLPACK
 from khalinos.models import SAFE_RUN_ID
 from khalinos.storage import CloudRunStore
 from khalinos.projects import CloudProjectStore
@@ -21,6 +22,7 @@ def main() -> int:
         run_id,
         store=CloudRunStore(),
         team=AgentTeam(),
+        toolpack=BROWSER_PRODUCT_TOOLPACK,
         project_store=CloudProjectStore(),
     ))
     print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False))

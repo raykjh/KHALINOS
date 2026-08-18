@@ -12,6 +12,7 @@ from khalinos.models import (
     AgentVerification,
     ArtifactBundle,
     CriterionFinding,
+    DeterministicEvidence,
     QuestPlan,
     QuestReceipt,
     RunRecord,
@@ -24,7 +25,7 @@ from khalinos.models import (
 )
 from khalinos.storage import RunStore
 from khalinos.projects import ProjectStore
-from khalinos.verification import materialize, verify_bundle
+from khalinos.toolpacks import RegisteredToolPack
 
 
 class Team(Protocol):
@@ -106,6 +107,7 @@ async def _select_visual_foundation(
     plan: QuestPlan,
     store: RunStore,
     team: Team,
+    toolpack: RegisteredToolPack[ArtifactBundle, DeterministicEvidence],
 ) -> tuple[ArtifactBundle, VisualSelectionReceipt, RunRecord]:
     record = record.model_copy(update={
         "status": RunStatus.VISUALIZING,
@@ -138,8 +140,14 @@ async def _select_visual_foundation(
         with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{concept.candidate_id}-") as temporary:
             root = Path(temporary) / "product"
             evidence_dir = Path(temporary) / "evidence"
-            materialize(candidate, root)
-            deterministic = await asyncio.to_thread(verify_bundle, candidate, root, evidence_dir)
+            toolpack.execution_adapter.materialize(candidate, root)
+            deterministic = await asyncio.to_thread(
+                toolpack.evidence_adapter.verify,
+                candidate,
+                root,
+                evidence_dir,
+                [],
+            )
             for file in candidate.files:
                 store.put_file(run_id, f"visuals/{concept.candidate_id}/product/{file.path}", root / file.path, "text/plain")
             screenshots = sorted(evidence_dir.glob("*.png"))
@@ -204,6 +212,7 @@ async def execute_run(
     *,
     store: RunStore,
     team: Team,
+    toolpack: RegisteredToolPack[ArtifactBundle, DeterministicEvidence],
     project_store: ProjectStore | None = None,
 ) -> RunRecord:
     record = store.read_record(run_id)
@@ -238,6 +247,7 @@ async def execute_run(
                 plan=plan,
                 store=store,
                 team=team,
+                toolpack=toolpack,
             )
             parent_receipt_id = visual_receipt.receipt_id
             receipt_ids = [visual_receipt.receipt_id]
@@ -285,12 +295,12 @@ async def execute_run(
                 with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{quest.quest_id}-") as temporary:
                     root = Path(temporary) / "product"
                     evidence_dir = Path(temporary) / "evidence"
-                    materialize(candidate, root)
+                    toolpack.execution_adapter.materialize(candidate, root)
                     # Playwright's synchronous API must not run on the worker's
                     # asyncio event-loop thread. Keep deterministic verification
                     # isolated from the agent runtime and await its result.
                     deterministic = await asyncio.to_thread(
-                        verify_bundle,
+                        toolpack.evidence_adapter.verify,
                         candidate,
                         root,
                         evidence_dir,
