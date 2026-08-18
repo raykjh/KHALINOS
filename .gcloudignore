@@ -1,0 +1,13 @@
+.gcloudignore
+.git
+.gitignore
+.venv/
+__pycache__/
+.pytest_cache/
+.khalinos-local/
+smoke-input/
+tests/
+*.py[cod]
+*.egg-info/
+build/
+dist/
