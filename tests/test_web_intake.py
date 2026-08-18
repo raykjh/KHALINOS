@@ -10,19 +10,23 @@ WEB = Path(__file__).parents[1] / "src" / "khalinos" / "web" / "index.html"
 def test_materials_precede_goal_and_sixsense() -> None:
     html = WEB.read_text(encoding="utf-8")
     assert html.index('id="materialsStep"') < html.index('id="goalStep"') < html.index('id="sensesStep"')
-    assert "What should KHALINOS work from?" in html
-    assert "What should change or exist when this is finished?" in html
+    assert "Where should KHALINOS begin?" in html
+    assert "Tell KHALINOS the goal, requirements, and constraints." in html
     assert "/api/materials/inspect" in html
     assert "New project" in html
     assert "Improve an existing project" in html
     assert "Load Judge Demo inputs" in html
     assert "Choose from Project Library" in html
     assert "External project ZIP" in html
+    assert 'id="toggleLocator"' in html
+    assert 'id="toggleZip"' in html
+    assert 'data-file-target="materials"' in html
+    assert "No files selected" in html
 
 
 def test_intake_ui_explains_static_detection_and_executable_limit() -> None:
     html = WEB.read_text(encoding="utf-8")
-    assert "files are not executed at this stage" in html
+    assert "Files are detected statically and are not executed during intake." in html
     assert "material_inspection" in html
     assert "Sign in with Google" in html
     assert "sessionStorage" in html
@@ -42,6 +46,11 @@ def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
     assert "Independent Verifier" in html
     assert "function renderRun(record)" in html
     assert "record.message" in html
+    assert "Gers are working agents" in html
+    assert "Deterministic gate" in html
+    assert "Verified deliverable" in html
+    assert "[hidden] { display:none!important; }" in html
+    assert "record.status==='passed'&&record.project_id" in html
     assert "actual cost" not in html.lower()
 
 
@@ -60,7 +69,7 @@ def test_goal_has_no_leading_example_and_sixsense_requires_a_real_choice() -> No
     html = WEB.read_text(encoding="utf-8")
     goal = re.search(r'<textarea id="goal"[^>]*>', html)
     assert goal is not None
-    assert "Describe what you want to create in detail" in goal.group(0)
+    assert "Describe the goal, required features, exclusions, and desired design" in goal.group(0)
     assert "WASD" not in goal.group(0)
     assert 'id="answerOptions"' in html
     assert "question.answer_options" in html
@@ -68,6 +77,9 @@ def test_goal_has_no_leading_example_and_sixsense_requires_a_real_choice() -> No
     assert "Answer up to six questions to help KHALINOS produce the best possible result." in html
     assert "Help KHALINOS match your preferences" not in html
     assert "Answer only the questions where your preference changes the result" not in html
+    assert 'id="questionCount"' in html
+    assert "Question ${questionNumber} of 6" in html
+    assert "senseProgress" not in html
     assert "questionKicker" not in html
     assert 'id="userChoices"' in html
     assert "KHALINOS applied professional defaults" in html

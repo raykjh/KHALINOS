@@ -10,6 +10,7 @@
       --teal:#62d6c7; --panel:rgba(14,27,36,.88); --line:#2b3e49; --deep:#061017;
     }
     * { box-sizing:border-box; }
+    [hidden] { display:none!important; }
     body { margin:0; min-height:100vh; font:16px/1.55 Inter,ui-sans-serif,system-ui,sans-serif; color:var(--ink); background:
       radial-gradient(circle at 12% 12%,rgba(98,214,199,.12),transparent 28%),
       radial-gradient(circle at 88% 8%,rgba(233,196,106,.1),transparent 24%),var(--deep); }
@@ -35,6 +36,7 @@
     .kicker { color:var(--teal); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:10px; }
     .lead { font-size:18px; max-width:760px; margin:12px 0 28px; }
     .sense-intro { max-width:760px; margin:12px 0 28px; color:#4c5b46; font-size:20px; font-weight:700; line-height:1.45; }
+    .question-count { margin:18px 0 10px; color:#3f6b44; font-size:13px; font-weight:850; letter-spacing:.08em; text-transform:uppercase; }
     label { display:grid; gap:8px; margin:18px 0; font-weight:700; }
     input,textarea { width:100%; border:1px solid #3a505d; border-radius:12px; background:#08141c; color:var(--ink); padding:14px 15px; font:inherit; transition:.2s; }
     input:focus,textarea:focus { outline:3px solid rgba(98,214,199,.2); border-color:var(--teal); }
@@ -73,8 +75,20 @@
     .auth-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .compact { padding:8px 12px; font-size:12px; }
     .mode-options { margin-top:16px; padding:18px; border:1px solid #a2aa8b; border-radius:14px; background:rgba(255,252,237,.62); }
-    .progress { height:3px; background:#23343f; margin:26px 0; overflow:hidden; border-radius:3px; }
-    .progress span { display:block; height:100%; width:18%; background:linear-gradient(90deg,var(--teal),var(--gold)); transition:.3s; }
+    .source-methods { display:grid; gap:10px; }
+    .source-method { border:1px solid #a2aa8b; border-radius:12px; background:rgba(255,252,237,.58); overflow:hidden; }
+    .disclosure { position:relative; width:100%; padding:14px 44px 14px 15px; background:transparent; color:#34442c; text-align:left; border-radius:0; }
+    .disclosure::after { content:"+"; position:absolute; right:16px; top:50%; transform:translateY(-50%); color:#617057; font-size:20px; }
+    .disclosure[aria-expanded="true"]::after { content:"−"; }
+    .disclosure strong,.disclosure span { display:block; }
+    .disclosure span { margin-top:3px; color:#68715f; font-size:12px; font-weight:500; }
+    .method-panel { padding:0 15px 15px; }
+    .method-panel label { margin:0; }
+    .field-help { color:#65705d; font-size:12px; font-weight:500; }
+    .file-picker { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px; }
+    .file-trigger { padding:9px 13px; font-size:13px; }
+    .file-name { color:#59634f; font-size:13px; font-weight:600; }
+    .material-help { margin:4px 0 14px; color:#59634f; font-size:13px; }
     .preview-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; }
     .card { padding:18px; border:1px solid var(--line); background:#09151d; border-radius:14px; }
     .card.wide { grid-column:1/-1; }
@@ -147,6 +161,7 @@
     .station.active .smoke.s3 { animation-delay:1.45s; }
     @keyframes smoke { 0%{opacity:0;transform:translate(0,4px) scale(.65)} 25%{opacity:.7} 100%{opacity:0;transform:translate(12px,-35px) scale(2.1)} }
     .station-name { display:block; margin-top:2px; color:#34442c; font-size:11px; font-weight:850; line-height:1.25; }
+    .station-kind { display:inline-block; margin-top:7px; padding:2px 6px; border:1px solid rgba(74,91,57,.45); border-radius:999px; color:#4f6145; background:rgba(255,252,232,.6); font-size:8px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
     .station-state { display:block; min-height:16px; color:#65705d; font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
     .station.done .station-state { color:#426940; }
     .station.blocked .station-state,.station.failed .station-state { color:#a24538; }
@@ -173,44 +188,44 @@
     </aside>
     <section class="panel">
       <div class="step active" id="materialsStep">
-        <div class="kicker">Step 1 · Submit the working material</div>
-        <h2>What should KHALINOS work from?</h2>
-        <p class="lead">Submit an existing project, a runnable build, references, or nothing. Detection is static: files are not executed at this stage.</p>
+        <div class="kicker">Step 1 · Choose the work and submit references</div>
+        <h2>Where should KHALINOS begin?</h2>
+        <p class="lead">Start a new project and upload any helpful references, or continue from an existing project.</p>
         <div class="auth-panel" id="authPanel"><div><strong>Private workspace</strong><p class="identity" id="identityStatus">Checking sign-in availability…</p></div><div class="auth-actions"><div id="googleSignIn"></div><button class="secondary compact" id="signOut" hidden>Sign out</button></div></div>
         <div class="entry-grid">
           <button class="entry" id="startNewProject"><strong>New project</strong><span>Create a product from a goal and optional reference material.</span></button>
           <button class="entry" id="improveExisting"><strong>Improve an existing project</strong><span>Repair or extend a KHALINOS checkpoint, repository, or ZIP.</span></button>
         </div>
         <div class="mode-options" id="existingOptions" hidden>
-          <button class="secondary" id="chooseProject">Choose from Project Library</button>
-          <div class="library" id="projectLibrary" hidden></div>
-          <label>Project location (optional)<input id="projectLocator" placeholder="Git repository URL or gs:// location"></label>
-          <label class="upload">External project ZIP
-            <input id="externalZip" type="file" accept=".zip,application/zip">
-            <span class="source-list" id="zipList">No external project ZIP selected.</span>
-          </label>
+          <div class="source-methods">
+            <div class="source-method"><button class="disclosure" id="chooseProject" type="button" aria-expanded="false" aria-controls="projectLibrary"><strong>Choose from Project Library</strong><span>Load a project from your connected KHALINOS account.</span></button><div class="library method-panel" id="projectLibrary" hidden></div></div>
+            <div class="source-method"><button class="disclosure" id="toggleLocator" type="button" aria-expanded="false" aria-controls="locatorPanel"><strong>Project location (optional)</strong><span>Provide a repository or Cloud Storage location directly.</span></button><div class="method-panel" id="locatorPanel" hidden><label>Repository or Cloud Storage location<input id="projectLocator" placeholder="https://github.com/owner/repository or gs://bucket/path"><span class="field-help">Paste a Git repository URL or a gs:// Cloud Storage location that KHALINOS is allowed to inspect. Files are detected statically and are not executed during intake.</span></label></div></div>
+            <div class="source-method"><button class="disclosure" id="toggleZip" type="button" aria-expanded="false" aria-controls="zipPanel"><strong>External project ZIP</strong><span>Upload a ZIP archive when you already have the project source.</span></button><div class="method-panel" id="zipPanel" hidden><div class="upload"><strong>Project ZIP</strong><input id="externalZip" type="file" accept=".zip,application/zip" hidden><span class="file-picker"><button class="secondary file-trigger" type="button" data-file-target="externalZip">Choose ZIP file</button><span class="file-name" id="zipFileName">No file selected</span></span><span class="source-list" id="zipList">No external project ZIP selected.</span></div></div></div>
+          </div>
         </div>
-        <div id="materialOptions" hidden><label class="upload">Builds and reference files (optional)
-          <input id="materials" type="file" multiple>
-          <span class="source-list" id="materialList">No additional material selected — starting without material is allowed.</span>
-        </label></div>
+        <div id="materialOptions" hidden><div class="upload"><strong>Builds and reference files (optional)</strong>
+          <span class="material-help">Upload files related to the project you want to create or improve. If you have none, continue without additional material.</span>
+          <input id="materials" type="file" multiple hidden>
+          <span class="file-picker"><button class="secondary file-trigger" type="button" data-file-target="materials">Choose files</button><span class="file-name" id="materialFileName">No files selected</span></span>
+          <span class="source-list" id="materialList">No additional material selected.</span>
+        </div></div>
         <div class="inspection" id="inspection" hidden><strong id="inspectionMode"></strong><p id="inspectionSummary"></p><ul id="inspectionNotices"></ul></div>
         <div class="actions"><button id="inspectMaterials" hidden>Continue</button><button class="secondary" id="judgeDemo">Load Judge Demo inputs</button></div>
       </div>
 
       <div class="step" id="goalStep">
-        <div class="kicker">Step 2 · State the destination</div>
-        <h2>What should change or exist when this is finished?</h2>
-        <p class="lead" id="goalContext">Plain language is enough. SixSense will identify missing decisions and propose professional defaults.</p>
+        <div class="kicker">Step 2 · Set the detailed goal</div>
+        <h2>Tell KHALINOS the goal, requirements, and constraints.</h2>
+        <p class="lead" id="goalContext">A new project will be created. Describe the result you want KHALINOS to build.</p>
         <label>Project name<input id="projectName" value="My project" minlength="2" required></label>
-        <label>Goal<textarea id="goal" minlength="20" required placeholder="Describe what you want to create in detail. The more specific you are about the desired outcome, the more closely KHALINOS can match it."></textarea></label>
+        <label>Goal<textarea id="goal" minlength="20" required placeholder="Describe the goal, required features, exclusions, and desired design. More detail helps KHALINOS guide the work effectively."></textarea></label>
         <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Submit goal</button></div>
       </div>
 
       <div class="step" id="sensesStep">
         <div class="kicker">SixSense</div>
         <p class="sense-intro">Answer up to six questions to help KHALINOS produce the best possible result.</p>
-        <div class="progress"><span id="senseProgress"></span></div>
+        <div class="question-count" id="questionCount">Question 1 of 6</div>
         <h3 id="questionText">Reviewing the goal…</h3>
         <p id="questionWhy" class="lead"></p>
         <div class="choice-grid" id="answerOptions"></div>
@@ -242,7 +257,7 @@
           <div><div class="kicker">Authorized · Cloud execution</div><h2>The reins are set. The team is moving.</h2></div>
           <div class="run-id" id="runId">Run pending</div>
         </div>
-        <p class="lead">Each ger is a bounded role. Smoke marks the active station, and the horse follows the verified handoff toward the result.</p>
+        <p class="lead">Gers are working agents. The round seal is the deterministic runtime gate, and the square seal is the verified deliverable. The horse follows each handoff.</p>
         <div id="status" role="status" aria-live="polite">
           <div class="run-dashboard">
             <div class="metric status"><small>Status</small><strong id="runStatus">QUEUED</strong></div>
@@ -258,10 +273,10 @@
               <div class="station" data-role="owner"><div class="speech">I am binding the next Quest.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Project Owner</span><span class="station-state">Waiting</span></div>
               <div class="station" data-role="visual"><div class="speech">I am shaping three visual directions.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Visual Team</span><span class="station-state">Waiting</span></div>
               <div class="station" data-role="maker"><div class="speech">I am building the authorized outcome.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Maker</span><span class="station-state">Waiting</span></div>
-              <div class="station" data-role="runtime"><div class="speech">I am running deterministic checks.</div><div class="checkpoint-wrap">✓</div><span class="station-name">Runtime Check</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="runtime"><div class="speech">I am running deterministic checks.</div><div class="checkpoint-wrap">✓</div><span class="station-kind">Deterministic gate</span><span class="station-name">Runtime Check</span><span class="station-state">Waiting</span></div>
               <div class="station" data-role="verifier"><div class="speech">Stop. I am checking the evidence.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Independent Verifier</span><span class="station-state">Waiting</span></div>
               <div class="station" data-role="repair"><div class="speech">I am repairing a technical fault.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Technical Repair</span><span class="station-state">Waiting</span></div>
-              <div class="station" data-role="result"><div class="speech">The verified result has arrived.</div><div class="result-wrap">✓</div><span class="station-name">Verified Result</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="result"><div class="speech">The verified result has arrived.</div><div class="result-wrap">✓</div><span class="station-kind">Verified deliverable</span><span class="station-name">Verified Result</span><span class="station-state">Waiting</span></div>
             </div>
             <div class="camp-caption"><strong id="campHeadline">Cloud run queued.</strong> <span id="campMessage">The approved Outcome Brief is immutable.</span></div>
           </div>
@@ -298,8 +313,9 @@ function describeFiles(files,empty){
   if(files.length>6)preview.push(`…and ${files.length-6} more files`);
   return preview.join('\n');
 }
-$('#externalZip').addEventListener('change',()=>{$('#zipList').textContent=describeFiles([...$('#externalZip').files],'No external project ZIP selected.');materialInspection=null;selectedProjectId=null;externalUploadId=null;});
-$('#materials').addEventListener('change',()=>{$('#materialList').textContent=describeFiles([...$('#materials').files],'No additional material selected — starting without material is allowed.');materialInspection=null;});
+document.querySelectorAll('[data-file-target]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.fileTarget).click()));
+$('#externalZip').addEventListener('change',()=>{const files=[...$('#externalZip').files];$('#zipFileName').textContent=files[0]?.name||'No file selected';$('#zipList').textContent=describeFiles(files,'No external project ZIP selected.');materialInspection=null;selectedProjectId=null;externalUploadId=null;});
+$('#materials').addEventListener('change',()=>{const files=[...$('#materials').files];$('#materialFileName').textContent=files.length?`${files.length} file${files.length===1?'':'s'} selected`:'No files selected';$('#materialList').textContent=describeFiles(files,'No additional material selected.');materialInspection=null;});
 document.querySelector('[data-back="materials"]').addEventListener('click',()=>show('materials'));
 function authHeaders(extra={}){return authCredential?{...extra,Authorization:`Bearer ${authCredential}`}:{...extra};}
 function storedCredential(){try{return sessionStorage.getItem(AUTH_SESSION_KEY)||'';}catch{return '';}}
@@ -328,10 +344,10 @@ async function handleGoogleCredential(response){
   if(!await verifyCredential(response.credential))throw new Error('Google identity could not be verified.');
 }
 $('#signOut').addEventListener('click',()=>{authCredential='';currentUser=null;storeCredential('');selectedProjectId=null;$('#projectLibrary').hidden=true;signedInView(false);if(globalThis.google)google.accounts.id.disableAutoSelect();});
-async function loadProjects(){
+async function loadProjects(reveal=false){
   if(!authCredential)return;
   const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
-  const projects=await response.json();projectLibraryRecords=projects;const library=$('#projectLibrary');library.hidden=false;
+  const projects=await response.json();projectLibraryRecords=projects;const library=$('#projectLibrary');if(reveal)library.hidden=false;
   library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'?`<button data-play-project="${item.project_id}">Play result</button>`:''}<button class="secondary" data-improve-project="${item.project_id}">Improve</button></div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
   library.querySelectorAll('[data-play-project]').forEach(button=>button.addEventListener('click',()=>playProject(button.dataset.playProject)));
   library.querySelectorAll('[data-improve-project]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.improveProject))));
@@ -356,7 +372,7 @@ async function selectProject(project){
 async function inspectDescriptorSet(){
   const response=await fetch('/api/materials/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors})});
   const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));materialInspection=JSON.parse(text);
-  $('#inspection').hidden=false;$('#inspectionMode').textContent=materialInspection.recommended_work_mode.replaceAll('_',' ').toUpperCase();$('#inspectionSummary').textContent=materialInspection.summary;$('#inspectionNotices').innerHTML=materialInspection.notices.map(item=>`<li>${escapeHtml(item)}</li>`).join('');$('#goalContext').textContent=materialInspection.summary;show('goal');
+  $('#inspection').hidden=false;$('#inspectionMode').textContent=materialInspection.recommended_work_mode.replaceAll('_',' ').toUpperCase();$('#inspectionSummary').textContent=materialInspection.summary;$('#inspectionNotices').innerHTML=materialInspection.notices.map(item=>`<li>${escapeHtml(item)}</li>`).join('');$('#goalContext').textContent=workChoice==='existing'?'An existing project has been loaded. Describe what KHALINOS should improve, repair, or change.':'A new project will be created. Describe the result you want KHALINOS to build.';show('goal');
 }
 async function uploadExternalZip(){
   const file=$('#externalZip').files[0];if(!file)return null;
@@ -372,15 +388,19 @@ async function uploadExternalZip(){
   $('#zipList').textContent=`${file.name} · validated · ${record.snapshot.sha256.slice(0,12)}…`;return externalUploadId;
 }
 function clearWorkingMaterial(){
-  selectedProjectId=null;externalUploadId=null;materialInspection=null;materialDescriptors=[];$('#projectLocator').value='';$('#externalZip').value='';$('#materials').value='';$('#zipList').textContent='No external project ZIP selected.';$('#materialList').textContent='No additional material selected — starting without material is allowed.';$('#inspection').hidden=true;
+  selectedProjectId=null;externalUploadId=null;materialInspection=null;materialDescriptors=[];$('#projectLocator').value='';$('#externalZip').value='';$('#materials').value='';$('#zipFileName').textContent='No file selected';$('#materialFileName').textContent='No files selected';$('#zipList').textContent='No external project ZIP selected.';$('#materialList').textContent='No additional material selected.';$('#inspection').hidden=true;
+  ['chooseProject','toggleLocator','toggleZip'].forEach(id=>document.getElementById(id).setAttribute('aria-expanded','false'));['projectLibrary','locatorPanel','zipPanel'].forEach(id=>document.getElementById(id).hidden=true);
 }
 function chooseWork(mode){
-  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Inspect existing project';
+  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
 }
 $('#startNewProject').addEventListener('click',()=>chooseWork('new'));
 $('#improveExisting').addEventListener('click',()=>chooseWork('existing'));
 $('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
-$('#chooseProject').addEventListener('click',async()=>{if(!requireSignIn())return;await loadProjects();});
+function toggleMethod(button,panel,open=panel.hidden){panel.hidden=!open;button.setAttribute('aria-expanded',String(open));}
+$('#chooseProject').addEventListener('click',async()=>{if(!requireSignIn())return;const open=$('#projectLibrary').hidden;toggleMethod($('#chooseProject'),$('#projectLibrary'),open);if(open)await loadProjects(true);});
+$('#toggleLocator').addEventListener('click',()=>toggleMethod($('#toggleLocator'),$('#locatorPanel')));
+$('#toggleZip').addEventListener('click',()=>toggleMethod($('#toggleZip'),$('#zipPanel')));
 $('#inspectMaterials').addEventListener('click',async()=>{
   const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
   try{
@@ -405,11 +425,11 @@ $('#beginSensing').addEventListener('click',async()=>{
 function renderIntake(){
   if(intake.status==='ready'){renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');
-  show('senses');const asked=Object.keys(intake.answers||{}).length;
+  show('senses');const asked=Object.keys(intake.answers||{}).length;const questionNumber=Math.min(6,intake.question_history?.length||asked+1);
   $('#questionText').textContent=question.question; $('#questionWhy').textContent=question.why_it_matters;
   $('#answer').value='';$('#submitAnswer').disabled=true;$('#answerOptions').innerHTML=question.answer_options.map(option=>`<button class="choice" type="button" data-answer="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('');
   $('#answerOptions').querySelectorAll('[data-answer]').forEach(button=>button.addEventListener('click',()=>{$('#answer').value=button.dataset.answer;$('#answerOptions').querySelectorAll('.choice').forEach(item=>item.classList.toggle('selected',item===button));$('#submitAnswer').disabled=false;}));
-  $('#senseProgress').style.width=`${Math.max(12,(asked+1)/6*100)}%`;
+  $('#questionCount').textContent=`Question ${questionNumber} of 6`;
 }
 $('#answer').addEventListener('input',()=>{$('#answerOptions').querySelectorAll('.choice').forEach(item=>item.classList.remove('selected'));$('#submitAnswer').disabled=!$('#answer').value.trim();});
 $('#submitAnswer').addEventListener('click',async()=>{
@@ -469,7 +489,7 @@ function renderRun(record){
   clearInterval(elapsedTimer);if(!terminal)elapsedTimer=setInterval(()=>{if(latestRunRecord)$('#runElapsed').textContent=elapsed(latestRunRecord);},1000);
 }
 $('#playResult').addEventListener('click',event=>playProject(event.currentTarget.dataset.projectId));
-$('#improveResult').addEventListener('click',async event=>{const projectId=event.currentTarget.dataset.projectId;show('materials');chooseWork('existing');await loadProjects();const project=projectLibraryRecords.find(item=>item.project_id===projectId);if(project)await selectProject(project);});
+$('#improveResult').addEventListener('click',async event=>{const projectId=event.currentTarget.dataset.projectId;show('materials');chooseWork('existing');await loadProjects(true);const project=projectLibraryRecords.find(item=>item.project_id===projectId);if(project)await selectProject(project);});
 async function poll(runId){
   try{const response=await fetch(`/api/runs/${runId}`,{headers:authHeaders()});const record=await response.json();renderRun(record);if(['passed','blocked','failed'].includes(record.status)){await loadProjects();return;}pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#campHeadline').textContent='Status check failed ·';$('#campMessage').textContent=error.message;}
 }

@@ -34,11 +34,20 @@ Internally inspect exactly these six dimensions:
    appropriate strictness for this project type;
 6. authority_budget_delivery: autonomy, approval boundaries, money, time, and deliverables.
 
-Do not treat these as six mandatory survey questions. Infer a dimension when the goal,
+Do not treat these as six mandatory survey questions. Most bounded browser projects should
+need zero to three questions. Questions four through six are exceptional and require a
+separate, material user-owned choice that cannot be inferred safely. Infer a dimension when the goal,
 sources, previous answers, authoritative defaults, and low-risk assumptions make it clear.
 Ask only when a missing choice could materially change the result, cost, authority, safety,
 or visual direction. Ask exactly one concrete question at a time and no more than six
 questions across one intake. Never repeat a dimension that is already answered or resolved.
+Before asking, compare the candidate question with the original goal, material inspection,
+confirmed answers, and every previous question. Do not ask the user to restate a requested
+feature, bug report, acceptance criterion, or maker implementation choice under a different
+dimension. Treat an explicit bug report as operating context, an explicitly requested feature
+as a required enabler, and ordinary code cleanup as a Maker decision unless it changes scope
+or authority. If the same user decision has already been supplied in different words, resolve
+the dimension instead of asking again.
 
 Every question must request a decision that the user can reasonably own: a subjective
 preference, a preservation boundary, an authority choice, or a behavior for which multiple
@@ -132,6 +141,7 @@ class SixSenseAgent:
                 for name, media_type, data in source_payloads
             ],
             "confirmed_answers": record.answers,
+            "previous_questions": [item.model_dump(mode="json") for item in record.question_history],
             "already_resolved_dimensions": [item.value for item in record.resolved_dimensions],
             "allowed_dimensions": [item.value for item in ALL_SENSE_DIMENSIONS],
             "approved_execution_profile": {
@@ -178,8 +188,13 @@ def validate_decision(record: IntakeRecord, decision: SenseDecision) -> None:
     if not answered.issubset(resolved):
         raise ValueError("SixSense must preserve every confirmed answer as resolved")
     if decision.next_question:
-        if len(record.answers) >= 6:
+        asked_count = max(len(record.answers), len(record.question_history))
+        if asked_count >= 6:
             raise ValueError("SixSense cannot ask more than six user questions")
         dimension = decision.next_question.dimension
         if dimension in answered or dimension in resolved:
             raise ValueError("SixSense repeated an answered or resolved dimension")
+        normalized_question = " ".join(decision.next_question.question.casefold().split())
+        previous_questions = {" ".join(item.question.casefold().split()) for item in record.question_history}
+        if normalized_question in previous_questions:
+            raise ValueError("SixSense repeated a previous question")

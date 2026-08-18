@@ -173,9 +173,13 @@ def source_payloads(store: IntakeStore, record: IntakeRecord) -> list[tuple[str,
 
 
 def apply_decision(record: IntakeRecord, decision: SenseDecision) -> IntakeRecord:
+    question_history = list(record.question_history)
+    if decision.next_question is not None:
+        question_history.append(decision.next_question)
     return record.model_copy(update={
         "status": "ready" if decision.status == "ready" else "sensing",
         "resolved_dimensions": decision.resolved_dimensions,
+        "question_history": question_history,
         "current_question": decision.next_question,
         "preview": decision.preview,
     })

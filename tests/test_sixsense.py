@@ -96,6 +96,7 @@ async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tm
     record = await start_intake(request, store=store, agent=agent)
     assert record.status == "sensing"
     assert record.current_question.dimension == SenseDimension.EXPERIENCE_VISUAL_DIRECTION
+    assert record.question_history == [record.current_question]
 
     record = await answer_intake(
         record.intake_id,
@@ -190,6 +191,28 @@ def test_sixsense_cannot_repeat_a_resolved_dimension() -> None:
         ),
     )
     with pytest.raises(ValueError, match="repeated"):
+        validate_decision(record, decision)
+
+
+def test_sixsense_cannot_repeat_a_previous_question_in_another_turn() -> None:
+    previous = SenseQuestion(
+        dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
+        question="Should the finished game use a classic or modern visual direction?",
+        answer_options=["Classic", "Modern"],
+        why_it_matters="The choice changes the visual language of the finished game.",
+    )
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="c" * 32,
+        project_name="Minesweeper",
+        goal="Repair a classic Minesweeper game while preserving its custom mechanics.",
+        question_history=[previous],
+    )
+    decision = SenseDecision(
+        status="question",
+        resolved_dimensions=[],
+        next_question=previous.model_copy(update={"dimension": SenseDimension.OPERATING_CONTEXT}),
+    )
+    with pytest.raises(ValueError, match="previous question"):
         validate_decision(record, decision)
 
 

@@ -256,6 +256,7 @@ class IntakeRecord(BaseModel):
     source_snapshot: ArchiveSnapshot | None = None
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
+    question_history: list[SenseQuestion] = Field(default_factory=list, max_length=6)
     current_question: SenseQuestion | None = None
     preview: OutcomePreview | None = None
     authorized_run_id: str | None = None
