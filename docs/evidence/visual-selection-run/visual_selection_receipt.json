@@ -1,0 +1,54 @@
+{
+  "receipt_id": "VS-36570c0819ff47a9",
+  "plan_sha256": "074092ec45b4a027df270e2826ac38b66837030eb00e3a26087606d480f4c8d9",
+  "selected_candidate_id": "V2",
+  "selected_artifact_sha256": "1615d8dbf76e8215fc404bcd6116852ee5890da86b481540db6be715e9b01ab5",
+  "eligible_candidate_ids": [
+    "V2",
+    "V3"
+  ],
+  "screenshot_paths": {
+    "V2": "gs://khalinos-agent-20260818-runs/runs/683ae8d01f2143d89b57ac53f9bbc8de/visuals/V2/evidence/journey-01.png",
+    "V3": "gs://khalinos-agent-20260818-runs/runs/683ae8d01f2143d89b57ac53f9bbc8de/visuals/V3/evidence/journey-01.png"
+  },
+  "selection": {
+    "assessments": [
+      {
+        "candidate_id": "V2",
+        "contract_alignment": 10,
+        "visual_hierarchy": 9,
+        "distinctiveness": 9,
+        "interaction_clarity": 9,
+        "craft_and_cohesion": 9,
+        "strengths": [
+          "Excellent execution of the three-panel architectural layout with fine brass-ruled borders.",
+          "Beautifully structured typography using elegant serif headers and clean monospace/sans-serif labels.",
+          "Clear visual distinction of the 'Leader Monolith' in the third column.",
+          "Tactile, crisp 1px offset borders and structured input fields that perfectly match the private strategy atelier aesthetic."
+        ],
+        "weaknesses": [
+          "The layout is quite dense, which might feel slightly cramped on smaller desktop viewports."
+        ]
+      },
+      {
+        "candidate_id": "V3",
+        "contract_alignment": 9,
+        "visual_hierarchy": 10,
+        "distinctiveness": 8,
+        "interaction_clarity": 9,
+        "craft_and_cohesion": 9,
+        "strengths": [
+          "Stunning centered layout with a highly prominent, double-bordered 'Leader Card' at the top.",
+          "Beautiful tactile circular scoring buttons that resemble physical brass rivets.",
+          "Excellent use of whitespace and clean, elegant typography that feels like fine stationery."
+        ],
+        "weaknesses": [
+          "The circular scoring buttons slightly border on modern pill/bubble aesthetics, which was a minor anti-goal, though executed here with a tactile brass feel."
+        ]
+      }
+    ],
+    "selected_candidate_id": "V2",
+    "rationale": "Both candidates are exceptionally well-crafted and adhere strictly to the parchment, charcoal, and brass visual palette. V2 is selected as the winner because its three-panel layout ('The Triptych Atelier') perfectly captures the structured, analytical feel of a private strategy workspace. It provides dedicated zones for criteria configuration, option management, and real-time leader visualization ('The Monolith') without relying on generic SaaS dashboard tropes. The hard, crisp 1px offsets and structured rectangular scoring grids align beautifully with the fine stationery aesthetic."
+  },
+  "created_at": "2026-08-18T01:19:52.980048+00:00"
+}

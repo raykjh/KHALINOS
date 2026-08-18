@@ -1,0 +1,60 @@
+{
+  "product_summary": "Signal Board Atelier is a highly polished, responsive browser-based decision board styled as a private strategy atelier. It allows small teams to input options, score them from 1 to 5 across customizable criteria, view a deterministic leader, and persist data locally. The interface features a warm parchment background, charcoal ink typography, restrained brass accents, and subtle tactile depth, completely avoiding generic SaaS dashboard tropes.",
+  "architecture_decision": "The application will be built using exactly five files: index.html, styles.css, app.js, journey.json, and README.md. It will rely entirely on native vanilla JavaScript, CSS, and HTML5 without any external dependencies, CDNs, or network requests. State management will be handled in app.js with local storage persistence, and the visual design will be implemented in styles.css using custom CSS variables to enforce the parchment, charcoal, and brass palette.",
+  "quests": [
+    {
+      "quest_id": "Q1",
+      "objective": "Establish the visual identity, layout, and core state management for options and criteria.",
+      "acceptance_criteria": [
+        "The UI strictly implements the parchment (#FDFBF7), charcoal (#1C1A17), and brass (#A38A5E) color palette with serif headers and sans-serif body text.",
+        "Users can add new decision options and view them in a structured, responsive layout.",
+        "Users can delete decision options with an explicit confirmation dialog.",
+        "The application initializes with at least three default criteria for scoring.",
+        "The layout is fully responsive and keyboard-navigable."
+      ],
+      "evidence_required": [
+        "HTML structure in index.html containing the main container, option input form, and options list.",
+        "CSS rules in styles.css defining the color palette, typography, and responsive layout.",
+        "JavaScript functions in app.js for adding and deleting options with confirmation dialogs."
+      ],
+      "depends_on": []
+    },
+    {
+      "quest_id": "Q2",
+      "objective": "Implement the scoring matrix, deterministic leader calculation, and local storage persistence.",
+      "acceptance_criteria": [
+        "Users can score each option from 1 to 5 across the default criteria using intuitive controls.",
+        "The highest-scoring option is dynamically calculated and highlighted as the leader.",
+        "All board state (options, criteria, and scores) persists across page reloads using LocalStorage.",
+        "A 'Clear Board' button is present and requires explicit confirmation before wiping all data.",
+        "There are zero console errors or warnings during standard operations."
+      ],
+      "evidence_required": [
+        "JavaScript logic in app.js for calculating total scores, updating the leader, and saving/loading from LocalStorage.",
+        "Interactive scoring elements in index.html styled with brass accents in styles.css.",
+        "Clear Board button with confirmation logic in app.js."
+      ],
+      "depends_on": [
+        "Q1"
+      ]
+    },
+    {
+      "quest_id": "Q3",
+      "objective": "Finalize the interactive journey, polish micro-interactions, and document the application.",
+      "acceptance_criteria": [
+        "A multi-step Chromium journey is defined in journey.json verifying option creation, scoring, and leader calculation.",
+        "Micro-interactions (hover states, focus rings, transitions) are smooth, deliberate, and match the strategy atelier aesthetic.",
+        "The README.md file contains clear instructions on how to run and use the application.",
+        "The entire application operates flawlessly with zero external network requests or CDNs."
+      ],
+      "evidence_required": [
+        "A valid journey.json file detailing the automated testing steps.",
+        "Polished CSS transitions and focus styles in styles.css.",
+        "A comprehensive README.md file documenting the project structure and usage."
+      ],
+      "depends_on": [
+        "Q2"
+      ]
+    }
+  ]
+}

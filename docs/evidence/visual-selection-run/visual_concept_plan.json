@@ -1,0 +1,65 @@
+{
+  "shared_contract": "All visual concepts must strictly adhere to the offline five-file constraint (index.html, styles.css, app.js, journey.json, README.md) with zero external dependencies or CDNs. Every concept must utilize the core palette of warm parchment (#FDFBF7), deep charcoal ink (#1C1A17), and muted brass (#A38A5E), while maintaining full keyboard navigability, responsive layouts, and robust LocalStorage persistence.",
+  "candidates": [
+    {
+      "candidate_id": "V1",
+      "name": "The Ledger Folio",
+      "design_thesis": "An editorial, double-page ledger layout resembling a master strategist's bound journal. It prioritizes linear reading, structured horizontal rows, and a highly disciplined typographic hierarchy that feels like a physical ledger book.",
+      "composition": "A split two-column desktop layout. The left column is a fixed control panel containing the creation form and a prominent, static 'Leaderboard Index'. The right column is a scrollable vertical ledger of option rows, where each option is presented as a wide, ruled row with inline criteria scoring columns.",
+      "typography": "Georgia for all headers and option titles, paired with a high-contrast, tabular monospace font for numbers to emphasize the ledger-style mathematical precision.",
+      "palette": [
+        "#FDFBF7",
+        "#1C1A17",
+        "#A38A5E",
+        "#F4F0E6",
+        "#8C764E"
+      ],
+      "interaction_emphasis": "Focuses on smooth vertical scrolling, subtle ink-bleed hover effects on interactive rows, and tactile 'ink-stamp' active states when scoring.",
+      "anti_goals": [
+        "No floating action buttons or floating cards.",
+        "No modern rounded pill tags for scores.",
+        "No horizontal card-carousel sliding animations."
+      ]
+    },
+    {
+      "candidate_id": "V2",
+      "name": "The Triptych Atelier",
+      "design_thesis": "A modular, three-panel architectural layout inspired by drafting boards and folding triptych planning screens. It emphasizes clear spatial zoning and fine brass-ruled borders to separate distinct tasks.",
+      "composition": "A three-column grid on desktop. Column 1 houses the criteria configuration and entry forms. Column 2 displays the active options as a dense grid of vertical cards. Column 3 is dedicated entirely to the 'Leader Monolith' and real-time score distribution charts.",
+      "typography": "Baskerville for headers to evoke classical drafting archives, paired with an ultra-clean, light geometric sans-serif for inputs and labels.",
+      "palette": [
+        "#FDFBF7",
+        "#1C1A17",
+        "#A38A5E",
+        "#EFECE3",
+        "#BCA374"
+      ],
+      "interaction_emphasis": "Focuses on horizontal card transitions, subtle brass-inlaid borders that illuminate on hover, and crisp keyboard focus rings resembling physical metal clips.",
+      "anti_goals": [
+        "No borderless or floating elements.",
+        "No soft, blurry drop shadows (only hard, crisp 1px offsets).",
+        "No circular dial or radial progress indicators."
+      ]
+    },
+    {
+      "candidate_id": "V3",
+      "name": "The Cartographic Desk",
+      "design_thesis": "A desk-surface layout where the current leader is the central focal point, and options are stacked like physical index cards on a cartographer's workspace. It prioritizes immediate visual hierarchy and physical depth.",
+      "composition": "A centered, single-column layout. At the top sits an oversized, double-bordered 'Leader Card' that commands attention. Below it, a compact grid of option cards features inline scoring buttons styled as physical brass rivets.",
+      "typography": "Playfair Display for headers to project elegance, paired with a classic typewriter-style slab-serif for values and scores to feel like typed field notes.",
+      "palette": [
+        "#FDFBF7",
+        "#1C1A17",
+        "#A38A5E",
+        "#E8E3D5",
+        "#7D6842"
+      ],
+      "interaction_emphasis": "Focuses on tactile press-down states resembling physical brass buttons, subtle card-stacking depth using layered borders, and smooth fade-ins for newly calculated leaders.",
+      "anti_goals": [
+        "No modern neon highlights or glowing active states.",
+        "No infinite scroll or paginated lists.",
+        "No sliding toggle switches or modern range sliders."
+      ]
+    }
+  ]
+}

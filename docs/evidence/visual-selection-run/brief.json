@@ -1,0 +1,37 @@
+{
+  "project_name": "Signal Board Atelier",
+  "goal": "A highly polished, responsive browser-based decision board styled as a private strategy atelier. It allows small teams to input options, score them from 1 to 5 across customizable criteria, view a deterministic leader, and persist data locally. The interface features a warm parchment background, charcoal ink typography, restrained brass accents, and subtle tactile depth, completely avoiding generic SaaS dashboard tropes.",
+  "constraints": [
+    "Must use exactly five files: index.html, styles.css, app.js, journey.json, README.md",
+    "No external dependencies, CDNs, or network requests",
+    "Must adhere strictly to the parchment, charcoal, and brass visual palette",
+    "Must be fully keyboard-navigable and responsive",
+    "Exclusion or preservation: No external CDNs, libraries, or frameworks (e.g., Tailwind, React, FontAwesome)",
+    "Exclusion or preservation: No network calls or external API dependencies",
+    "Exclusion or preservation: No neon gradients, glassmorphism, or oversized modern metric cards",
+    "Approved visual direction: Private strategy atelier aesthetic: warm parchment background (#FDFBF7), deep charcoal ink text (#1C1A17), muted brass accents (#A38A5E), elegant serif headers (Playfair Display or Georgia), clean sans-serif body text, subtle borders resembling fine stationery, and smooth, deliberate micro-interactions.",
+    "Operating context: Modern desktop and mobile browsers (Chromium, Safari, Firefox)",
+    "Operating context: Fully responsive layout adapting from mobile screens to wide desktop monitors"
+  ],
+  "acceptance_criteria": [
+    "Users can add, edit, and delete decision options",
+    "Users can score options from 1 to 5 across at least three default criteria",
+    "The highest-scoring option is dynamically highlighted as the leader",
+    "Board state persists across page reloads using LocalStorage",
+    "A 'Clear Board' button requires explicit confirmation before wiping data",
+    "The UI matches the strategy atelier aesthetic with high typographic contrast and tactile borders",
+    "Successful execution of a multi-step Chromium journey verifying option creation, scoring, and leader calculation",
+    "Zero console errors or warnings during standard operations",
+    "Visual verification of the parchment-and-brass editorial theme",
+    "Explicit confirmation dialogs before any destructive state changes"
+  ],
+  "max_quests": 3,
+  "max_repairs_per_quest": 2,
+  "authorized_output_files": [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "journey.json",
+    "README.md"
+  ]
+}

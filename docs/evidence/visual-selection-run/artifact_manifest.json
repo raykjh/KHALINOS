@@ -1,0 +1,16 @@
+{
+  "artifact_sha256": "9dba0f1ce130093684f010f3b7f2fd105fe671a5478958b7730e20a1149f19a3",
+  "files": [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "journey.json",
+    "README.md"
+  ],
+  "receipt_ids": [
+    "VS-36570c0819ff47a9",
+    "QR-499d13cb15a24ae8",
+    "QR-5ad7d0b9a9744bcc",
+    "QR-ab5ab8bc59de4818"
+  ]
+}

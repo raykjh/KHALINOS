@@ -180,6 +180,28 @@ A second fresh run tested whether a detailed SixSense visual contract changes th
 
 The second run's machine-readable brief, Quest plan, receipts, and final manifest are in [`docs/evidence/sixsense-run`](docs/evidence/sixsense-run).
 
+### Multimodal visual-selection proof
+
+A third fresh run reused the same Signal Board Atelier user goal to test visual competition rather than a different prompt. KHALINOS generated three structural concepts, rendered each in isolated Chromium, admitted the two candidates that passed deterministic checks, and asked an independent multimodal Visual Verifier to score only their screenshots. V2 won with a 9.2 rubric average over V3's 9.0, and its artifact digest became the parent of Q1.
+
+- Intake ID: `9b9cb169a5cf498390de03c55624945c`
+- Run ID: `683ae8d01f2143d89b57ac53f9bbc8de`
+- Immutable brief SHA-256: `c153b1f0b2da9ecf24653a74356dcb1577b7b0a48f97e423eabce0dac228df68`
+- Worker image digest: `sha256:52c1714dca706190b81e5e894fc485c41cb214cde21624a246b4fedda351e22e`
+- Visual receipt: `VS-36570c0819ff47a9`, selected `V2` from eligible `V2` and `V3`
+- Result: visual selection plus 3 of 3 receipt-gated Quests passed, 0 repair rounds, 12 Gemini execution calls
+- Cloud Run Job execution: `khalinos-worker-rnv7l`, completed successfully in 5m 56.56s
+
+| Earlier single-generation result | Visual-selected final result |
+| --- | --- |
+| ![Earlier SixSense-guided result](docs/evidence/sixsense-run/signal-board-atelier-final.png) | ![Multimodal visual-selected result](docs/evidence/visual-selection-run/final.png) |
+
+| Eligible V2 | Eligible V3 |
+| --- | --- |
+| ![Triptych Atelier candidate](docs/evidence/visual-selection-run/candidate-v2.png) | ![Cartographic Desk candidate](docs/evidence/visual-selection-run/candidate-v3.png) |
+
+The concept plan, rendered screenshots, selection receipt, Quest receipts, immutable brief, and final manifest are in [`docs/evidence/visual-selection-run`](docs/evidence/visual-selection-run).
+
 ## Hackathon alignment
 
 KHALINOS follows the [official rules](https://allthingsagentichackathon.devpost.com/rules) and [official resources](https://allthingsagentichackathon.devpost.com/resources): it uses Gemini 3.5 Flash through Vertex AI, Google ADK as its agent framework, and four Google Cloud services. It is entered as a **Taskmaster** because one user brief triggers a complete asynchronous workflow without step-by-step human guidance.
