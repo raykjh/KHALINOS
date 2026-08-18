@@ -24,7 +24,7 @@ from khalinos.models import (
 )
 from khalinos.storage import LocalRunStore
 from khalinos.projects import LocalProjectStore
-from khalinos.workflow import _enforce_verification_contract, execute_run
+from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority, execute_run
 
 
 def runtime_criterion_evidence(args: tuple[object, ...]) -> dict[str, list[str]]:
@@ -151,6 +151,41 @@ def test_source_claim_cannot_replace_direct_runtime_criterion_evidence() -> None
     assert enforced.verdict == "REPAIR"
     assert not enforced.findings[0].passed
     assert "lack typed assertion evidence" in enforced.findings[0].evidence
+
+
+def test_project_owner_cannot_promote_evidence_mechanics_to_product_criteria() -> None:
+    brief = UserBrief(
+        project_name="Counter",
+        goal="Repair a compact counter so increment and reset behavior work in the browser.",
+        acceptance_criteria=["Increase changes the count.", "Reset restores zero."],
+    )
+    widened = QuestPlan(
+        product_summary="A bounded browser counter with a verified increment and reset interaction.",
+        architecture_decision="Use the fixed offline HTML, CSS, and JavaScript product surface.",
+        quests=[
+            QuestSpec(
+                quest_id="Q1",
+                objective="Repair the approved counter increment behavior without widening scope.",
+                acceptance_criteria=["Increase changes the count."],
+                evidence_required=["A criterion-bound browser journey."],
+            ),
+            QuestSpec(
+                quest_id="Q2",
+                objective="Verify reset behavior and the complete approved counter outcome.",
+                acceptance_criteria=["Reset restores zero.", "Expose a downloadable verification log."],
+                evidence_required=["A criterion-bound browser journey."],
+                depends_on=["Q1"],
+            ),
+        ],
+    )
+
+    try:
+        _validate_plan_authority(brief, widened)
+    except PermissionError as exc:
+        assert "invented criteria" in str(exc)
+        assert "downloadable verification log" in str(exc)
+    else:
+        raise AssertionError("widened Project Owner criteria must be rejected")
 
 
 async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tmp_path: Path) -> None:

@@ -67,6 +67,27 @@ def _enforce_verification_contract(
     return verification
 
 
+def _validate_plan_authority(brief: UserBrief, plan: QuestPlan) -> None:
+    approved = set(brief.acceptance_criteria)
+    planned = {
+        criterion
+        for quest in plan.quests
+        for criterion in quest.acceptance_criteria
+    }
+    if planned != approved:
+        invented = sorted(planned - approved)
+        missing = sorted(approved - planned)
+        details: list[str] = []
+        if invented:
+            details.append("invented criteria: " + " | ".join(invented))
+        if missing:
+            details.append("missing approved criteria: " + " | ".join(missing))
+        raise PermissionError(
+            "Project Owner acceptance criteria must exactly preserve the approved brief; "
+            + "; ".join(details)
+        )
+
+
 async def _select_visual_foundation(
     run_id: str,
     *,
@@ -183,6 +204,7 @@ async def execute_run(
         plan = await team.plan({"approved_brief": brief.model_dump(mode="json")})
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Project Owner exceeded the approved Quest limit")
+        _validate_plan_authority(brief, plan)
         store.put_json(run_id, "quest_plan.json", plan.model_dump(mode="json"))
         existing_repair = record.work_mode == "existing_project_repair"
         if existing_repair:
