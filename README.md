@@ -1,6 +1,6 @@
 # KHALINOS
 
-KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified browser micro-application without step-by-step human guidance. SixSense inspects six project dimensions, asks only material unanswered questions, and proposes editable professional defaults. After authorization, a Gemini Project Owner issues an incremental Quest chain. A Visual Director then commissions three distinct implementations, deterministic Chromium checks establish which ones are eligible, and an independent multimodal Visual Verifier selects the strongest rendered candidate. Separate Maker, Verifier, and Technical Repair agents build from that selected foundation. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
+KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified product without step-by-step human guidance. For a new project, a bounded Route Advisor compares the goal only with statically approved ToolPack manifests, explains exact fits, bounded alternatives, and incompatible routes, and waits for the user's confirmation. SixSense then inspects six project dimensions inside that selected capability boundary, asking only material unanswered questions. After authorization, a Gemini Project Owner issues an incremental Quest chain. Maker, deterministic Runtime Check, Independent Verifier, and bounded Technical Repair remain separated by receipts. Browser products also use multimodal visual selection; the Godot topology profile proves connected scenes and overlays with a digest-bound headless runtime.
 
 The public entrance separates a no-sign-in Judge Demo from private work. Google OpenID Connect uses only `openid`, `email`, and `profile`; the verified Google subject is the owner boundary for uploads, intakes, runs, and Project Library records. A passed run registers its artifact digest, immutable source ZIP snapshot, and receipt chain as the project's latest verified checkpoint. External browser projects enter through an owner-bound Cloud Storage resumable session and deterministic ZIP admission before SixSense can reference them.
 
@@ -23,7 +23,7 @@ SixSense is not a fixed six-question survey. It always checks six dimensions but
 5. Completion and quality standard
 6. Authority, budget, and delivery
 
-The user first supplies working material, then states the goal. Material may describe an existing project location, source folder structure, runnable build, or ordinary text and image references. KHALINOS classifies it statically without executing untrusted files and proposes new-build, existing-project, reproduce-and-repair, executable-only diagnosis, or reference-guided work. Each necessary SixSense question then appears separately with a complete recommended answer already placed in an editable field. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, material mode, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Revise outcome** carries confirmed decisions, material inspection, and sources into a fresh SixSense pass.
+The user first supplies working material, then states the goal. Material may describe an existing project location, source folder structure, runnable build, or ordinary text and image references. KHALINOS classifies it statically without executing untrusted files. For a new project it next shows a Route recommendation: semantic fit is produced by Gemini, but the candidate set, compatibility filter, project kind, manifest digest, and final execution binding remain host-controlled. The user confirms one compatible route before SixSense begins. Each necessary SixSense question offers short, genuinely user-owned choices plus a free-form alternative; professional defaults remain KHALINOS decisions. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, material mode, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Change route** discards the unresolved intake and returns to the goal; choosing **Revise outcome** keeps the confirmed route and carries the other confirmed decisions and sources into a fresh SixSense pass.
 
 For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example without authentication or paid execution. **Choose a KHALINOS project**, persistent intake, run status, and authorization require a verified Google identity. When no OAuth Web Client ID is configured, the interface says so explicitly and leaves only the public Judge Demo available.
 
@@ -43,7 +43,8 @@ For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example with
 
 ```mermaid
 flowchart LR
-    U["Materials first + user goal"] --> API["KHALINOS Cloud Run service"]
+    U["Materials first + user goal"] --> ROUTE["Approved ToolPack Route recommendation"]
+    ROUTE --> API["KHALINOS Cloud Run service"]
     U -->|"External browser ZIP"| UPLOAD["Owner-bound GCS resumable session"]
     UPLOAD --> ADMIT["Path, size, ratio, file-set, digest + generation admission"]
     ADMIT --> API
@@ -119,7 +120,7 @@ Set a unique project and bucket name, then enable the required services:
 $env:KHALINOS_PROJECT="YOUR_PROJECT_ID"
 $env:KHALINOS_REGION="asia-northeast3"
 $env:KHALINOS_BUCKET="$env:KHALINOS_PROJECT-runs"
-$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.5.0"
+$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.6.0"
 
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com firestore.googleapis.com storage.googleapis.com --project=$env:KHALINOS_PROJECT
 gcloud artifacts repositories create khalinos --repository-format=docker --location=$env:KHALINOS_REGION --project=$env:KHALINOS_PROJECT

@@ -7,7 +7,13 @@ import khalinos.api as api
 from khalinos.api import app
 from khalinos.auth import Identity
 from khalinos.godot_toolpack import GODOT_TOPOLOGY_TOOLPACK
-from khalinos.models import IntakeCreate, UserBrief
+from khalinos.models import (
+    IntakeCreate,
+    RouteCandidateAssessment,
+    RouteRecommendation,
+    RouteRecommendationRequest,
+    UserBrief,
+)
 
 
 client = TestClient(app)
@@ -104,6 +110,25 @@ def test_public_godot_route_rejects_unprovable_gameplay_criteria() -> None:
         api.validate_godot_topology_brief(brief)
 
 
+def test_queue_run_rejects_route_binding_drift_before_dispatch() -> None:
+    brief = UserBrief(
+        project_name="Route Observatory",
+        goal="Create a bounded offline Godot topology with connected verified screens.",
+        acceptance_criteria=["The arrival screen loads.", "The result screen is reachable."],
+        authorized_output_files=["placeholder.txt"],
+    )
+    with pytest.raises(PermissionError, match="no longer the approved compatible route"):
+        api.queue_run(
+            brief,
+            owner_id="owner@example.com",
+            project_id="a" * 32,
+            project_kind="godot",
+            work_mode="new_product_build",
+            requested_toolpack_id="godot.topology",
+            requested_toolpack_binding=api.APPROVED_TOOLPACKS.binding_for("browser.product"),
+        )
+
+
 async def test_new_intake_requires_an_explicit_approved_runtime() -> None:
     request = IntakeCreate(
         project_name="Route Observatory",
@@ -116,6 +141,39 @@ async def test_new_intake_requires_an_explicit_approved_runtime() -> None:
         )
     assert raised.value.status_code == 422
     assert "approved new-project runtime" in raised.value.detail
+
+
+async def test_route_recommendation_exposes_only_registry_candidates(monkeypatch) -> None:
+    class FakeAdvisor:
+        async def recommend(self, request, inspection, candidates):
+            del request, inspection
+            return RouteRecommendation(
+                status="recommended",
+                recommended_toolpack_id="browser.product",
+                candidates=[
+                    RouteCandidateAssessment(
+                        toolpack_id=item.toolpack_id,
+                        fit="exact" if item.toolpack_id == "browser.product" else "incompatible",
+                        reason="The approved manifest determines whether this bounded route fits.",
+                        expected_result="A result bounded to the selected approved ToolPack manifest.",
+                    )
+                    for item in candidates
+                ],
+            )
+
+    monkeypatch.setattr(api, "RouteAdvisor", FakeAdvisor)
+    result = await api.recommend_route(
+        RouteRecommendationRequest(
+            project_name="Minesweeper",
+            goal="Create a polished and fully playable offline Minesweeper game.",
+        ),
+        Identity(owner_id="owner", email="owner@example.com", name="Owner"),
+    )
+    assert result["recommendation"]["recommended_toolpack_id"] == "browser.product"
+    assert {item["toolpack"]["toolpack_id"] for item in result["options"]} == {
+        "browser.product", "godot.topology"
+    }
+    assert all(len(item["toolpack"]["manifest_sha256"]) == 64 for item in result["options"])
 
 
 async def test_godot_existing_project_mode_remains_fail_closed() -> None:
@@ -132,4 +190,4 @@ async def test_godot_existing_project_mode_remains_fail_closed() -> None:
             Identity(owner_id="owner", email="owner@example.com", name="Owner"),
         )
     assert raised.value.status_code == 422
-    assert "new topology projects only" in raised.value.detail
+    assert "No approved ToolPack matches" in raised.value.detail

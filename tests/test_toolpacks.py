@@ -9,6 +9,7 @@ from khalinos.toolpacks import (
     EvidenceContract,
     OutputContract,
     RegisteredToolPack,
+    RoutingContract,
     ToolPackBinding,
     ToolPackManifest,
     ToolPackRegistry,
@@ -53,6 +54,12 @@ def manifest() -> ToolPackManifest:
                 operations=("build", "repair"),
                 scopes=("artifact:read", "artifact:write"),
             ),
+        ),
+        routing=RoutingContract(
+            primary_project_kind="fixture",
+            supported_outcomes=("bounded fixture artifacts",),
+            excluded_outcomes=("unbounded fixture behavior",),
+            selection_guidance="Choose this fixture only for bounded contract tests.",
         ),
         output=OutputContract(
             artifact_kind="fixture.bundle",

@@ -46,4 +46,4 @@ The isolated paired experiment is stored at `E:\memory R data\KHALINOS-visual-ab
 
 Choose a new evaluation project before running KHALINOS again. Minesweeper is excluded because a coding assistant can normally produce it in one pass. Prefer a serverless task that is materially harder than a one-shot build and exposes both objective runtime evidence and visible quality differences.
 
-After selection, follow this order: materials, goal, only necessary SixSense questions, Outcome Preview, explicit authorization, then autonomous Cloud execution. Do not implement the new product or spend on a new run before the outcome is approved.
+For a new project, follow this order: materials, goal, approved ToolPack Route recommendation and user confirmation, only necessary SixSense questions, Outcome Preview, explicit authorization, then autonomous Cloud execution. Route semantics may be model-assisted, but candidate IDs, compatibility, manifest digests, and authorization remain host-controlled. Existing-project repair continues from its verified source type. Do not implement the new product or spend on a new run before the outcome is approved.

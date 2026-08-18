@@ -182,6 +182,7 @@
     <aside class="rail" aria-label="Progress">
       <div class="phase active" data-phase="materials">Materials</div>
       <div class="phase" data-phase="goal">Goal</div>
+      <div class="phase" data-phase="route">Route</div>
       <div class="phase" data-phase="senses">SixSense</div>
       <div class="phase" data-phase="preview">Preview</div>
       <div class="phase" data-phase="execute">Execute</div>
@@ -195,13 +196,6 @@
         <div class="entry-grid">
           <button class="entry" id="startNewProject"><strong>New project</strong><span>Create a product from a goal and optional reference material.</span></button>
           <button class="entry" id="improveExisting"><strong>Improve an existing project</strong><span>Repair or extend a KHALINOS checkpoint, repository, or ZIP.</span></button>
-        </div>
-        <div class="mode-options" id="newRuntimeOptions" hidden>
-          <strong>Choose the approved runtime</strong>
-          <div class="entry-grid">
-            <button class="entry" id="chooseBrowserRuntime" type="button"><strong>Browser micro-app</strong><span>Build a polished, offline HTML/CSS/JavaScript product with a playable browser result.</span></button>
-            <button class="entry" id="chooseGodotRuntime" type="button"><strong>Godot topology prototype</strong><span>Generate and headlessly verify connected screens and overlays. Gameplay, arbitrary scripts, assets, and existing-project repair are not included.</span></button>
-          </div>
         </div>
         <div class="mode-options" id="existingOptions" hidden>
           <div class="source-methods">
@@ -226,7 +220,16 @@
         <p class="lead" id="goalContext">A new project will be created. Describe the result you want KHALINOS to build.</p>
         <label>Project name<input id="projectName" value="My project" minlength="2" required></label>
         <label>Goal<textarea id="goal" minlength="20" required placeholder="Describe the goal, required features, exclusions, and desired design. More detail helps KHALINOS guide the work effectively."></textarea></label>
-        <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Submit goal</button></div>
+        <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Find the best route</button></div>
+      </div>
+
+      <div class="step" id="routeStep">
+        <div class="kicker">Route recommendation</div>
+        <h2>Choose how KHALINOS should build this outcome.</h2>
+        <p class="lead">KHALINOS compares the goal only with approved ToolPacks. You confirm the route before SixSense begins.</p>
+        <div class="inspection" id="routeNotice"><strong id="routeStatus">Reviewing approved routes…</strong><p id="routeSummary"></p></div>
+        <div class="entry-grid" id="routeOptions"></div>
+        <div class="actions"><button class="secondary" id="backToGoal">Back to goal</button><button id="confirmRoute" disabled>Continue with selected route</button></div>
       </div>
 
       <div class="step" id="sensesStep">
@@ -255,7 +258,7 @@
           <article class="card"><h3>Completion & quality</h3><ul id="quality"></ul></article>
           <article class="card wide"><h3>Authority, budget & delivery</h3><ul id="authority"></ul><div class="estimate" id="estimate"></div></article>
         </div>
-        <div class="actions"><button class="secondary" id="revise">Revise outcome</button><button id="authorize">Authorize and execute</button></div>
+        <div class="actions"><button class="secondary" id="changeRoute">Change route</button><button class="secondary" id="revise">Revise outcome</button><button id="authorize">Authorize and execute</button></div>
         <div id="revisionBox" hidden><label>What should change?<textarea id="revisionRequest" placeholder="Describe the change. Confirmed answers and uploaded sources will be carried into a new SixSense pass."></textarea></label><button id="restart">Restart SixSense with this change</button></div>
       </div>
 
@@ -294,8 +297,8 @@
   </div>
 </main>
 <script>
-const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='', requestedProjectKind='';
+const phases=['materials','goal','route','senses','preview','execute'];
+let intake=null, routeRecommendation=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='', requestedProjectKind='', requestedToolpackId='', requestedToolpackBinding=null;
 const AUTH_SESSION_KEY='khalinos_google_credential';
 const $=selector=>document.querySelector(selector);
 function show(name){
@@ -399,16 +402,11 @@ function clearWorkingMaterial(){
   ['chooseProject','toggleLocator','toggleZip'].forEach(id=>document.getElementById(id).setAttribute('aria-expanded','false'));['projectLibrary','locatorPanel','zipPanel'].forEach(id=>document.getElementById(id).hidden=true);
 }
 function chooseWork(mode){
-  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;requestedProjectKind='';clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#newRuntimeOptions').hidden=mode!=='new';$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=mode==='new';$('#inspectMaterials').hidden=mode==='new';$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
-}
-function chooseRuntime(kind){
-  requestedProjectKind=kind;$('#chooseBrowserRuntime').classList.toggle('selected',kind==='browser');$('#chooseGodotRuntime').classList.toggle('selected',kind==='godot');$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#goalContext').textContent=kind==='godot'?'A bounded Godot screen-topology prototype will be created. Describe the screens, overlays, and navigation you want verified.':'A browser micro-app will be created. Describe the result you want KHALINOS to build.';
+  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;routeRecommendation=null;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
 }
 $('#startNewProject').addEventListener('click',()=>chooseWork('new'));
 $('#improveExisting').addEventListener('click',()=>chooseWork('existing'));
-$('#chooseBrowserRuntime').addEventListener('click',()=>chooseRuntime('browser'));
-$('#chooseGodotRuntime').addEventListener('click',()=>chooseRuntime('godot'));
-$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';requestedProjectKind='browser';clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
+$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';requestedProjectKind='browser';requestedToolpackId='browser.product';requestedToolpackBinding=null;clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
 function toggleMethod(button,panel,open=panel.hidden){panel.hidden=!open;button.setAttribute('aria-expanded',String(open));}
 $('#chooseProject').addEventListener('click',async()=>{if(!requireSignIn())return;const open=$('#projectLibrary').hidden;toggleMethod($('#chooseProject'),$('#projectLibrary'),open);if(open)await loadProjects(true);});
 $('#toggleLocator').addEventListener('click',()=>toggleMethod($('#toggleLocator'),$('#locatorPanel')));
@@ -417,7 +415,6 @@ $('#inspectMaterials').addEventListener('click',async()=>{
   const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
   try{
     if(!requireSignIn())return;
-    if(workChoice==='new'&&!requestedProjectKind)throw new Error('Choose Browser micro-app or Godot topology prototype first.');
     if(workChoice==='existing'&&$('#externalZip').files.length)await uploadExternalZip();
     else materialDescriptors=[...$('#materials').files].map(descriptor);
     if(workChoice==='new'){$('#projectLocator').value='';selectedProjectId=null;externalUploadId=null;}
@@ -426,16 +423,31 @@ $('#inspectMaterials').addEventListener('click',async()=>{
 });
 $('#beginSensing').addEventListener('click',async()=>{
   if(!requireSignIn())return;
-  const button=$('#beginSensing'); busy(button,true,'Analyzing six dimensions…');
+  const button=$('#beginSensing'); busy(button,true,workChoice==='existing'?'Analyzing six dimensions…':'Comparing approved routes…');
   try{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
-    const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
-    const sources=await Promise.all(supported.map(filePayload));
-    const requestedWorkMode=workChoice==='existing'?'existing_project_repair':'new_product_build';
-    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId,requested_project_kind:requestedWorkMode==='new_product_build'?requestedProjectKind:null,requested_work_mode:requestedWorkMode})});
-    const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
+    if(workChoice==='existing'||workChoice==='demo'){await startSixSense();return;}
+    const response=await fetch('/api/routes/recommend',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,requested_work_mode:'new_product_build'})});
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));routeRecommendation=JSON.parse(text);renderRoute();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
+function renderRoute(){
+  show('route');const decision=routeRecommendation.recommendation;requestedToolpackId=decision.recommended_toolpack_id||'';const options=routeRecommendation.options;
+  $('#routeStatus').textContent=decision.status==='unsupported'?'No approved route can complete this goal as written.':'Recommended route';
+  $('#routeSummary').textContent=decision.status==='unsupported'?'Revise the goal or wait for a compatible approved ToolPack. KHALINOS will not force this work into the wrong runtime.':'Review the expected result and limitations. A bounded alternative changes the outcome and requires your explicit confirmation.';
+  $('#routeOptions').innerHTML=options.map(option=>{const a=option.assessment;const selected=option.toolpack.toolpack_id===requestedToolpackId;return `<button class="entry route-option${selected?' selected':''}" type="button" data-toolpack="${escapeHtml(option.toolpack.toolpack_id)}" ${a.fit==='incompatible'?'disabled':''}><strong>${escapeHtml(option.toolpack.display_name)} · ${a.fit.replace('_',' ')}</strong><span>${escapeHtml(a.expected_result)}</span><small>${escapeHtml(a.reason)}</small>${a.limitations.length?`<small>Not included: ${escapeHtml(a.limitations.join(' · '))}</small>`:''}</button>`;}).join('');
+  $('#routeOptions').querySelectorAll('[data-toolpack]:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{requestedToolpackId=button.dataset.toolpack;$('#routeOptions').querySelectorAll('.route-option').forEach(item=>item.classList.toggle('selected',item===button));$('#confirmRoute').disabled=false;}));
+  $('#confirmRoute').disabled=!requestedToolpackId;
+}
+async function startSixSense(){
+  const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);const sources=await Promise.all(supported.map(filePayload));const requestedWorkMode=workChoice==='existing'?'existing_project_repair':'new_product_build';
+  if(requestedWorkMode==='new_product_build'&&routeRecommendation){const option=routeRecommendation.options.find(item=>item.toolpack.toolpack_id===requestedToolpackId);if(!option)throw new Error('Choose one compatible approved route.');requestedProjectKind=option.project_kind;requestedToolpackBinding={toolpack_id:option.toolpack.toolpack_id,version:option.toolpack.version,manifest_sha256:option.toolpack.manifest_sha256};}
+  const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId,requested_project_kind:requestedWorkMode==='new_product_build'?requestedProjectKind:null,requested_toolpack_id:requestedWorkMode==='new_product_build'?requestedToolpackId:null,requested_toolpack_binding:requestedWorkMode==='new_product_build'?requestedToolpackBinding:null,requested_work_mode:requestedWorkMode})});
+  const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();
+}
+$('#confirmRoute').addEventListener('click',async()=>{const button=$('#confirmRoute');busy(button,true,'Starting SixSense…');try{await startSixSense();}catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}});
+$('#backToGoal').addEventListener('click',()=>{routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
+$('#changeRoute').addEventListener('click',()=>{intake=null;routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
 function renderIntake(){
   if(intake.status==='ready'){renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');

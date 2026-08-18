@@ -92,6 +92,27 @@ class EvidenceContract(BaseModel):
         return self
 
 
+class RoutingContract(BaseModel):
+    """Human- and model-readable scope used before authorization."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    primary_project_kind: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    supported_outcomes: tuple[str, ...] = Field(min_length=1, max_length=16)
+    excluded_outcomes: tuple[str, ...] = Field(default=(), max_length=16)
+    selection_guidance: str = Field(min_length=20, max_length=500)
+
+    @model_validator(mode="after")
+    def canonical_outcomes(self) -> "RoutingContract":
+        for label, values in (
+            ("supported outcomes", self.supported_outcomes),
+            ("excluded outcomes", self.excluded_outcomes),
+        ):
+            if tuple(sorted(set(values))) != values:
+                raise ValueError(f"routing {label} must be unique and sorted")
+        return self
+
+
 class ToolPackManifest(BaseModel):
     """Immutable description of one statically approved set of hands and senses."""
 
@@ -106,6 +127,7 @@ class ToolPackManifest(BaseModel):
     project_kinds: tuple[str, ...] = Field(min_length=1, max_length=32)
     work_modes: tuple[str, ...] = Field(min_length=1, max_length=32)
     capabilities: tuple[CapabilityDeclaration, ...] = Field(min_length=1, max_length=32)
+    routing: RoutingContract
     output: OutputContract
     evidence: EvidenceContract
 
@@ -120,6 +142,8 @@ class ToolPackManifest(BaseModel):
         capability_ids = tuple(item.capability_id for item in self.capabilities)
         if tuple(sorted(set(capability_ids))) != capability_ids:
             raise ValueError("ToolPack capabilities must be unique and sorted by capability_id")
+        if self.routing.primary_project_kind not in self.project_kinds:
+            raise ValueError("routing primary_project_kind must be declared by the ToolPack")
         return self
 
     def sha256(self) -> str:
@@ -254,3 +278,12 @@ class ToolPackRegistry:
 
     def manifest_snapshots(self) -> tuple[ToolPackManifest, ...]:
         return tuple(self._toolpacks[key].manifest for key in sorted(self._toolpacks))
+
+    def routing_candidates(self, *, work_mode: str) -> tuple[ToolPackManifest, ...]:
+        """Return approved manifests compatible with a work mode, without selecting one."""
+
+        return tuple(
+            toolpack.manifest
+            for key, toolpack in sorted(self._toolpacks.items())
+            if work_mode in toolpack.manifest.work_modes
+        )

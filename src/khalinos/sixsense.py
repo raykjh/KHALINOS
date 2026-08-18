@@ -231,6 +231,8 @@ class SixSenseAgent:
             "already_resolved_dimensions": [item.value for item in record.resolved_dimensions],
             "allowed_dimensions": [item.value for item in ALL_SENSE_DIMENSIONS],
             "requested_project_kind": record.requested_project_kind or "browser",
+            "requested_toolpack_id": record.requested_toolpack_id,
+            "requested_toolpack_binding": record.requested_toolpack_binding.model_dump(mode="json") if record.requested_toolpack_binding else None,
             "requested_work_mode": record.requested_work_mode,
             "approved_execution_profile": execution_profile,
         }

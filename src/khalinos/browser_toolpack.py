@@ -10,6 +10,7 @@ from khalinos.toolpacks import (
     EvidenceContract,
     OutputContract,
     RegisteredToolPack,
+    RoutingContract,
     ToolPackManifest,
     source_set_sha256,
 )
@@ -61,7 +62,7 @@ BROWSER_IMPLEMENTATION_SOURCES = (
 
 BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
     toolpack_id="browser.product",
-    version="1.1.0",
+    version="1.2.0",
     display_name="Browser Product ToolPack",
     description="Builds, repairs, runs, and verifies bounded offline browser micro-products.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, BROWSER_IMPLEMENTATION_SOURCES),
@@ -79,6 +80,19 @@ BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
             operations=("execute", "observe"),
             scopes=("loopback:http", "runtime:headless"),
         ),
+    ),
+    routing=RoutingContract(
+        primary_project_kind="browser",
+        supported_outcomes=(
+            "interactive offline browser products",
+            "playable two-dimensional games and tools",
+            "responsive interfaces with deterministic browser journeys",
+        ),
+        excluded_outcomes=(
+            "external network services or package dependencies",
+            "native engine projects and binary assets",
+        ),
+        selection_guidance="Choose this route when the requested result must be directly interactive and playable in a modern browser.",
     ),
     output=OutputContract(
         artifact_kind="browser.five-file-bundle",

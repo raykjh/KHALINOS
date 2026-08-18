@@ -17,6 +17,7 @@ from khalinos.toolpacks import (
     EvidenceContract,
     OutputContract,
     RegisteredToolPack,
+    RoutingContract,
     ToolPackManifest,
     source_set_sha256,
 )
@@ -192,7 +193,7 @@ GODOT_IMPLEMENTATION_SOURCES = (
 
 GODOT_TOPOLOGY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.topology",
-    version="1.2.0",
+    version="1.3.0",
     display_name="Godot Topology ToolPack",
     description="Compiles bounded screen topology plans and proves every generated scene with a digest-bound Godot headless runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_IMPLEMENTATION_SOURCES),
@@ -210,6 +211,19 @@ GODOT_TOPOLOGY_MANIFEST = ToolPackManifest(
             operations=("execute", "observe"),
             scopes=("runtime:headless",),
         ),
+    ),
+    routing=RoutingContract(
+        primary_project_kind="godot",
+        supported_outcomes=(
+            "bounded Godot screen and overlay topology prototypes",
+            "deterministic scene loading and declared navigation proof",
+        ),
+        excluded_outcomes=(
+            "arbitrary scripts or external assets",
+            "gameplay mechanics physics animation and production art",
+            "repair of existing Godot projects",
+        ),
+        selection_guidance="Choose this route only when connected Godot screens and overlays are the outcome, rather than a finished playable game.",
     ),
     output=OutputContract(
         artifact_kind="godot.topology-project",

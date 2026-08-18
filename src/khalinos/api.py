@@ -21,6 +21,7 @@ from khalinos.models import (
     IntakeRevision,
     MaterialInspectionRequest,
     ProjectRecord,
+    RouteRecommendationRequest,
     RunRecord,
     RunStatus,
     UserBrief,
@@ -29,12 +30,14 @@ from khalinos.models import (
 )
 from khalinos.projects import CloudProjectStore
 from khalinos.registry import APPROVED_TOOLPACKS
+from khalinos.routing import RouteAdvisor
 from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
+from khalinos.toolpacks import ToolPackBinding
 from khalinos.uploads import CloudUploadStore
 
 
-app = FastAPI(title="KHALINOS", version="0.5.0")
+app = FastAPI(title="KHALINOS", version="0.6.0")
 web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
 
@@ -71,7 +74,7 @@ def health() -> dict[str, object]:
         "model": os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash"),
         "framework": "Google ADK 2.6.2",
         "runtime": "Google Cloud Run",
-        "version": "0.5.0",
+        "version": "0.6.0",
     }
 
 
@@ -91,12 +94,18 @@ def queue_run(
     project_id: str,
     project_kind: str,
     work_mode: str,
+    requested_toolpack_id: str | None = None,
+    requested_toolpack_binding: ToolPackBinding | None = None,
     source_snapshot=None,
 ) -> dict[str, object]:
-    toolpack = APPROVED_TOOLPACKS.select(
+    selected = APPROVED_TOOLPACKS.select(
         project_kind=project_kind,
         work_mode=work_mode,
+        requested_toolpack_id=requested_toolpack_id,
     )
+    toolpack = APPROVED_TOOLPACKS.resolve(requested_toolpack_binding) if requested_toolpack_binding else selected
+    if toolpack.binding() != selected.binding():
+        raise PermissionError("the confirmed ToolPack binding is no longer the approved compatible route")
     binding = toolpack.binding()
     brief_updates = {
         "toolpack_binding": binding,
@@ -232,8 +241,18 @@ async def create_intake(
                 raise ValueError("choose an approved new-project runtime before SixSense")
         elif not request.selected_project_id and not request.upload_id:
             raise ValueError("existing-project repair requires a KHALINOS project or validated ZIP")
-        if request.requested_project_kind == "godot" and request.requested_work_mode != "new_product_build":
-            raise ValueError("the Godot ToolPack currently authorizes new topology projects only")
+        try:
+            selected_toolpack = APPROVED_TOOLPACKS.select(
+                project_kind=request.requested_project_kind or "browser",
+                work_mode=request.requested_work_mode,
+                requested_toolpack_id=request.requested_toolpack_id,
+            )
+            if request.requested_toolpack_binding:
+                bound_toolpack = APPROVED_TOOLPACKS.resolve(request.requested_toolpack_binding)
+                if bound_toolpack.binding() != selected_toolpack.binding():
+                    raise PermissionError("the confirmed ToolPack binding does not match the selected route")
+        except PermissionError as exc:
+            raise ValueError(str(exc)) from exc
         source_snapshot = None
         if request.selected_project_id:
             project = CloudProjectStore().read_owned(request.selected_project_id, identity.owner_id)
@@ -265,6 +284,45 @@ async def create_intake(
 def inspect_submitted_materials(request: MaterialInspectionRequest) -> dict[str, object]:
     """Return advisory static classification; this endpoint never executes submitted files."""
     return inspect_materials(request).model_dump(mode="json")
+
+
+@app.post("/api/routes/recommend")
+async def recommend_route(
+    request: RouteRecommendationRequest,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    """Rank only statically approved ToolPacks; this does not grant execution authority."""
+
+    del identity
+    inspection = inspect_materials(MaterialInspectionRequest(
+        project_locator=request.project_locator,
+        materials=request.materials,
+    ))
+    candidates = APPROVED_TOOLPACKS.routing_candidates(work_mode=request.requested_work_mode)
+    if not candidates:
+        raise HTTPException(status_code=422, detail="no approved ToolPack supports this work mode")
+    try:
+        recommendation = await RouteAdvisor().recommend(request, inspection, candidates)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    manifests = {item.toolpack_id: item for item in candidates}
+    return {
+        "recommendation": recommendation.model_dump(mode="json"),
+        "options": [
+            {
+                "toolpack": {
+                    "toolpack_id": manifests[item.toolpack_id].toolpack_id,
+                    "version": manifests[item.toolpack_id].version,
+                    "display_name": manifests[item.toolpack_id].display_name,
+                    "description": manifests[item.toolpack_id].description,
+                    "manifest_sha256": manifests[item.toolpack_id].sha256(),
+                },
+                "project_kind": manifests[item.toolpack_id].routing.primary_project_kind,
+                "assessment": item.model_dump(mode="json"),
+            }
+            for item in recommendation.candidates
+        ],
+    }
 
 
 @app.get("/api/intakes/{intake_id}")
@@ -369,6 +427,8 @@ def authorize_intake(
         project_id=project_id,
         project_kind=project_kind,
         work_mode=work_mode,
+        requested_toolpack_id=intake.requested_toolpack_id,
+        requested_toolpack_binding=intake.requested_toolpack_binding,
         source_snapshot=intake.source_snapshot,
     )
     run_id = result["record"]["run_id"]

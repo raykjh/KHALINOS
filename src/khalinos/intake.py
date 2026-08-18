@@ -209,6 +209,8 @@ async def start_intake(
         selected_project_id=request.selected_project_id,
         source_snapshot=source_snapshot,
         requested_project_kind=request.requested_project_kind,
+        requested_toolpack_id=request.requested_toolpack_id,
+        requested_toolpack_binding=request.requested_toolpack_binding,
         requested_work_mode=request.requested_work_mode,
     )
     store.create(record, sources)
@@ -280,6 +282,8 @@ async def restart_intake(
         selected_project_id=previous.selected_project_id,
         source_snapshot=previous.source_snapshot,
         requested_project_kind=previous.requested_project_kind,
+        requested_toolpack_id=previous.requested_toolpack_id,
+        requested_toolpack_binding=previous.requested_toolpack_binding,
         requested_work_mode=previous.requested_work_mode,
     )
     store.create(record, copied_sources)

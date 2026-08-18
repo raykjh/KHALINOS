@@ -174,7 +174,46 @@ class IntakeCreate(BaseModel):
     selected_project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     upload_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     requested_project_kind: Literal["browser", "godot"] | None = None
+    requested_toolpack_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    requested_toolpack_binding: ToolPackBinding | None = None
     requested_work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
+
+
+class RouteRecommendationRequest(BaseModel):
+    project_name: str = Field(min_length=2, max_length=80)
+    goal: str = Field(min_length=20, max_length=5000)
+    project_locator: str = Field(default="", max_length=2000)
+    materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
+    requested_work_mode: Literal["new_product_build"] = "new_product_build"
+
+
+class RouteCandidateAssessment(BaseModel):
+    toolpack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    fit: Literal["exact", "bounded_alternative", "incompatible"]
+    reason: str = Field(min_length=15, max_length=500)
+    expected_result: str = Field(min_length=20, max_length=700)
+    limitations: list[str] = Field(default_factory=list, max_length=8)
+
+
+class RouteRecommendation(BaseModel):
+    status: Literal["recommended", "unsupported"]
+    recommended_toolpack_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    candidates: list[RouteCandidateAssessment] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def valid_recommendation(self) -> "RouteRecommendation":
+        ids = [item.toolpack_id for item in self.candidates]
+        if len(ids) != len(set(ids)):
+            raise ValueError("route candidates must be unique")
+        by_id = {item.toolpack_id: item for item in self.candidates}
+        if self.status == "recommended":
+            if self.recommended_toolpack_id not in by_id:
+                raise ValueError("recommended route must name one returned candidate")
+            if by_id[self.recommended_toolpack_id].fit == "incompatible":
+                raise ValueError("an incompatible route cannot be recommended")
+        elif self.recommended_toolpack_id is not None:
+            raise ValueError("unsupported route decisions cannot recommend a ToolPack")
+        return self
 
 
 ShortAnswerOption = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=48)]
@@ -284,6 +323,8 @@ class IntakeRecord(BaseModel):
     selected_project_id: str | None = None
     source_snapshot: ArchiveSnapshot | None = None
     requested_project_kind: Literal["browser", "godot"] | None = None
+    requested_toolpack_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    requested_toolpack_binding: ToolPackBinding | None = None
     requested_work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)

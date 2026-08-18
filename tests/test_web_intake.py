@@ -9,16 +9,16 @@ WEB = Path(__file__).parents[1] / "src" / "khalinos" / "web" / "index.html"
 
 def test_materials_precede_goal_and_sixsense() -> None:
     html = WEB.read_text(encoding="utf-8")
-    assert html.index('id="materialsStep"') < html.index('id="goalStep"') < html.index('id="sensesStep"')
+    assert html.index('id="materialsStep"') < html.index('id="goalStep"') < html.index('id="routeStep"') < html.index('id="sensesStep"')
     assert "Where should KHALINOS begin?" in html
     assert "Tell KHALINOS the goal, requirements, and constraints." in html
     assert "/api/materials/inspect" in html
     assert "New project" in html
     assert "Improve an existing project" in html
-    assert "Godot topology prototype" in html
-    assert "Gameplay, arbitrary scripts, assets, and existing-project repair are not included." in html
-    assert 'id="chooseBrowserRuntime"' in html
-    assert 'id="chooseGodotRuntime"' in html
+    assert "Route recommendation" in html
+    assert "/api/routes/recommend" in html
+    assert "approved ToolPacks" in html
+    assert 'id="routeOptions"' in html
     assert "Load Judge Demo inputs" in html
     assert "Choose from Project Library" in html
     assert "External project ZIP" in html
@@ -65,8 +65,10 @@ def test_project_mode_can_switch_cleanly_before_goal_entry() -> None:
     assert "function clearWorkingMaterial()" in html
     assert "chooseWork('new')" in html
     assert "chooseWork('existing')" in html
-    assert "function chooseRuntime(kind)" in html
+    assert "function renderRoute()" in html
+    assert "function startSixSense()" in html
     assert "requested_project_kind" in html
+    assert "requested_toolpack_id" in html
     assert "requested_work_mode" in html
     assert "Outcome discovery · autonomous execution" not in html
     assert "SixSense resolves what matters" not in html
