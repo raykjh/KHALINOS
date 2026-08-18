@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Annotated
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
+from khalinos.auth import AuthenticationUnavailable, Identity, InvalidIdentity, authenticate_bearer, google_client_id
 from khalinos.intake import answer_intake, authorized_brief, inspect_materials, restart_intake, start_intake
 from khalinos.intake_storage import CloudIntakeStore
 from khalinos.models import (
@@ -18,16 +20,18 @@ from khalinos.models import (
     IntakeCreate,
     IntakeRevision,
     MaterialInspectionRequest,
+    ProjectRecord,
     RunRecord,
     RunStatus,
     UserBrief,
     canonical_sha256,
 )
+from khalinos.projects import CloudProjectStore
 from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
 
 
-app = FastAPI(title="KHALINOS", version="0.3.3")
+app = FastAPI(title="KHALINOS", version="0.4.0")
 web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
 
@@ -45,16 +49,28 @@ def health() -> dict[str, object]:
         "model": os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash"),
         "framework": "Google ADK 2.6.2",
         "runtime": "Google Cloud Run",
+        "version": "0.4.0",
     }
 
 
-def queue_run(brief: UserBrief) -> dict[str, object]:
+def require_identity(authorization: Annotated[str | None, Header()] = None) -> Identity:
+    try:
+        return authenticate_bearer(authorization)
+    except AuthenticationUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except InvalidIdentity as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+def queue_run(brief: UserBrief, *, owner_id: str, project_id: str) -> dict[str, object]:
     run_id = uuid4().hex
     record = RunRecord(
         run_id=run_id,
         status=RunStatus.QUEUED,
         brief_sha256=canonical_sha256(brief),
         message="The immutable user brief is queued for Cloud execution.",
+        owner_id=owner_id,
+        project_id=project_id,
     )
     store = CloudRunStore()
     store.create(record, brief)
@@ -67,18 +83,68 @@ def queue_run(brief: UserBrief) -> dict[str, object]:
 
 
 @app.get("/api/runs/{run_id}")
-def get_run(run_id: str) -> dict[str, object]:
+def get_run(run_id: str, identity: Annotated[Identity, Depends(require_identity)]) -> dict[str, object]:
     try:
-        return CloudRunStore().read_record(run_id).model_dump(mode="json")
+        record = CloudRunStore().read_record(run_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="run not found") from exc
+    if record.owner_id != identity.owner_id:
+        raise HTTPException(status_code=404, detail="run not found")
+    return record.model_dump(mode="json")
+
+
+@app.get("/api/config")
+def public_config() -> dict[str, object]:
+    client_id = google_client_id()
+    return {
+        "google_sign_in_enabled": bool(client_id),
+        "google_client_id": client_id,
+        "judge_demo_enabled": True,
+    }
+
+
+@app.get("/api/demo/project")
+def judge_demo_project() -> dict[str, object]:
+    return {
+        "project_name": "PUZZLE Input Repair",
+        "goal": "Fix the project so WASD and arrow-key movement work reliably without changing the existing game rules or visual design.",
+        "project_locator": "khalinos://judge-demo/puzzle-input-repair",
+        "materials": [
+            {"filename": "project.godot", "relative_path": "puzzle/project.godot", "media_type": "text/plain", "size_bytes": 407},
+            {"filename": "player.gd", "relative_path": "puzzle/scripts/player.gd", "media_type": "text/plain", "size_bytes": 7316},
+            {"filename": "puzzle.exe", "relative_path": "build/puzzle.exe", "media_type": "application/octet-stream", "size_bytes": 109124128},
+        ],
+        "notice": "This public judge path is a bounded, preloaded example. Sign-in is required to store projects or start paid execution.",
+    }
+
+
+@app.get("/api/auth/me")
+def auth_me(identity: Annotated[Identity, Depends(require_identity)]) -> dict[str, str]:
+    return {"owner_id": identity.owner_id, "email": identity.email, "name": identity.name}
+
+
+@app.get("/api/projects")
+def list_projects(identity: Annotated[Identity, Depends(require_identity)]) -> list[dict[str, object]]:
+    return [item.model_dump(mode="json") for item in CloudProjectStore().list_owned(identity.owner_id)]
 
 
 @app.post("/api/intakes", status_code=201)
-async def create_intake(request: IntakeCreate) -> dict[str, object]:
+async def create_intake(
+    request: IntakeCreate,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
     try:
-        record = await start_intake(request, store=CloudIntakeStore(), agent=SixSenseAgent())
+        if request.selected_project_id:
+            CloudProjectStore().read_owned(request.selected_project_id, identity.owner_id)
+        record = await start_intake(
+            request,
+            store=CloudIntakeStore(),
+            agent=SixSenseAgent(),
+            owner_id=identity.owner_id,
+        )
         return record.model_dump(mode="json")
+    except (FileNotFoundError, PermissionError) as exc:
+        raise HTTPException(status_code=404, detail="project not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -90,16 +156,25 @@ def inspect_submitted_materials(request: MaterialInspectionRequest) -> dict[str,
 
 
 @app.get("/api/intakes/{intake_id}")
-def get_intake(intake_id: str) -> dict[str, object]:
+def get_intake(intake_id: str, identity: Annotated[Identity, Depends(require_identity)]) -> dict[str, object]:
     try:
-        return CloudIntakeStore().read(intake_id).model_dump(mode="json")
+        record = CloudIntakeStore().read(intake_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="intake not found") from exc
+    if record.owner_id != identity.owner_id:
+        raise HTTPException(status_code=404, detail="intake not found")
+    return record.model_dump(mode="json")
 
 
 @app.post("/api/intakes/{intake_id}/answers")
-async def submit_intake_answer(intake_id: str, answer: IntakeAnswer) -> dict[str, object]:
+async def submit_intake_answer(
+    intake_id: str,
+    answer: IntakeAnswer,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
     try:
+        if CloudIntakeStore().read(intake_id).owner_id != identity.owner_id:
+            raise FileNotFoundError(intake_id)
         record = await answer_intake(
             intake_id,
             answer,
@@ -114,8 +189,14 @@ async def submit_intake_answer(intake_id: str, answer: IntakeAnswer) -> dict[str
 
 
 @app.post("/api/intakes/{intake_id}/revise", status_code=201)
-async def revise_intake(intake_id: str, revision: IntakeRevision) -> dict[str, object]:
+async def revise_intake(
+    intake_id: str,
+    revision: IntakeRevision,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
     try:
+        if CloudIntakeStore().read(intake_id).owner_id != identity.owner_id:
+            raise FileNotFoundError(intake_id)
         record = await restart_intake(
             intake_id,
             revision,
@@ -130,12 +211,17 @@ async def revise_intake(intake_id: str, revision: IntakeRevision) -> dict[str, o
 
 
 @app.post("/api/intakes/{intake_id}/authorize", status_code=202)
-def authorize_intake(intake_id: str) -> dict[str, object]:
+def authorize_intake(
+    intake_id: str,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
     store = CloudIntakeStore()
     try:
         intake = store.read(intake_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="intake not found") from exc
+    if intake.owner_id != identity.owner_id:
+        raise HTTPException(status_code=404, detail="intake not found")
     if intake.status == "authorized" and intake.authorized_run_id:
         return {
             "intake": intake.model_dump(mode="json"),
@@ -144,8 +230,30 @@ def authorize_intake(intake_id: str) -> dict[str, object]:
         }
     if intake.status != "ready" or intake.preview is None:
         raise HTTPException(status_code=409, detail="SixSense intake is not ready for authorization")
-    result = queue_run(authorized_brief(intake.preview))
+    project_store = CloudProjectStore()
+    project_id = intake.selected_project_id or uuid4().hex
+    if intake.selected_project_id:
+        previous = project_store.read_owned(project_id, identity.owner_id)
+        created_at = previous.created_at
+        origin = previous.origin
+        project_kind = previous.project_kind
+    else:
+        created_at = intake.created_at
+        origin = "external" if intake.material_inspection and intake.material_inspection.source_available else "khalinos"
+        detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
+        project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
+    result = queue_run(authorized_brief(intake.preview), owner_id=identity.owner_id, project_id=project_id)
     run_id = result["record"]["run_id"]
+    project_store.prepare(ProjectRecord(
+        project_id=project_id,
+        owner_id=identity.owner_id,
+        display_name=intake.project_name,
+        project_kind=project_kind,
+        origin=origin,
+        latest_run_id=run_id,
+        latest_status=RunStatus.QUEUED,
+        created_at=created_at,
+    ))
     intake = intake.model_copy(update={"status": "authorized", "authorized_run_id": run_id})
     store.update(intake)
     return {"intake": intake.model_dump(mode="json"), **result}

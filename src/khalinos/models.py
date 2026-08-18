@@ -131,6 +131,7 @@ class IntakeCreate(BaseModel):
     sources: list[SourceUpload] = Field(default_factory=list, max_length=8)
     project_locator: str = Field(default="", max_length=2000)
     materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
+    selected_project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
 
 
 class SenseQuestion(BaseModel):
@@ -205,6 +206,8 @@ class IntakeRecord(BaseModel):
     sources: list[SourceReference] = Field(default_factory=list)
     project_locator: str = ""
     material_inspection: MaterialInspection | None = None
+    owner_id: str = ""
+    selected_project_id: str | None = None
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
     current_question: SenseQuestion | None = None
@@ -390,8 +393,24 @@ class RunRecord(BaseModel):
         default_factory=lambda: ["Vertex AI", "Cloud Run", "Cloud Storage", "Firestore"]
     )
     model_calls: int = 0
+    owner_id: str = ""
+    project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)
 
 
 SAFE_RUN_ID = re.compile(r"^[a-f0-9]{32}$")
+
+
+class ProjectRecord(BaseModel):
+    project_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    owner_id: str = Field(min_length=3, max_length=255)
+    display_name: str = Field(min_length=2, max_length=80)
+    project_kind: Literal["browser", "godot", "unity", "web", "unknown"] = "browser"
+    origin: Literal["khalinos", "external"] = "khalinos"
+    latest_run_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    latest_status: RunStatus
+    latest_checkpoint_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    latest_receipt_ids: list[str] = Field(default_factory=list)
+    created_at: str = Field(default_factory=utc_now)
+    updated_at: str = Field(default_factory=utc_now)

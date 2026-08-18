@@ -38,7 +38,7 @@ def inspect_materials(request: MaterialInspectionRequest) -> MaterialInspection:
     archive_suffixes = (".zip", ".tar", ".tgz", ".tar.gz")
     runnable_suffixes = (".exe", ".app", ".apk", ".x86_64", ".appimage", ".wasm")
     locator_is_source = bool(
-        locator.startswith(("git@", "ssh://", "gs://"))
+        locator.startswith(("git@", "ssh://", "gs://", "khalinos://"))
         or locator.endswith(".git")
         or any(host in locator for host in ("github.com/", "gitlab.com/", "bitbucket.org/"))
     )
@@ -180,7 +180,13 @@ def apply_decision(record: IntakeRecord, decision: SenseDecision) -> IntakeRecor
     })
 
 
-async def start_intake(request: IntakeCreate, *, store: IntakeStore, agent: SensingAgent) -> IntakeRecord:
+async def start_intake(
+    request: IntakeCreate,
+    *,
+    store: IntakeStore,
+    agent: SensingAgent,
+    owner_id: str = "",
+) -> IntakeRecord:
     sources = decode_sources(request)
     material_inspection = inspect_materials(MaterialInspectionRequest(
         project_locator=request.project_locator,
@@ -193,6 +199,8 @@ async def start_intake(request: IntakeCreate, *, store: IntakeStore, agent: Sens
         sources=[reference for reference, _ in sources],
         project_locator=request.project_locator,
         material_inspection=material_inspection,
+        owner_id=owner_id,
+        selected_project_id=request.selected_project_id,
     )
     store.create(record, sources)
     decision = await agent.assess(
@@ -259,6 +267,8 @@ async def restart_intake(
         sources=list(previous.sources),
         project_locator=previous.project_locator,
         material_inspection=previous.material_inspection,
+        owner_id=previous.owner_id,
+        selected_project_id=previous.selected_project_id,
     )
     store.create(record, copied_sources)
     decision = await agent.assess(

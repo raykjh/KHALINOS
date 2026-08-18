@@ -23,6 +23,7 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.storage import RunStore
+from khalinos.projects import ProjectStore
 from khalinos.verification import materialize, verify_bundle
 
 
@@ -147,7 +148,13 @@ async def _select_visual_foundation(
     return selected, receipt, record
 
 
-async def execute_run(run_id: str, *, store: RunStore, team: Team) -> RunRecord:
+async def execute_run(
+    run_id: str,
+    *,
+    store: RunStore,
+    team: Team,
+    project_store: ProjectStore | None = None,
+) -> RunRecord:
     record = store.read_record(run_id)
     brief = store.read_brief(run_id)
     try:
@@ -270,6 +277,8 @@ async def execute_run(run_id: str, *, store: RunStore, team: Team) -> RunRecord:
             "model_calls": team.call_count,
         })
         store.update(record)
+        if project_store is not None and record.project_id and record.owner_id:
+            project_store.update_checkpoint(record, canonical_sha256(current))
         return record
     except Exception as exc:
         record = record.model_copy(update={

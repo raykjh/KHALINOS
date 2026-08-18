@@ -12,6 +12,7 @@ from khalinos.models import (
     DeterministicEvidence,
     QuestPlan,
     QuestSpec,
+    ProjectRecord,
     RunRecord,
     RunStatus,
     UserBrief,
@@ -22,6 +23,7 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.storage import LocalRunStore
+from khalinos.projects import LocalProjectStore
 from khalinos.workflow import execute_run
 
 
@@ -142,6 +144,33 @@ async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tm
     assert len(result.completed_receipt_ids) == 3
     assert result.completed_receipt_ids[0].startswith("VS-")
     assert team.repairs == 0
+
+
+async def test_passed_run_registers_verified_project_checkpoint(monkeypatch, tmp_path: Path) -> None:
+    def evidence(*args, **kwargs):
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"])
+
+    monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
+    store, run_id = setup_run(tmp_path)
+    project_store = LocalProjectStore(tmp_path)
+    project_store.prepare(ProjectRecord(
+        project_id="b" * 32,
+        owner_id="owner-a",
+        display_name="Demo",
+        latest_run_id=run_id,
+        latest_status=RunStatus.QUEUED,
+    ))
+    record = store.read_record(run_id).model_copy(update={"owner_id": "owner-a", "project_id": "b" * 32})
+    store.update(record)
+    result = await execute_run(run_id, store=store, team=FakeTeam(), project_store=project_store)
+    registered = project_store.read_owned("b" * 32, "owner-a")
+    assert result.status == RunStatus.PASSED
+    assert registered.latest_status == RunStatus.PASSED
+    assert registered.latest_run_id == run_id
+    assert registered.latest_checkpoint_sha256 is not None
 
 
 async def test_deterministic_browser_verification_runs_off_event_loop_thread(monkeypatch, tmp_path: Path) -> None:

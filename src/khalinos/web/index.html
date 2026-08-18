@@ -49,6 +49,13 @@
     .inspection { margin-top:18px; padding:18px; border:1px solid #36505d; background:#08141c; border-radius:14px; }
     .inspection strong { color:var(--gold); display:block; margin-bottom:6px; }
     .inspection ul { color:var(--muted); margin:10px 0 0; padding-left:20px; }
+    .entry-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; }
+    .entry { text-align:left; min-height:92px; background:#0a1821; color:var(--ink); border:1px solid #3a505d; }
+    .entry strong,.entry span { display:block; }
+    .entry span { color:var(--muted); font-weight:500; font-size:13px; margin-top:5px; }
+    .library { display:grid; gap:9px; margin-top:14px; }
+    .library button { text-align:left; background:#10232e; color:var(--ink); border:1px solid #36505d; }
+    .identity { color:var(--teal); font-size:13px; margin-top:10px; }
     .progress { height:3px; background:#23343f; margin:26px 0; overflow:hidden; border-radius:3px; }
     .progress span { display:block; height:100%; width:18%; background:linear-gradient(90deg,var(--teal),var(--gold)); transition:.3s; }
     .preview-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; }
@@ -82,10 +89,16 @@
         <div class="kicker">Step 1 · Submit the working material</div>
         <h2>What should KHALINOS work from?</h2>
         <p class="lead">Submit an existing project, a runnable build, references, or nothing. Detection is static: files are not executed at this stage.</p>
-        <label>Project location (optional)<input id="projectLocator" placeholder="Git repository URL, gs:// location, or a descriptive project location"></label>
-        <label class="upload">Existing project folder
-          <input id="projectFolder" type="file" multiple webkitdirectory directory>
-          <span class="source-list" id="folderList">No project folder selected.</span>
+        <div class="entry-grid">
+          <button class="entry" id="judgeDemo"><strong>Try Judge Demo</strong><span>No sign-in. Load a bounded PUZZLE repair example.</span></button>
+          <button class="entry" id="chooseProject"><strong>Choose a KHALINOS project</strong><span>Continue from your latest verified checkpoint.</span></button>
+        </div>
+        <div id="googleSignIn"></div><p class="identity" id="identityStatus">Checking sign-in availability…</p>
+        <div class="library" id="projectLibrary" hidden></div>
+        <label>Project location (optional)<input id="projectLocator" placeholder="Git repository URL or gs:// location"></label>
+        <label class="upload">External project ZIP
+          <input id="externalZip" type="file" accept=".zip,application/zip">
+          <span class="source-list" id="zipList">No external project ZIP selected.</span>
         </label>
         <label class="upload">Builds and reference files
           <input id="materials" type="file" multiple>
@@ -142,7 +155,7 @@
 </main>
 <script>
 const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], pollTimer=null;
+let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, pollTimer=null;
 const $=selector=>document.querySelector(selector);
 function show(name){
   document.querySelectorAll('.step').forEach(node=>node.classList.remove('active'));
@@ -158,7 +171,7 @@ async function filePayload(file){
   const inferred={'txt':'text/plain','md':'text/markdown','json':'application/json','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp'};
   return {filename:file.name,media_type:file.type||inferred[file.name.split('.').pop().toLowerCase()]||'text/plain',data_base64:btoa(binary)};
 }
-function selectedMaterialFiles(){return [...$('#projectFolder').files,...$('#materials').files];}
+function selectedMaterialFiles(){return [...$('#externalZip').files,...$('#materials').files];}
 function descriptor(file){return {filename:file.name,relative_path:file.webkitRelativePath||file.name,media_type:file.type||'application/octet-stream',size_bytes:file.size};}
 function describeFiles(files,empty){
   if(!files.length)return empty;
@@ -166,27 +179,58 @@ function describeFiles(files,empty){
   if(files.length>6)preview.push(`…and ${files.length-6} more files`);
   return preview.join('\n');
 }
-$('#projectFolder').addEventListener('change',()=>{$('#folderList').textContent=describeFiles([...$('#projectFolder').files],'No project folder selected.');materialInspection=null;});
+$('#externalZip').addEventListener('change',()=>{$('#zipList').textContent=describeFiles([...$('#externalZip').files],'No external project ZIP selected.');materialInspection=null;selectedProjectId=null;});
 $('#materials').addEventListener('change',()=>{$('#materialList').textContent=describeFiles([...$('#materials').files],'No additional material selected — starting without material is allowed.');materialInspection=null;});
 document.querySelector('[data-back="materials"]').addEventListener('click',()=>show('materials'));
+function authHeaders(extra={}){return authCredential?{...extra,Authorization:`Bearer ${authCredential}`}:{...extra};}
+async function loadGoogleIdentity(){
+  const config=await fetch('/api/config').then(response=>response.json());
+  if(!config.google_sign_in_enabled){$('#identityStatus').textContent='Google sign-in is not configured on this deployment. Judge Demo remains available.';return;}
+  const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=()=>{
+    google.accounts.id.initialize({client_id:config.google_client_id,callback:handleGoogleCredential});
+    google.accounts.id.renderButton($('#googleSignIn'),{theme:'outline',size:'large',text:'signin_with',shape:'rectangular'});
+  };document.head.appendChild(script);$('#identityStatus').textContent='Sign in to open your private Project Library or start execution.';
+}
+async function handleGoogleCredential(response){
+  authCredential=response.credential;
+  const identityResponse=await fetch('/api/auth/me',{headers:authHeaders()});
+  if(!identityResponse.ok){authCredential='';throw new Error('Google identity could not be verified.');}
+  currentUser=await identityResponse.json();$('#identityStatus').textContent=`Signed in as ${currentUser.email}`;await loadProjects();
+}
+async function loadProjects(){
+  if(!authCredential)return;
+  const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
+  const projects=await response.json();const library=$('#projectLibrary');library.hidden=false;
+  library.innerHTML=projects.length?projects.map(item=>`<button data-project-id="${item.project_id}"><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></button>`).join(''):'<p>No KHALINOS projects yet.</p>';
+  library.querySelectorAll('[data-project-id]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.projectId))));
+}
+async function selectProject(project){
+  selectedProjectId=project.project_id;$('#projectName').value=project.display_name;$('#projectLocator').value=`khalinos://projects/${project.project_id}`;
+  const markers={godot:[{filename:'project.godot',relative_path:'project.godot',media_type:'text/plain',size_bytes:1}],unity:[{filename:'Player.cs',relative_path:'Assets/Player.cs',media_type:'text/plain',size_bytes:1},{filename:'ProjectVersion.txt',relative_path:'ProjectSettings/ProjectVersion.txt',media_type:'text/plain',size_bytes:1}],web:[{filename:'index.html',relative_path:'index.html',media_type:'text/html',size_bytes:1}],browser:[{filename:'index.html',relative_path:'index.html',media_type:'text/html',size_bytes:1}]};
+  materialDescriptors=markers[project.project_kind]||[];await inspectDescriptorSet();
+}
+async function inspectDescriptorSet(){
+  const response=await fetch('/api/materials/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors})});
+  const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));materialInspection=JSON.parse(text);
+  $('#inspection').hidden=false;$('#inspectionMode').textContent=materialInspection.recommended_work_mode.replaceAll('_',' ').toUpperCase();$('#inspectionSummary').textContent=materialInspection.summary;$('#inspectionNotices').innerHTML=materialInspection.notices.map(item=>`<li>${escapeHtml(item)}</li>`).join('');$('#goalContext').textContent=materialInspection.summary;show('goal');
+}
+$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());selectedProjectId=null;materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary}`;});
+$('#chooseProject').addEventListener('click',async()=>{if(!authCredential){alert('Sign in with Google to open your private Project Library.');return;}await loadProjects();});
 $('#inspectMaterials').addEventListener('click',async()=>{
   const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
   try{
     materialDescriptors=selectedMaterialFiles().map(descriptor);
-    const response=await fetch('/api/materials/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors})});
-    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));materialInspection=JSON.parse(text);
-    $('#inspection').hidden=false;$('#inspectionMode').textContent=materialInspection.recommended_work_mode.replaceAll('_',' ').toUpperCase();$('#inspectionSummary').textContent=materialInspection.summary;
-    $('#inspectionNotices').innerHTML=materialInspection.notices.map(item=>`<li>${escapeHtml(item)}</li>`).join('');
-    $('#goalContext').textContent=materialInspection.summary;show('goal');
+    selectedProjectId=null;await inspectDescriptorSet();
   }catch(error){alert(`Materials could not be inspected: ${error.message}`);}finally{busy(button,false);}
 });
 $('#beginSensing').addEventListener('click',async()=>{
   const button=$('#beginSensing'); busy(button,true,'Analyzing six dimensions…');
   try{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
+    if(!authCredential)throw new Error('Sign in with Google before SixSense stores or executes a project. Judge Demo can be viewed without sign-in.');
     const supported=selectedMaterialFiles().filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
     const sources=await Promise.all(supported.map(filePayload));
-    const response=await fetch('/api/intakes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors})});
+    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId})});
     const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
@@ -201,7 +245,7 @@ function renderIntake(){
 $('#submitAnswer').addEventListener('click',async()=>{
   if(!$('#answer').value.trim())return; const button=$('#submitAnswer'); busy(button,true,'Checking what remains…');
   try{
-    const response=await fetch(`/api/intakes/${intake.intake_id}/answers`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dimension:intake.current_question.dimension,answer:$('#answer').value.trim()})});
+    const response=await fetch(`/api/intakes/${intake.intake_id}/answers`,{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({dimension:intake.current_question.dimension,answer:$('#answer').value.trim()})});
     const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();
   }catch(error){alert(`Answer was not accepted: ${error.message}`);}finally{busy(button,false);}
 });
@@ -216,15 +260,16 @@ function renderPreview(){
 $('#revise').addEventListener('click',()=>{$('#revisionBox').hidden=false;$('#revisionRequest').focus();});
 $('#restart').addEventListener('click',async()=>{
   if(!$('#revisionRequest').value.trim())return;const button=$('#restart');busy(button,true,'Reframing the outcome…');
-  try{const response=await fetch(`/api/intakes/${intake.intake_id}/revise`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({change_request:$('#revisionRequest').value.trim()})});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();}catch(error){alert(`Revision failed: ${error.message}`);}finally{busy(button,false);}
+  try{const response=await fetch(`/api/intakes/${intake.intake_id}/revise`,{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({change_request:$('#revisionRequest').value.trim()})});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();}catch(error){alert(`Revision failed: ${error.message}`);}finally{busy(button,false);}
 });
 $('#authorize').addEventListener('click',async()=>{
   const button=$('#authorize');busy(button,true,'Authorizing Cloud run…');
-  try{const response=await fetch(`/api/intakes/${intake.intake_id}/authorize`,{method:'POST'});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));const payload=JSON.parse(text);show('execute');$('#status').textContent=`Run ${payload.record.run_id}\nQUEUED — The approved Outcome Brief is immutable.`;poll(payload.record.run_id);}catch(error){alert(`Authorization failed: ${error.message}`);busy(button,false);}
+  try{const response=await fetch(`/api/intakes/${intake.intake_id}/authorize`,{method:'POST',headers:authHeaders()});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));const payload=JSON.parse(text);show('execute');$('#status').textContent=`Run ${payload.record.run_id}\nQUEUED — The approved Outcome Brief is immutable.`;poll(payload.record.run_id);}catch(error){alert(`Authorization failed: ${error.message}`);busy(button,false);}
 });
 async function poll(runId){
-  try{const response=await fetch(`/api/runs/${runId}`);const record=await response.json();$('#status').textContent=`Run ${runId}\n${record.status.toUpperCase()} — ${record.message}\nGemini calls: ${record.model_calls}\nVerified receipts: ${record.completed_receipt_ids.length}`;if(['passed','blocked','failed'].includes(record.status))return;pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#status').textContent=`Status check failed: ${error.message}`;}
+  try{const response=await fetch(`/api/runs/${runId}`,{headers:authHeaders()});const record=await response.json();$('#status').textContent=`Run ${runId}\n${record.status.toUpperCase()} — ${record.message}\nGemini calls: ${record.model_calls}\nVerified receipts: ${record.completed_receipt_ids.length}`;if(['passed','blocked','failed'].includes(record.status)){await loadProjects();return;}pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#status').textContent=`Status check failed: ${error.message}`;}
 }
+loadGoogleIdentity().catch(error=>{$('#identityStatus').textContent=`Sign-in setup failed: ${error.message}`;});
 </script>
 </body>
 </html>
