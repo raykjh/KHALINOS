@@ -6,10 +6,12 @@ ARG GODOT_EXECUTABLE_SHA256=32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PORT=8080 \
+    KHALINOS_CHROMIUM_PATH=/usr/bin/chromium \
     KHALINOS_GODOT_EXECUTABLE=/opt/godot/Godot_v4.7.1-stable_linux.x86_64
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl unzip libfontconfig1 libgl1 libx11-6 libxcursor1 libxi6 libxinerama1 libxrandr2 \
+    && apt-get install -y --no-install-recommends chromium ca-certificates curl fonts-liberation unzip libfontconfig1 libgl1 libx11-6 libxcursor1 libxi6 libxinerama1 libxrandr2 \
     && mkdir -p /opt/godot \
     && curl --fail --location --retry 3 "$GODOT_URL" --output /tmp/godot.zip \
     && echo "$GODOT_ZIP_SHA256  /tmp/godot.zip" | sha256sum --check --strict \
@@ -28,4 +30,4 @@ RUN useradd --create-home --uid 10001 khalinos \
     && chown -R khalinos:khalinos /app
 USER khalinos
 
-CMD ["python", "-m", "khalinos.godot_smoke"]
+CMD ["khalinos", "serve", "--port", "8080"]
