@@ -73,7 +73,9 @@ modify it. Judge every active Quest acceptance criterion against the supplied co
 artifact and deterministic browser evidence. PASS only when every criterion has direct
 evidence. A file existing, a claim in README, or the maker's assertion is not proof of
 runtime behavior. If any criterion fails, return concise repair instructions tied only to
-that criterion. Never weaken criteria or approve missing evidence. Return only the schema.
+that criterion. Return findings in the exact supplied criterion order. The host, not you,
+binds those ordered findings back to the immutable criterion text. Never weaken criteria or
+approve missing evidence. Return only the schema.
 """.strip()
 
 REPAIR_INSTRUCTION = """

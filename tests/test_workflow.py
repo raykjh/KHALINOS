@@ -153,6 +153,23 @@ def test_source_claim_cannot_replace_direct_runtime_criterion_evidence() -> None
     assert "lack typed assertion evidence" in enforced.findings[0].evidence
 
 
+def test_host_binds_ordered_verifier_findings_to_immutable_criteria() -> None:
+    criteria = ["Increase changes the count.", "Reset restores zero."]
+    paraphrased = AgentVerification(
+        findings=[
+            CriterionFinding(criterion="Increment works.", passed=True, evidence="Observed Count: 1."),
+            CriterionFinding(criterion="Reset works.", passed=True, evidence="Observed Count: 0."),
+        ],
+        verdict="PASS",
+    )
+    evidence = {criterion: ["typed runtime assertion observed"] for criterion in criteria}
+
+    enforced = _enforce_verification_contract(criteria, evidence, paraphrased)
+
+    assert enforced.verdict == "PASS"
+    assert [item.criterion for item in enforced.findings] == criteria
+
+
 def test_project_owner_cannot_promote_evidence_mechanics_to_product_criteria() -> None:
     brief = UserBrief(
         project_name="Counter",

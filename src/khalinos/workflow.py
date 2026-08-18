@@ -52,8 +52,7 @@ def _enforce_verification_contract(
     criterion_evidence: dict[str, list[str]],
     verification: AgentVerification,
 ) -> AgentVerification:
-    finding_criteria = [item.criterion for item in verification.findings]
-    if len(finding_criteria) != len(set(finding_criteria)) or set(finding_criteria) != set(criteria):
+    if len(verification.findings) != len(criteria):
         return _blocked_verification(
             criteria,
             ["Independent Verifier must return exactly one finding for every active acceptance criterion."],
@@ -64,7 +63,18 @@ def _enforce_verification_contract(
             criteria,
             ["Runtime-observable criteria lack typed assertion evidence: " + " | ".join(missing_runtime)],
         )
-    return verification
+    return AgentVerification(
+        findings=[
+            CriterionFinding(
+                criterion=criterion,
+                passed=finding.passed,
+                evidence=finding.evidence,
+            )
+            for criterion, finding in zip(criteria, verification.findings, strict=True)
+        ],
+        verdict=verification.verdict,
+        repair_instructions=verification.repair_instructions,
+    )
 
 
 def _validate_plan_authority(brief: UserBrief, plan: QuestPlan) -> None:
