@@ -1,6 +1,6 @@
 # KHALINOS
 
-KHALINOS turns one approved product brief into a verified browser micro-application without step-by-step human guidance. A Gemini Project Owner issues an incremental Quest chain; separate Maker, Verifier, and Technical Repair agents execute it. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
+KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified browser micro-application without step-by-step human guidance. SixSense inspects six project dimensions, asks only material unanswered questions, and proposes editable professional defaults. After authorization, a Gemini Project Owner issues an incremental Quest chain; separate Maker, Verifier, and Technical Repair agents execute it. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
 
 This project targets the **Taskmaster** category of the All Things Agentic Hackathon.
 
@@ -8,7 +8,22 @@ This project targets the **Taskmaster** category of the All Things Agentic Hacka
 
 Long-running coding agents often fail in one of two ways: they improvise beyond the user's authority, or they repeatedly patch the latest symptom without preserving a verified state. Human supervision then becomes the real workflow engine.
 
-KHALINOS replaces conversational handoffs with an immutable brief, receipt-gated Quests, bounded repair, and a final evidence chain. After the user submits the brief, the Cloud workflow completes or stops safely without a coding assistant designing, fixing, or approving intermediate work.
+KHALINOS replaces conversational handoffs with adaptive outcome discovery, an immutable approved brief, receipt-gated Quests, bounded repair, and a final evidence chain. After the user authorizes the Outcome Preview, the Cloud workflow completes or stops safely without a coding assistant designing, fixing, or approving intermediate work.
+
+## SixSense outcome discovery
+
+SixSense is not a fixed six-question survey. It always checks six dimensions but asks only when a missing choice could materially change feasibility, scope, visual direction, quality, authority, or cost:
+
+1. Required enablers
+2. Exclusions and preservation
+3. Experience and visual direction
+4. Operating context
+5. Completion and quality standard
+6. Authority, budget, and delivery
+
+The user first supplies a goal and optional text, JSON, or reference images. Each necessary question appears separately with a complete recommended answer already placed in an editable field. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Revise outcome** carries confirmed decisions and sources into a fresh SixSense pass.
+
+![SixSense adaptive intake](docs/evidence/sixsense-intake.png)
 
 ## Google technology
 
@@ -23,10 +38,15 @@ KHALINOS replaces conversational handoffs with an immutable brief, receipt-gated
 
 ```mermaid
 flowchart LR
-    U["User brief + one authorization"] --> API["KHALINOS Cloud Run service"]
+    U["User goal + optional sources"] --> API["KHALINOS Cloud Run service"]
+    API --> SENSE["Gemini 3.5 SixSense via ADK"]
+    SENSE -->|"Only material gaps"| QUESTION["Sequential question + editable recommendation"]
+    QUESTION --> SENSE
+    SENSE --> PREVIEW["Outcome Preview + estimate"]
+    PREVIEW -->|"User authorization"| BRIEF["Immutable execution brief"]
     API --> FS["Firestore run state"]
-    API --> GCS["Cloud Storage immutable brief"]
-    API --> JOB["Cloud Run Job"]
+    API --> GCS["Cloud Storage sources and evidence"]
+    BRIEF --> JOB["Cloud Run Job"]
     JOB --> OWNER["Gemini 3.5 Project Owner via ADK"]
     OWNER --> MAKER["Gemini 3.5 Accountable Maker via ADK"]
     MAKER --> RUNTIME["Network-isolated Chromium verifier"]
@@ -94,6 +114,7 @@ $worker="khalinos-worker@$env:KHALINOS_PROJECT.iam.gserviceaccount.com"
 gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$api" --role="roles/datastore.user"
 gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$api" --role="roles/storage.objectAdmin"
 gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$api" --role="roles/run.developer"
+gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$api" --role="roles/aiplatform.user"
 gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$worker" --role="roles/datastore.user"
 gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$worker" --role="roles/storage.objectAdmin"
 gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAccount:$worker" --role="roles/aiplatform.user"
@@ -134,6 +155,24 @@ The repository includes evidence from a fresh autonomous run made after deployme
 ![Autonomously generated and verified Signal Board](docs/evidence/signal-board-final.png)
 
 The machine-readable Quest plan, receipts, and final manifest are in [`docs/evidence`](docs/evidence). The live service is [KHALINOS on Cloud Run](https://khalinos-lnvkyx4gca-du.a.run.app).
+
+### SixSense visual-contract proof
+
+A second fresh run tested whether a detailed SixSense visual contract changes the generated result without human or coding-assistant intervention after authorization:
+
+- Intake ID: `d1ca99ad93404e8390e53a0cad367a43`
+- Run ID: `1a88eddcb56f45648bd4e51716284ee4`
+- Immutable brief SHA-256: `a49bb41248383b8418f143471e4135027f918987a74bfe3997331f4880da1e6e`
+- Worker image digest: `sha256:0d73aba5561cd50e5ab9773682dc70d01bf17a3c35185a4e2c6290b48d580e99`
+- Result: 3 of 3 Quests passed, 0 repair rounds, 7 Gemini execution calls
+- Cloud Run Job execution: `khalinos-worker-dtp9v`, completed successfully in 2m 16.49s
+- Visual contract: warm parchment, charcoal ink, restrained brass, editorial hierarchy, tactile depth, and explicit rejection of generic admin-dashboard styling
+
+| Baseline brief | SixSense visual contract |
+| --- | --- |
+| ![Baseline generated board](docs/evidence/signal-board-final.png) | ![SixSense-guided generated board](docs/evidence/sixsense-run/signal-board-atelier-final.png) |
+
+The second run's machine-readable brief, Quest plan, receipts, and final manifest are in [`docs/evidence/sixsense-run`](docs/evidence/sixsense-run).
 
 ## Hackathon alignment
 

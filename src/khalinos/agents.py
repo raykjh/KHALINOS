@@ -62,7 +62,14 @@ Return the complete five-file bundle and only the required schema.
 """.strip()
 
 
-def _agent(name: str, instruction: str, schema: type[T], *, temperature: float) -> LlmAgent:
+def _agent(
+    name: str,
+    instruction: str,
+    schema: type[T],
+    *,
+    temperature: float,
+    max_output_tokens: int = 8192,
+) -> LlmAgent:
     return LlmAgent(
         name=name,
         model=MODEL,
@@ -72,7 +79,7 @@ def _agent(name: str, instruction: str, schema: type[T], *, temperature: float) 
         include_contents="none",
         generate_content_config=types.GenerateContentConfig(
             temperature=temperature,
-            max_output_tokens=8192,
+            max_output_tokens=max_output_tokens,
             thinking_config=types.ThinkingConfig(thinking_level="low"),
         ),
     )
@@ -85,9 +92,21 @@ class AgentTeam:
         os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
         os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
         self.owner = _agent("khalinos_project_owner", OWNER_INSTRUCTION, QuestPlan, temperature=0.1)
-        self.maker = _agent("khalinos_accountable_maker", MAKER_INSTRUCTION, ArtifactBundle, temperature=0.25)
+        self.maker = _agent(
+            "khalinos_accountable_maker",
+            MAKER_INSTRUCTION,
+            ArtifactBundle,
+            temperature=0.25,
+            max_output_tokens=49_152,
+        )
         self.verifier = _agent("khalinos_independent_verifier", VERIFIER_INSTRUCTION, AgentVerification, temperature=0.0)
-        self.repairer = _agent("khalinos_technical_repair", REPAIR_INSTRUCTION, ArtifactBundle, temperature=0.1)
+        self.repairer = _agent(
+            "khalinos_technical_repair",
+            REPAIR_INSTRUCTION,
+            ArtifactBundle,
+            temperature=0.1,
+            max_output_tokens=49_152,
+        )
         self.call_count = 0
 
     async def _run(self, agent: LlmAgent, payload: dict, schema: type[T]) -> T:
@@ -121,4 +140,3 @@ class AgentTeam:
 
     async def repair(self, payload: dict) -> ArtifactBundle:
         return await self._run(self.repairer, payload, ArtifactBundle)
-

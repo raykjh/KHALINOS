@@ -1,0 +1,37 @@
+{
+  "project_name": "Signal Board Atelier",
+  "goal": "A highly polished, responsive browser-based decision board styled as a private strategy atelier. Small teams can add options, score them from 1 to 5 across customizable criteria, view a deterministic leader, and persist their sessions locally. The interface features a calm, editorial layout with warm parchment backgrounds, charcoal ink typography, restrained brass accents, and subtle tactile depth.",
+  "constraints": [
+    "Strictly offline: no external CDNs, packages, or network calls",
+    "Only five files: index.html, styles.css, app.js, journey.json, README.md",
+    "Vanilla JS, HTML, CSS, and inline SVGs only",
+    "Must fit within a $3.00 budget and 20-minute execution window",
+    "Exclusion or preservation: No external CSS or JS frameworks (Tailwind, Bootstrap, React, etc.)",
+    "Exclusion or preservation: No external icon libraries or web fonts",
+    "Exclusion or preservation: No server-side databases or user authentication",
+    "Approved visual direction: Calm editorial layout inspired by a private strategy atelier. Warm parchment background (#FDFBF7), charcoal ink text (#1C1A17), restrained brass accents (#C5A059), strong typographic hierarchy using system serif headers, subtle tactile borders, and purposeful micro-interactions.",
+    "Operating context: Modern desktop and mobile browsers (Chromium, Safari, Firefox)",
+    "Operating context: Fully offline-capable, zero network dependencies"
+  ],
+  "acceptance_criteria": [
+    "Users can add, edit, and remove decision options",
+    "Users can score options from 1 to 5 across multiple criteria",
+    "A deterministic leader is calculated and highlighted in real-time",
+    "Data persists automatically to LocalStorage and can be cleared after confirmation",
+    "The UI matches the 'private strategy atelier' aesthetic (parchment, charcoal, brass)",
+    "The application is fully keyboard-accessible and responsive",
+    "Deterministic leader calculation with clear tie-breaking logic",
+    "Confirmation dialogs before clearing or resetting board data",
+    "Zero console errors during standard user journey",
+    "Responsive layout that adapts seamlessly from mobile screens to wide desktop monitors"
+  ],
+  "max_quests": 3,
+  "max_repairs_per_quest": 2,
+  "authorized_output_files": [
+    "index.html",
+    "styles.css",
+    "app.js",
+    "journey.json",
+    "README.md"
+  ]
+}

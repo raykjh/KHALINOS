@@ -57,6 +57,117 @@ class UserBrief(BaseModel):
         return self
 
 
+class SenseDimension(StrEnum):
+    REQUIRED_ENABLERS = "required_enablers"
+    EXCLUSIONS_PRESERVATION = "exclusions_preservation"
+    EXPERIENCE_VISUAL_DIRECTION = "experience_visual_direction"
+    OPERATING_CONTEXT = "operating_context"
+    COMPLETION_QUALITY_STANDARD = "completion_quality_standard"
+    AUTHORITY_BUDGET_DELIVERY = "authority_budget_delivery"
+
+
+ALL_SENSE_DIMENSIONS = list(SenseDimension)
+
+
+class SourceUpload(BaseModel):
+    filename: str = Field(min_length=1, max_length=160)
+    media_type: str = Field(pattern=r"^(text/plain|text/markdown|application/json|image/png|image/jpeg|image/webp)$")
+    data_base64: str = Field(min_length=1, max_length=14_000_000)
+
+
+class SourceReference(BaseModel):
+    source_id: str
+    filename: str
+    media_type: str
+    size_bytes: int = Field(ge=1, le=10_000_000)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class IntakeCreate(BaseModel):
+    project_name: str = Field(min_length=2, max_length=80)
+    goal: str = Field(min_length=20, max_length=5000)
+    sources: list[SourceUpload] = Field(default_factory=list, max_length=8)
+
+
+class SenseQuestion(BaseModel):
+    dimension: SenseDimension
+    question: str = Field(min_length=15, max_length=700)
+    recommended_answer: str = Field(min_length=10, max_length=2000)
+    why_it_matters: str = Field(min_length=10, max_length=500)
+
+
+class ExecutionEstimate(BaseModel):
+    quest_count: int = Field(ge=2, le=5)
+    cost_usd_min: float = Field(ge=0, le=5)
+    cost_usd_max: float = Field(ge=0, le=5)
+    duration_minutes_min: int = Field(ge=1, le=30)
+    duration_minutes_max: int = Field(ge=1, le=30)
+
+    @model_validator(mode="after")
+    def ordered_ranges(self) -> "ExecutionEstimate":
+        if self.cost_usd_min > self.cost_usd_max:
+            raise ValueError("cost range must be ordered")
+        if self.duration_minutes_min > self.duration_minutes_max:
+            raise ValueError("duration range must be ordered")
+        return self
+
+
+class OutcomePreview(BaseModel):
+    final_result: str = Field(min_length=30, max_length=1200)
+    required_enablers: list[str] = Field(min_length=1, max_length=10)
+    exclusions_and_preservation: list[str] = Field(min_length=1, max_length=10)
+    visual_direction: str = Field(min_length=20, max_length=1200)
+    operating_context: list[str] = Field(min_length=1, max_length=10)
+    completion_and_quality: list[str] = Field(min_length=2, max_length=10)
+    authority_budget_and_delivery: list[str] = Field(min_length=1, max_length=10)
+    estimate: ExecutionEstimate
+    recommended_brief: UserBrief
+
+
+class SenseDecision(BaseModel):
+    status: Literal["question", "ready"]
+    resolved_dimensions: list[SenseDimension] = Field(default_factory=list, max_length=6)
+    next_question: SenseQuestion | None = None
+    preview: OutcomePreview | None = None
+
+    @model_validator(mode="after")
+    def valid_transition(self) -> "SenseDecision":
+        if len(self.resolved_dimensions) != len(set(self.resolved_dimensions)):
+            raise ValueError("resolved dimensions must be unique")
+        if self.status == "question" and (self.next_question is None or self.preview is not None):
+            raise ValueError("question decisions require exactly one next question")
+        if self.status == "ready":
+            if self.preview is None or self.next_question is not None:
+                raise ValueError("ready decisions require exactly one preview")
+            if set(self.resolved_dimensions) != set(ALL_SENSE_DIMENSIONS):
+                raise ValueError("ready decisions must resolve all SixSense dimensions")
+        return self
+
+
+class IntakeAnswer(BaseModel):
+    dimension: SenseDimension
+    answer: str = Field(min_length=2, max_length=3000)
+
+
+class IntakeRevision(BaseModel):
+    change_request: str = Field(min_length=2, max_length=2000)
+
+
+class IntakeRecord(BaseModel):
+    intake_id: str
+    status: Literal["sensing", "ready", "authorized"] = "sensing"
+    project_name: str
+    goal: str
+    sources: list[SourceReference] = Field(default_factory=list)
+    answers: dict[str, str] = Field(default_factory=dict)
+    resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
+    current_question: SenseQuestion | None = None
+    preview: OutcomePreview | None = None
+    authorized_run_id: str | None = None
+    created_at: str = Field(default_factory=utc_now)
+    updated_at: str = Field(default_factory=utc_now)
+
+
 class QuestSpec(BaseModel):
     quest_id: str = Field(pattern=r"^Q[1-5]$")
     objective: str = Field(min_length=20, max_length=500)
@@ -164,4 +275,3 @@ class RunRecord(BaseModel):
 
 
 SAFE_RUN_ID = re.compile(r"^[a-f0-9]{32}$")
-

@@ -3,104 +3,195 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>KHALINOS — From brief to verified result</title>
+  <title>KHALINOS — From intent to verified result</title>
   <style>
-    :root { color-scheme: dark; --ink:#f4f0e7; --muted:#a5b1b8; --gold:#e9bf62; --panel:#111b24; --line:#293845; }
+    :root {
+      color-scheme: dark; --ink:#f5f1e8; --muted:#9aa9b3; --gold:#e9c46a;
+      --teal:#62d6c7; --panel:rgba(14,27,36,.88); --line:#2b3e49; --deep:#061017;
+    }
     * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; font:16px/1.5 Inter,system-ui,sans-serif; color:var(--ink); background:#071018; }
-    main { width:min(1040px,92vw); margin:auto; padding:64px 0; }
-    header { display:grid; gap:14px; margin-bottom:36px; }
-    .eyebrow { color:var(--gold); letter-spacing:.18em; text-transform:uppercase; font-size:13px; }
-    h1 { margin:0; font:600 clamp(42px,8vw,78px)/1 Georgia,serif; color:var(--gold); }
-    h2 { margin:0; font-size:25px; }
-    p { margin:0; color:var(--muted); max-width:760px; }
-    .grid { display:grid; grid-template-columns:1.1fr .9fr; gap:24px; }
-    section { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px; }
-    label { display:grid; gap:7px; margin:15px 0; font-weight:650; }
-    input,textarea { width:100%; border:1px solid #3b4b57; border-radius:10px; background:#09131b; color:var(--ink); padding:12px; font:inherit; }
-    textarea { min-height:110px; resize:vertical; }
-    button { border:0; border-radius:10px; padding:13px 18px; background:var(--gold); color:#15202a; font-weight:800; cursor:pointer; }
-    button:disabled { opacity:.55; cursor:wait; }
-    ol { padding-left:20px; color:var(--muted); }
-    #status { margin-top:18px; white-space:pre-wrap; color:#9de1d6; }
-    .stack { display:grid; gap:16px; }
-    @media (max-width:800px) { .grid { grid-template-columns:1fr; } main { padding:36px 0; } }
+    body { margin:0; min-height:100vh; font:16px/1.55 Inter,ui-sans-serif,system-ui,sans-serif; color:var(--ink); background:
+      radial-gradient(circle at 12% 12%,rgba(98,214,199,.12),transparent 28%),
+      radial-gradient(circle at 88% 8%,rgba(233,196,106,.1),transparent 24%),var(--deep); }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.16; background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px); background-size:34px 34px; }
+    main { width:min(1120px,92vw); margin:auto; padding:52px 0 72px; position:relative; }
+    header { display:flex; align-items:end; justify-content:space-between; gap:28px; margin-bottom:34px; }
+    .eyebrow { color:var(--gold); letter-spacing:.2em; text-transform:uppercase; font-size:12px; font-weight:800; }
+    h1 { margin:4px 0 8px; font:600 clamp(44px,8vw,78px)/.95 Georgia,serif; color:var(--gold); letter-spacing:-.035em; }
+    h2,h3 { margin:0; line-height:1.2; }
+    p { margin:0; color:var(--muted); }
+    .cloud { max-width:370px; text-align:right; font-size:13px; }
+    .shell { display:grid; grid-template-columns:220px minmax(0,1fr); gap:22px; }
+    .rail,.panel { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:0 24px 80px rgba(0,0,0,.24); backdrop-filter:blur(16px); }
+    .rail { padding:22px; align-self:start; }
+    .phase { display:flex; gap:11px; align-items:center; color:#70828e; padding:11px 0; font-size:14px; }
+    .phase::before { content:""; width:9px; height:9px; border:1px solid currentColor; border-radius:50%; }
+    .phase.active { color:var(--gold); font-weight:750; }
+    .phase.done { color:var(--teal); }
+    .panel { padding:clamp(24px,5vw,48px); min-height:560px; }
+    .step { display:none; animation:enter .28s ease-out; }
+    .step.active { display:block; }
+    @keyframes enter { from { opacity:0; transform:translateY(8px); } }
+    .kicker { color:var(--teal); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:10px; }
+    .lead { font-size:18px; max-width:760px; margin:12px 0 28px; }
+    label { display:grid; gap:8px; margin:18px 0; font-weight:700; }
+    input,textarea { width:100%; border:1px solid #3a505d; border-radius:12px; background:#08141c; color:var(--ink); padding:14px 15px; font:inherit; transition:.2s; }
+    input:focus,textarea:focus { outline:3px solid rgba(98,214,199,.2); border-color:var(--teal); }
+    textarea { min-height:150px; resize:vertical; }
+    .recommendation { border-left:3px solid var(--gold); padding:14px 16px; background:rgba(233,196,106,.07); border-radius:0 10px 10px 0; margin:18px 0; }
+    .recommendation small { color:var(--gold); font-weight:800; text-transform:uppercase; letter-spacing:.1em; }
+    .actions { display:flex; gap:11px; flex-wrap:wrap; margin-top:24px; }
+    button { border:0; border-radius:11px; padding:13px 19px; background:var(--gold); color:#142029; font-weight:850; cursor:pointer; font:inherit; }
+    button.secondary { background:transparent; color:var(--ink); border:1px solid #405460; }
+    button:disabled { opacity:.5; cursor:wait; }
+    .upload { border:1px dashed #48606e; padding:20px; border-radius:14px; color:var(--muted); }
+    .source-list { display:grid; gap:8px; margin-top:10px; font-size:13px; color:var(--teal); }
+    .progress { height:3px; background:#23343f; margin:26px 0; overflow:hidden; border-radius:3px; }
+    .progress span { display:block; height:100%; width:18%; background:linear-gradient(90deg,var(--teal),var(--gold)); transition:.3s; }
+    .preview-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; }
+    .card { padding:18px; border:1px solid var(--line); background:#09151d; border-radius:14px; }
+    .card.wide { grid-column:1/-1; }
+    .card h3 { color:var(--gold); font-size:14px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
+    .card ul { margin:0; padding-left:19px; color:var(--muted); }
+    .estimate { display:flex; gap:24px; flex-wrap:wrap; margin-top:13px; color:var(--teal); font-weight:800; }
+    #status { margin-top:18px; color:var(--teal); white-space:pre-wrap; }
+    .spinner { display:inline-block; width:16px; height:16px; border:2px solid #45606c; border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-3px; margin-right:8px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media(max-width:780px) { header { align-items:start; flex-direction:column; } .cloud { text-align:left; } .shell { grid-template-columns:1fr; } .rail { display:flex; overflow:auto; gap:18px; } .phase { white-space:nowrap; } .preview-grid { grid-template-columns:1fr; } .card.wide { grid-column:auto; } }
   </style>
 </head>
 <body>
 <main>
   <header>
-    <span class="eyebrow">Evidence-gated autonomous execution</span>
-    <h1>KHALINOS</h1>
-    <p>Give one bounded product brief. Gemini agents on Google Cloud plan the Quest chain, create the artifact, run an isolated browser, repair failures, and accept only evidence-backed results.</p>
+    <div><span class="eyebrow">Outcome discovery · autonomous execution</span><h1>KHALINOS</h1><p>SixSense resolves what matters before the first Quest begins.</p></div>
+    <p class="cloud">Gemini 3.5 Flash · Google ADK<br>Vertex AI · Cloud Run · Firestore · Cloud Storage</p>
   </header>
-  <div class="grid">
-    <section>
-      <h2>Start one autonomous run</h2>
-      <form id="briefForm">
-        <label>Project name<input id="projectName" required minlength="2" value="Signal Board"></label>
-        <label>Goal<textarea id="goal" required minlength="30">Create a focused single-page decision board that lets a user add options, score each option from 1 to 5, and immediately see the highest-scoring choice. Persist the board locally and provide a clear empty state.</textarea></label>
-        <label>Acceptance criteria<textarea id="criteria" required>Users can add and remove decision options.
-Users can score every option from 1 to 5.
-The leading option updates immediately and survives reload.
-The interface is keyboard accessible and responsive.</textarea></label>
-        <button id="submitButton" type="submit">Authorize and run</button>
-      </form>
-      <div id="status" role="status" aria-live="polite"></div>
-    </section>
-    <section class="stack">
-      <h2>What happens after submit</h2>
-      <ol>
-        <li>Project Owner issues a bounded Quest chain.</li>
-        <li>Accountable Maker builds each verified increment.</li>
-        <li>An isolated Chromium run produces runtime evidence.</li>
-        <li>Independent Verifier accepts or routes a repair.</li>
-        <li>Only an unbroken receipt chain reaches PASS.</li>
-      </ol>
-      <p>Runtime: Gemini 3.5 Flash · Google ADK · Vertex AI · Cloud Run · Firestore · Cloud Storage</p>
+  <div class="shell">
+    <aside class="rail" aria-label="Progress">
+      <div class="phase active" data-phase="intent">Intent</div>
+      <div class="phase" data-phase="sources">Sources</div>
+      <div class="phase" data-phase="senses">SixSense</div>
+      <div class="phase" data-phase="preview">Preview</div>
+      <div class="phase" data-phase="execute">Execute</div>
+    </aside>
+    <section class="panel">
+      <div class="step active" id="intentStep">
+        <div class="kicker">Step 1 · State the destination</div>
+        <h2>What should exist when this is finished?</h2>
+        <p class="lead">Plain language is enough. SixSense will identify missing decisions and propose professional defaults.</p>
+        <label>Project name<input id="projectName" value="Signal Board" minlength="2" required></label>
+        <label>Goal<textarea id="goal" minlength="20" required>Create a polished decision board for a small team. People should add options, score them, see the current leader, preserve the board after reload, and safely clear it.</textarea></label>
+        <div class="actions"><button id="toSources">Continue to sources</button></div>
+      </div>
+
+      <div class="step" id="sourcesStep">
+        <div class="kicker">Step 2 · Ground the outcome</div>
+        <h2>Add anything KHALINOS should see.</h2>
+        <p class="lead">Optional text, JSON, or reference images help SixSense preserve facts and understand visual intent.</p>
+        <label class="upload">Reference files
+          <input id="sources" type="file" multiple accept=".txt,.md,.json,.png,.jpg,.jpeg,.webp">
+          <span class="source-list" id="sourceList">No files selected — continuing without sources is allowed.</span>
+        </label>
+        <div class="actions"><button class="secondary" data-back="intent">Back</button><button id="beginSensing">Submit goal and sources</button></div>
+      </div>
+
+      <div class="step" id="sensesStep">
+        <div class="kicker" id="questionKicker">SixSense · Adaptive question</div>
+        <h2 id="questionText">Reviewing the goal…</h2>
+        <div class="progress"><span id="senseProgress"></span></div>
+        <div class="recommendation"><small>Why this matters</small><p id="questionWhy"></p></div>
+        <label>Your answer<textarea id="answer"></textarea></label>
+        <p>SixSense has placed its recommended answer in the field. Accept it unchanged or edit it before continuing.</p>
+        <div class="actions"><button id="submitAnswer">Use this answer</button></div>
+      </div>
+
+      <div class="step" id="previewStep">
+        <div class="kicker">Outcome Preview · Ready for authorization</div>
+        <h2 id="previewTitle">Expected final result</h2>
+        <p class="lead" id="finalResult"></p>
+        <div class="preview-grid">
+          <article class="card wide"><h3>Visual direction</h3><p id="visualDirection"></p></article>
+          <article class="card"><h3>Required enablers</h3><ul id="enablers"></ul></article>
+          <article class="card"><h3>Exclusions & preservation</h3><ul id="exclusions"></ul></article>
+          <article class="card"><h3>Operating context</h3><ul id="context"></ul></article>
+          <article class="card"><h3>Completion & quality</h3><ul id="quality"></ul></article>
+          <article class="card wide"><h3>Authority, budget & delivery</h3><ul id="authority"></ul><div class="estimate" id="estimate"></div></article>
+        </div>
+        <div class="actions"><button class="secondary" id="revise">Revise outcome</button><button id="authorize">Authorize and execute</button></div>
+        <div id="revisionBox" hidden><label>What should change?<textarea id="revisionRequest" placeholder="Describe the change. Confirmed answers and uploaded sources will be carried into a new SixSense pass."></textarea></label><button id="restart">Restart SixSense with this change</button></div>
+      </div>
+
+      <div class="step" id="executeStep">
+        <div class="kicker">Authorized · Cloud execution</div>
+        <h2>KHALINOS is now working independently.</h2>
+        <p class="lead">The approved brief is immutable. Project Owner, Maker, runtime verification, independent Verifier, and bounded Technical Repair proceed without step-by-step human guidance.</p>
+        <div id="status" role="status" aria-live="polite"></div>
+      </div>
     </section>
   </div>
 </main>
 <script>
-const form = document.querySelector('#briefForm');
-const statusBox = document.querySelector('#status');
-const submitButton = document.querySelector('#submitButton');
-let pollTimer;
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  clearTimeout(pollTimer);
-  submitButton.disabled = true;
-  statusBox.textContent = 'Submitting immutable brief…';
-  const acceptance = document.querySelector('#criteria').value.split('\n').map(v => v.trim()).filter(Boolean);
-  try {
-    const response = await fetch('/api/runs', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({
-      project_name: document.querySelector('#projectName').value,
-      goal: document.querySelector('#goal').value,
-      acceptance_criteria: acceptance,
-      constraints: ['No external network calls in the generated product.', 'Use only the authorized five-file browser micro-app surface.']
-    })});
-    if (!response.ok) throw new Error(await response.text());
-    const payload = await response.json();
-    statusBox.textContent = `Run ${payload.record.run_id}\nQueued on Google Cloud.`;
-    poll(payload.record.run_id);
-  } catch (error) {
-    statusBox.textContent = `Submission failed: ${error.message}`;
-    submitButton.disabled = false;
-  }
+const phases=['intent','sources','senses','preview','execute'];
+let intake=null, pollTimer=null;
+const $=selector=>document.querySelector(selector);
+function show(name){
+  document.querySelectorAll('.step').forEach(node=>node.classList.remove('active'));
+  $(`#${name}Step`).classList.add('active');
+  const current=phases.indexOf(name);
+  document.querySelectorAll('.phase').forEach((node,index)=>{node.classList.toggle('active',index===current);node.classList.toggle('done',index<current);});
+}
+function busy(button,on,label='Working with Gemini…'){button.disabled=on;button.dataset.original??=button.textContent;button.innerHTML=on?`<span class="spinner"></span>${label}`:button.dataset.original;}
+function apiError(response,text){try{return JSON.parse(text).detail||text;}catch{return text||`HTTP ${response.status}`;}}
+async function filePayload(file){
+  const data=await file.arrayBuffer(); let binary=''; const bytes=new Uint8Array(data); const chunk=0x8000;
+  for(let i=0;i<bytes.length;i+=chunk) binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+  return {filename:file.name,media_type:file.type||({'txt':'text/plain','md':'text/markdown','json':'application/json'}[file.name.split('.').pop().toLowerCase()]||'text/plain'),data_base64:btoa(binary)};
+}
+$('#toSources').addEventListener('click',()=>{if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;show('sources');});
+document.querySelector('[data-back="intent"]').addEventListener('click',()=>show('intent'));
+$('#sources').addEventListener('change',()=>{$('#sourceList').textContent=[...$('#sources').files].map(file=>`${file.name} · ${Math.ceil(file.size/1024)} KB`).join('\n')||'No files selected — continuing without sources is allowed.';});
+$('#beginSensing').addEventListener('click',async()=>{
+  const button=$('#beginSensing'); busy(button,true,'Analyzing six dimensions…');
+  try{
+    const sources=await Promise.all([...$('#sources').files].map(filePayload));
+    const response=await fetch('/api/intakes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources})});
+    const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
+  }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
-async function poll(runId) {
-  try {
-    const response = await fetch(`/api/runs/${runId}`);
-    const record = await response.json();
-    statusBox.textContent = `Run ${runId}\n${record.status.toUpperCase()} — ${record.message}\nModel calls: ${record.model_calls}\nReceipts: ${record.completed_receipt_ids.length}`;
-    if (['passed','blocked','failed'].includes(record.status)) { submitButton.disabled = false; return; }
-    pollTimer = setTimeout(() => poll(runId), 3000);
-  } catch (error) {
-    statusBox.textContent = `Status check failed: ${error.message}`;
-    submitButton.disabled = false;
-  }
+function renderIntake(){
+  if(intake.status==='ready'){renderPreview();return;}
+  const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');
+  show('senses'); const resolved=intake.resolved_dimensions.length;
+  $('#questionKicker').textContent=`SixSense · ${question.dimension.replaceAll('_',' ')} · ${resolved+1} decision${resolved?'s':''}`;
+  $('#questionText').textContent=question.question; $('#questionWhy').textContent=question.why_it_matters;
+  $('#answer').value=question.recommended_answer; $('#senseProgress').style.width=`${Math.max(12,(resolved+1)/6*100)}%`;
+}
+$('#submitAnswer').addEventListener('click',async()=>{
+  if(!$('#answer').value.trim())return; const button=$('#submitAnswer'); busy(button,true,'Checking what remains…');
+  try{
+    const response=await fetch(`/api/intakes/${intake.intake_id}/answers`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dimension:intake.current_question.dimension,answer:$('#answer').value.trim()})});
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();
+  }catch(error){alert(`Answer was not accepted: ${error.message}`);}finally{busy(button,false);}
+});
+const list=(selector,items)=>{$(selector).innerHTML=items.map(item=>`<li>${escapeHtml(item)}</li>`).join('');};
+const escapeHtml=value=>{const node=document.createElement('span');node.textContent=value;return node.innerHTML;};
+function renderPreview(){
+  show('preview'); const p=intake.preview; $('#previewTitle').textContent=`${intake.project_name} · Expected final result`; $('#finalResult').textContent=p.final_result;
+  $('#visualDirection').textContent=p.visual_direction;list('#enablers',p.required_enablers);list('#exclusions',p.exclusions_and_preservation);list('#context',p.operating_context);list('#quality',p.completion_and_quality);list('#authority',p.authority_budget_and_delivery);
+  const e=p.estimate;$('#estimate').innerHTML=`<span>${e.quest_count} Quests</span><span>$${e.cost_usd_min.toFixed(2)}–$${e.cost_usd_max.toFixed(2)}</span><span>${e.duration_minutes_min}–${e.duration_minutes_max} min</span>`;
+}
+$('#revise').addEventListener('click',()=>{$('#revisionBox').hidden=false;$('#revisionRequest').focus();});
+$('#restart').addEventListener('click',async()=>{
+  if(!$('#revisionRequest').value.trim())return;const button=$('#restart');busy(button,true,'Reframing the outcome…');
+  try{const response=await fetch(`/api/intakes/${intake.intake_id}/revise`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({change_request:$('#revisionRequest').value.trim()})});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();}catch(error){alert(`Revision failed: ${error.message}`);}finally{busy(button,false);}
+});
+$('#authorize').addEventListener('click',async()=>{
+  const button=$('#authorize');busy(button,true,'Authorizing Cloud run…');
+  try{const response=await fetch(`/api/intakes/${intake.intake_id}/authorize`,{method:'POST'});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));const payload=JSON.parse(text);show('execute');$('#status').textContent=`Run ${payload.record.run_id}\nQUEUED — The approved Outcome Brief is immutable.`;poll(payload.record.run_id);}catch(error){alert(`Authorization failed: ${error.message}`);busy(button,false);}
+});
+async function poll(runId){
+  try{const response=await fetch(`/api/runs/${runId}`);const record=await response.json();$('#status').textContent=`Run ${runId}\n${record.status.toUpperCase()} — ${record.message}\nGemini calls: ${record.model_calls}\nVerified receipts: ${record.completed_receipt_ids.length}`;if(['passed','blocked','failed'].includes(record.status))return;pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#status').textContent=`Status check failed: ${error.message}`;}
 }
 </script>
 </body>
 </html>
-

@@ -1,0 +1,59 @@
+{
+  "receipt_id": "QR-41c388d224424338",
+  "quest_id": "Q2",
+  "quest_sha256": "5920ea77a03b7085cb5bfde3cc5debf36e5f608d50c961fb9b8c59cd23ae3384",
+  "parent_receipt_id": "QR-b8ed9c2b61af4633",
+  "artifact_sha256": "96a5bcd190c8e715ec9fa2b313e1b8940e952224f2fa407b5d4fcaf471d036e1",
+  "deterministic_evidence": {
+    "passed": true,
+    "checks": {
+      "exact_authorized_files": true,
+      "bounded_size": true,
+      "no_external_network_or_dynamic_code": true,
+      "html_document": true,
+      "accessible_controls": true,
+      "responsive_css": true,
+      "no_placeholders": true,
+      "browser_journeys": true,
+      "console_clean": true
+    },
+    "issues": [],
+    "screenshot_names": [
+      "journey-01.png"
+    ]
+  },
+  "independent_verification": {
+    "findings": [
+      {
+        "criterion": "Users can score each option from 1 to 5 across all active criteria using an intuitive, keyboard-accessible interface.",
+        "passed": true,
+        "evidence": "The app.js file renders score buttons from 1 to 5 inside a score-group container with role='radiogroup' and aria-checked attributes. The styles.css file defines tactile interactive states for .score-btn, including hover, active, and focus outlines."
+      },
+      {
+        "criterion": "A deterministic leader is calculated and highlighted in real-time based on the highest average score.",
+        "passed": true,
+        "evidence": "The getLeader() function in app.js calculates the average score for each option in real-time. The leading option is highlighted with the 'leader-row' class in the table and displayed in the leader-banner section."
+      },
+      {
+        "criterion": "Tie-breaking logic is clearly defined and executed (e.g., highest individual criterion score, then alphabetical fallback).",
+        "passed": true,
+        "evidence": "The getLeader() function in app.js implements a multi-stage tie-breaker: first comparing the average score, then the highest individual criterion score, and finally falling back to alphabetical comparison (opt.name.toLowerCase() < leader.name.toLowerCase())."
+      },
+      {
+        "criterion": "Data persists automatically to LocalStorage on any change.",
+        "passed": true,
+        "evidence": "The saveState() function in app.js serializes the state object to LocalStorage under the key 'signal_board_atelier_state' and is called automatically on adding/removing options, adding/removing criteria, and setting scores."
+      },
+      {
+        "criterion": "A confirmation dialog is presented before clearing or resetting board data.",
+        "passed": true,
+        "evidence": "The resetBoardBtn click listener, removeOption, and removeCriterion functions in app.js all invoke the native confirm() dialog before modifying or clearing the state."
+      }
+    ],
+    "verdict": "PASS",
+    "repair_instructions": []
+  },
+  "repair_rounds": 0,
+  "state": "passed",
+  "created_at": "2026-08-18T00:34:14.743835+00:00"
+}

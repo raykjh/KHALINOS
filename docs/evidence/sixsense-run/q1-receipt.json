@@ -1,0 +1,59 @@
+{
+  "receipt_id": "QR-b8ed9c2b61af4633",
+  "quest_id": "Q1",
+  "quest_sha256": "75ec8708a36010ab5b98643354c4a442d8218af52c1cf830d3e16fe0f1396c9e",
+  "parent_receipt_id": null,
+  "artifact_sha256": "4aecd1bbbc70aad22718fd443467e51ced4dfec5de788c0462c4d355af30b0e1",
+  "deterministic_evidence": {
+    "passed": true,
+    "checks": {
+      "exact_authorized_files": true,
+      "bounded_size": true,
+      "no_external_network_or_dynamic_code": true,
+      "html_document": true,
+      "accessible_controls": true,
+      "responsive_css": true,
+      "no_placeholders": true,
+      "browser_journeys": true,
+      "console_clean": true
+    },
+    "issues": [],
+    "screenshot_names": [
+      "journey-01.png"
+    ]
+  },
+  "independent_verification": {
+    "findings": [
+      {
+        "criterion": "The page renders with a warm parchment background (#FDFBF7), charcoal ink text (#1C1A17), and brass accents (#C5A059).",
+        "passed": true,
+        "evidence": "The styles.css file defines CSS variables matching these exact hex codes: --bg-parchment: #FDFBF7, --text-charcoal: #1C1A17, and --accent-brass: #C5A059, which are applied to the body background, text color, and borders/accents respectively."
+      },
+      {
+        "criterion": "Users can add and remove decision options via a clean, accessible form.",
+        "passed": true,
+        "evidence": "The index.html contains the form '#add-option-form' with input '#option-name' and button '#add-option-btn'. The app.js file handles the submit event, adds options to the state, and renders a 'Remove' button with window.removeOption to delete options."
+      },
+      {
+        "criterion": "Users can add and remove customizable criteria.",
+        "passed": true,
+        "evidence": "The index.html contains the form '#add-criterion-form' with input '#criterion-name' and button '#add-criterion-btn'. The app.js file handles the submit event, adds criteria to the state, and renders a 'Remove' button with window.removeCriterion to delete criteria."
+      },
+      {
+        "criterion": "The layout is responsive and adapts seamlessly from mobile screens to wide desktop monitors.",
+        "passed": true,
+        "evidence": "The styles.css file implements a responsive grid layout using '.atelier-grid' with a media query '@media (max-width: 900px)' that switches the layout from a 320px sidebar grid to a single-column layout."
+      },
+      {
+        "criterion": "No external CDNs, packages, or web fonts are loaded.",
+        "passed": true,
+        "evidence": "The index.html file only links to the local 'styles.css' and 'app.js' files, and uses system serif/sans-serif fonts and inline SVGs instead of external assets."
+      }
+    ],
+    "verdict": "PASS",
+    "repair_instructions": []
+  },
+  "repair_rounds": 0,
+  "state": "passed",
+  "created_at": "2026-08-18T00:33:36.657814+00:00"
+}
