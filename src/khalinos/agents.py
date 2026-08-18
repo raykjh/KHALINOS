@@ -14,7 +14,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from khalinos.browser_artifacts import BrowserArtifactBundle
-from khalinos.godot_topology import GodotProjectPlan
+from khalinos.godot_topology import GodotProjectPlan, GodotTopologyPlan
 from khalinos.models import (
     AgentVerification,
     ArtifactBundle,
@@ -136,21 +136,27 @@ by candidate ID. Select the candidate with the highest rubric average; ties may 
 by stronger contract alignment, then distinctiveness. Return only the required schema.
 """.strip()
 
-GODOT_OWNER_INSTRUCTION = """
-You are the KHALINOS Godot Project Owner. Convert one immutable approved brief into
-exactly one bounded GodotProjectPlan. You do not write GDScript, scenes, commands,
-files, tests, executable paths, or verification code. The trusted Godot ToolPack owns
-all of those. Your topology may contain only two to sixteen connected screen or overlay
-regions with explicit directed transitions and one declared initial region. Use the
-approved project_name exactly. Infer only the minimum conventional screen topology
-needed to express the approved goal; do not invent product features, network services,
-assets, or mechanics outside the brief.
-
-Issue two to five linear Quests. Quest acceptance_criteria may use only verbatim strings
-from the approved brief, every approved criterion must appear exactly once across the
-chain, and no criterion may be omitted or added. Put topology compilation, scene loading,
+GODOT_QUEST_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Project Owner issuing the Quest chain for one immutable
+approved brief. You do not write topology regions, GDScript, scenes, commands, files,
+tests, executable paths, or verification code. The trusted Godot ToolPack owns those.
+Issue two to five linear Quests without inventing features, network services, assets, or
+mechanics outside the brief. Quest acceptance_criteria may use only verbatim strings from
+the approved brief, every approved criterion must appear exactly once across the chain,
+and no criterion may be omitted or added. Put topology compilation, scene loading,
 headless execution, file inspection, and receipt requirements only in evidence_required.
-The model must not set or alter the ToolPack binding. Return only the required schema.
+The model must not set or alter the ToolPack binding. Return only the required QuestPlan.
+""".strip()
+
+GODOT_TOPOLOGY_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Project Owner materializing the bounded topology decision for
+the supplied immutable brief and already-issued QuestPlan. You do not write GDScript,
+scenes, commands, files, tests, executable paths, or verification code. Return only a
+GodotTopologyPlan containing two to sixteen connected screen or overlay regions with
+explicit directed transitions and one initial region. Use the approved project_name
+exactly. Infer only the minimum conventional screen topology required by the brief and
+QuestPlan. Do not invent product features, network services, assets, or mechanics.
+Return only the required GodotTopologyPlan schema.
 """.strip()
 
 GODOT_VERIFIER_INSTRUCTION = """
@@ -228,10 +234,16 @@ class AgentTeam:
             VisualSelection,
             temperature=0.0,
         )
-        self.godot_owner = _agent(
-            "khalinos_godot_project_owner",
-            GODOT_OWNER_INSTRUCTION,
-            GodotProjectPlan,
+        self.godot_quest_owner = _agent(
+            "khalinos_godot_quest_owner",
+            GODOT_QUEST_OWNER_INSTRUCTION,
+            QuestPlan,
+            temperature=0.1,
+        )
+        self.godot_topology_owner = _agent(
+            "khalinos_godot_topology_owner",
+            GODOT_TOPOLOGY_OWNER_INSTRUCTION,
+            GodotTopologyPlan,
             temperature=0.1,
         )
         self.godot_verifier = _agent(
@@ -272,7 +284,13 @@ class AgentTeam:
         return await self._run(self.owner, payload, QuestPlan)
 
     async def plan_godot(self, payload: dict) -> GodotProjectPlan:
-        return await self._run(self.godot_owner, payload, GodotProjectPlan)
+        quest_plan = await self._run(self.godot_quest_owner, payload, QuestPlan)
+        topology = await self._run(
+            self.godot_topology_owner,
+            {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")},
+            GodotTopologyPlan,
+        )
+        return GodotProjectPlan(quest_plan=quest_plan, topology=topology)
 
     async def make(self, payload: dict) -> ArtifactBundle:
         return await self._run(self.maker, payload, BrowserArtifactBundle)
