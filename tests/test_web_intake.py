@@ -24,3 +24,18 @@ def test_intake_ui_explains_static_detection_and_executable_limit() -> None:
     assert "material_inspection" in html
     assert "Sign in with Google" in html
     assert not re.search(r"[가-힣]", html)
+
+
+def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
+    html = WEB.read_text(encoding="utf-8")
+    assert "Approved estimate" in html
+    assert "Gemini calls" in html
+    assert 'id="agentCamp"' in html
+    assert 'id="handoffHorse"' in html
+    assert "🐎" in html
+    assert "Project Owner" in html
+    assert "Technical Repair" in html
+    assert "Independent Verifier" in html
+    assert "function renderRun(record)" in html
+    assert "record.message" in html
+    assert "actual cost" not in html.lower()

@@ -64,10 +64,71 @@
     .card h3 { color:var(--gold); font-size:14px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
     .card ul { margin:0; padding-left:19px; color:var(--muted); }
     .estimate { display:flex; gap:24px; flex-wrap:wrap; margin-top:13px; color:var(--teal); font-weight:800; }
-    #status { margin-top:18px; color:var(--teal); white-space:pre-wrap; }
+    #status { margin-top:18px; color:#314026; }
     .spinner { display:inline-block; width:16px; height:16px; border:2px solid #45606c; border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; vertical-align:-3px; margin-right:8px; }
     @keyframes spin { to { transform:rotate(360deg); } }
+    /* The execution view is a live steppe map, while intake remains a quiet workbench. */
+    body { color:#26351f; background:
+      radial-gradient(circle at 82% 3%,rgba(255,248,214,.92),transparent 26%),
+      linear-gradient(180deg,#cbdcd2 0 17%,#a8bb7b 41%,#687c46 100%); }
+    body::before { opacity:.18; background-image:
+      repeating-linear-gradient(102deg,transparent 0 33px,rgba(48,76,31,.14) 34px,transparent 36px),
+      linear-gradient(180deg,transparent 0 57%,rgba(47,73,32,.18) 100%); background-size:auto; }
+    .eyebrow,.card h3 { color:#775a2c; }
+    h1 { color:#3e512c; text-shadow:0 2px 0 rgba(255,255,255,.32); }
+    h2,h3 { color:#27361f; }
+    p,.cloud { color:#4c5b46; }
+    .rail,.panel { background:rgba(247,241,218,.91); border-color:rgba(77,94,55,.34); box-shadow:0 22px 70px rgba(43,57,31,.22); }
+    .phase { color:#718068; }
+    .phase.active { color:#775a2c; }
+    .phase.done,.kicker { color:#3f6b44; }
+    input,textarea { background:#fffdf3; color:#27361f; border-color:#9aa486; }
+    input:focus,textarea:focus { outline-color:rgba(79,112,63,.2); border-color:#4f703f; }
+    .entry,.card,.inspection { background:rgba(255,252,237,.76); color:#27361f; border-color:#a2aa8b; }
+    .entry span,.card ul,.inspection ul { color:#59634f; }
+    button { background:#c99b4b; color:#26301f; }
+    button.secondary { color:#37442e; border-color:#899477; }
+    .execute-head { display:flex; justify-content:space-between; gap:22px; align-items:end; }
+    .run-id { font:700 12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace; color:#607053; overflow-wrap:anywhere; text-align:right; }
+    .run-dashboard { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:24px 0 18px; }
+    .metric { min-height:78px; padding:13px 14px; border:1px solid rgba(81,101,59,.32); border-radius:14px; background:rgba(255,252,232,.72); }
+    .metric small { display:block; color:#6c765f; font-size:10px; font-weight:850; letter-spacing:.1em; text-transform:uppercase; }
+    .metric strong { display:block; margin-top:6px; color:#314326; font-size:17px; }
+    .metric.status strong { color:#3f6b44; }
+    .camp { position:relative; overflow:hidden; min-height:390px; padding:36px 18px 22px; border:1px solid rgba(65,86,45,.34); border-radius:22px; background:
+      radial-gradient(ellipse at 50% 96%,rgba(48,73,32,.34),transparent 55%),
+      linear-gradient(180deg,rgba(204,221,211,.88) 0 35%,rgba(148,170,99,.74) 36% 100%); }
+    .camp::before { content:""; position:absolute; inset:35% 0 auto; height:2px; background:rgba(255,255,255,.3); box-shadow:0 26px 44px rgba(73,99,44,.18); }
+    .route { position:absolute; left:8%; right:8%; bottom:92px; height:34px; border-bottom:3px dashed rgba(90,77,48,.38); border-radius:50%; }
+    .horse { position:absolute; z-index:6; left:8%; bottom:87px; font-size:28px; filter:drop-shadow(0 3px 2px rgba(53,45,28,.25)); transform:translateX(-50%); transition:left 1.2s cubic-bezier(.2,.8,.25,1); }
+    .camp-grid { position:relative; z-index:2; display:grid; grid-template-columns:repeat(6,minmax(110px,1fr)); gap:12px; align-items:end; min-height:288px; }
+    .station { position:relative; min-width:0; text-align:center; opacity:.62; transition:opacity .35s,transform .35s; }
+    .station.active,.station.done { opacity:1; }
+    .station.active { transform:translateY(-7px); }
+    .speech { position:relative; display:flex; align-items:center; justify-content:center; min-height:62px; margin:0 auto 13px; padding:9px 10px; max-width:160px; border:1px solid rgba(85,91,67,.32); border-radius:13px; background:#fffdf1; color:#42503a; font-size:11px; line-height:1.35; box-shadow:0 6px 16px rgba(64,72,45,.12); visibility:hidden; }
+    .speech::after { content:""; position:absolute; left:50%; bottom:-7px; width:12px; height:12px; background:#fffdf1; border-right:1px solid rgba(85,91,67,.32); border-bottom:1px solid rgba(85,91,67,.32); transform:translateX(-50%) rotate(45deg); }
+    .station.active .speech,.station.done .speech { visibility:visible; }
+    .station.done:not(.active) .speech { opacity:.66; }
+    .ger-wrap { position:relative; width:92px; height:80px; margin:auto; }
+    .ger-roof { position:absolute; left:8px; top:13px; width:76px; height:31px; border-radius:50% 50% 18% 18%; background:#e8dfc4; border:2px solid #806b48; transform:perspective(70px) rotateX(22deg); }
+    .ger-body { position:absolute; left:13px; bottom:5px; width:66px; height:47px; border:2px solid #806b48; border-radius:12px 12px 7px 7px; background:repeating-linear-gradient(90deg,#efe7cf 0 15px,#d9cfb5 16px); }
+    .ger-door { position:absolute; left:34px; bottom:6px; width:24px; height:32px; border:2px solid #684a2d; border-bottom:0; border-radius:12px 12px 0 0; background:#9c5d36; }
+    .smoke { position:absolute; z-index:3; left:48px; top:4px; width:8px; height:8px; border-radius:50%; background:rgba(239,238,218,.8); opacity:0; }
+    .station.active .ger-wrap { filter:drop-shadow(0 4px 10px rgba(208,136,44,.55)); }
+    .station.active .ger-door { background:#d27a38; box-shadow:inset 0 0 10px #ffd56a,0 0 12px rgba(231,151,48,.75); }
+    .station.active .smoke { animation:smoke 2.2s ease-out infinite; }
+    .station.active .smoke.s2 { animation-delay:.75s; }
+    .station.active .smoke.s3 { animation-delay:1.45s; }
+    @keyframes smoke { 0%{opacity:0;transform:translate(0,4px) scale(.65)} 25%{opacity:.7} 100%{opacity:0;transform:translate(12px,-35px) scale(2.1)} }
+    .station-name { display:block; margin-top:2px; color:#34442c; font-size:11px; font-weight:850; line-height:1.25; }
+    .station-state { display:block; min-height:16px; color:#65705d; font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+    .station.done .station-state { color:#426940; }
+    .station.blocked .station-state,.station.failed .station-state { color:#a24538; }
+    .camp-caption { position:relative; z-index:3; margin-top:9px; padding:12px 14px; border-radius:12px; background:rgba(255,252,232,.78); color:#435139; font-size:13px; }
+    .camp-caption strong { color:#304527; }
     @media(max-width:780px) { header { align-items:start; flex-direction:column; } .cloud { text-align:left; } .shell { grid-template-columns:1fr; } .rail { display:flex; overflow:auto; gap:18px; } .phase { white-space:nowrap; } .preview-grid { grid-template-columns:1fr; } .card.wide { grid-column:auto; } }
+    @media(max-width:900px) { .run-dashboard { grid-template-columns:repeat(2,1fr); } .camp { overflow-x:auto; } .camp-grid { width:800px; } .horse { display:none; } }
+    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
   </style>
 </head>
 <body>
@@ -145,17 +206,39 @@
       </div>
 
       <div class="step" id="executeStep">
-        <div class="kicker">Authorized · Cloud execution</div>
-        <h2>KHALINOS is now working independently.</h2>
-        <p class="lead">The approved brief is immutable. Project Owner, Maker, runtime verification, independent Verifier, and bounded Technical Repair proceed without step-by-step human guidance.</p>
-        <div id="status" role="status" aria-live="polite"></div>
+        <div class="execute-head">
+          <div><div class="kicker">Authorized · Cloud execution</div><h2>The reins are set. The team is moving.</h2></div>
+          <div class="run-id" id="runId">Run pending</div>
+        </div>
+        <p class="lead">Each ger is a bounded role. Smoke marks the active station, and the horse follows the verified handoff toward the result.</p>
+        <div id="status" role="status" aria-live="polite">
+          <div class="run-dashboard">
+            <div class="metric status"><small>Status</small><strong id="runStatus">QUEUED</strong></div>
+            <div class="metric"><small>Quest progress</small><strong id="questProgress">0 / 0</strong></div>
+            <div class="metric"><small>Elapsed</small><strong id="runElapsed">0:00</strong></div>
+            <div class="metric"><small>Gemini calls</small><strong id="modelCalls">0</strong></div>
+            <div class="metric"><small>Approved estimate</small><strong id="approvedEstimate">—</strong></div>
+          </div>
+          <div class="camp" id="agentCamp">
+            <div class="route" aria-hidden="true"></div><div class="horse" id="handoffHorse" aria-hidden="true">🐎</div>
+            <div class="camp-grid">
+              <div class="station" data-role="owner"><div class="speech">I am binding the next Quest.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Project Owner</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="visual"><div class="speech">I am shaping three visual directions.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Visual Team</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="maker"><div class="speech">I am building the authorized outcome.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Maker</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="repair"><div class="speech">I am repairing a technical fault.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Technical Repair</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="verifier"><div class="speech">Stop. I am checking the evidence.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Independent Verifier</span><span class="station-state">Waiting</span></div>
+              <div class="station" data-role="result"><div class="speech">The verified result has arrived.</div><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-name">Verified Result</span><span class="station-state">Waiting</span></div>
+            </div>
+            <div class="camp-caption"><strong id="campHeadline">Cloud run queued.</strong> <span id="campMessage">The approved Outcome Brief is immutable.</span></div>
+          </div>
+        </div>
       </div>
     </section>
   </div>
 </main>
 <script>
 const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null;
+let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null;
 const $=selector=>document.querySelector(selector);
 function show(name){
   document.querySelectorAll('.step').forEach(node=>node.classList.remove('active'));
@@ -278,10 +361,41 @@ $('#restart').addEventListener('click',async()=>{
 });
 $('#authorize').addEventListener('click',async()=>{
   const button=$('#authorize');busy(button,true,'Authorizing Cloud run…');
-  try{const response=await fetch(`/api/intakes/${intake.intake_id}/authorize`,{method:'POST',headers:authHeaders()});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));const payload=JSON.parse(text);show('execute');$('#status').textContent=`Run ${payload.record.run_id}\nQUEUED — The approved Outcome Brief is immutable.`;poll(payload.record.run_id);}catch(error){alert(`Authorization failed: ${error.message}`);busy(button,false);}
+  try{const response=await fetch(`/api/intakes/${intake.intake_id}/authorize`,{method:'POST',headers:authHeaders()});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));const payload=JSON.parse(text);show('execute');renderRun(payload.record);poll(payload.record.run_id);}catch(error){alert(`Authorization failed: ${error.message}`);busy(button,false);}
 });
+const roleOrder=['owner','visual','maker','repair','verifier','result'];
+function roleFor(record){
+  const roles={queued:'owner',planning:'owner',visualizing:'visual',visual_selecting:'visual',repairing:'repair',verifying:'verifier',passed:'result',blocked:'verifier',failed:'verifier'};
+  if(record.status==='executing')return record.work_mode==='existing_project_repair'?'repair':'maker';
+  return roles[record.status]||'owner';
+}
+function elapsed(record){
+  const start=new Date(record.created_at).getTime();
+  const terminal=['passed','blocked','failed'].includes(record.status);const end=terminal?new Date(record.updated_at).getTime():Date.now();
+  const seconds=Math.max(0,Math.floor((end-start)/1000));return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;
+}
+function approvedEstimate(){
+  const e=intake?.preview?.estimate;if(!e)return 'Bounded';
+  return `$${e.cost_usd_min.toFixed(2)}–$${e.cost_usd_max.toFixed(2)}`;
+}
+function renderRun(record){
+  latestRunRecord=record;const activeRole=roleFor(record);const activeIndex=roleOrder.indexOf(activeRole);const terminal=['passed','blocked','failed'].includes(record.status);
+  const workMode=record.work_mode||intake?.material_inspection?.recommended_work_mode||'';const skipped=workMode==='existing_project_repair'?new Set(['visual','maker']):new Set(['repair']);
+  $('#runId').textContent=`Run ${record.run_id}`;$('#runStatus').textContent=record.status.toUpperCase();$('#modelCalls').textContent=record.model_calls;
+  const total=intake?.preview?.estimate?.quest_count||Math.max(record.completed_receipt_ids.length,1);$('#questProgress').textContent=`${Math.min(record.completed_receipt_ids.length,total)} / ${total}`;
+  $('#runElapsed').textContent=elapsed(record);$('#approvedEstimate').textContent=approvedEstimate();$('#campHeadline').textContent=terminal?`${record.status.toUpperCase()} ·`:`${activeRole.replaceAll('_',' ').toUpperCase()} ·`;$('#campMessage').textContent=record.message;
+  document.querySelectorAll('.station').forEach((station,index)=>{
+    const role=station.dataset.role;station.classList.remove('active','done','blocked','failed');const state=station.querySelector('.station-state');
+    if(skipped.has(role)){state.textContent='Not required';return;}
+    if(role===activeRole){station.classList.add('active');if(record.status==='blocked'||record.status==='failed')station.classList.add(record.status);state.textContent=record.status==='passed'?'Arrived':record.status==='blocked'?'Stopped':record.status==='failed'?'Failed':'Active';}
+    else if(index<activeIndex){station.classList.add('done');state.textContent='Handed off';}
+    else state.textContent='Waiting';
+  });
+  $('#handoffHorse').style.left=`${8+Math.max(0,activeIndex)*(84/5)}%`;
+  clearInterval(elapsedTimer);if(!terminal)elapsedTimer=setInterval(()=>{if(latestRunRecord)$('#runElapsed').textContent=elapsed(latestRunRecord);},1000);
+}
 async function poll(runId){
-  try{const response=await fetch(`/api/runs/${runId}`,{headers:authHeaders()});const record=await response.json();$('#status').textContent=`Run ${runId}\n${record.status.toUpperCase()} — ${record.message}\nGemini calls: ${record.model_calls}\nVerified receipts: ${record.completed_receipt_ids.length}`;if(['passed','blocked','failed'].includes(record.status)){await loadProjects();return;}pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#status').textContent=`Status check failed: ${error.message}`;}
+  try{const response=await fetch(`/api/runs/${runId}`,{headers:authHeaders()});const record=await response.json();renderRun(record);if(['passed','blocked','failed'].includes(record.status)){await loadProjects();return;}pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#campHeadline').textContent='Status check failed ·';$('#campMessage').textContent=error.message;}
 }
 loadGoogleIdentity().catch(error=>{$('#identityStatus').textContent=`Sign-in setup failed: ${error.message}`;});
 </script>
