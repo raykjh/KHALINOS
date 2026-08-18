@@ -11,6 +11,7 @@ from khalinos.toolpacks import (
     OutputContract,
     RegisteredToolPack,
     ToolPackManifest,
+    source_set_sha256,
 )
 from khalinos.verification import materialize, verify_bundle
 
@@ -48,11 +49,21 @@ class BrowserEvidenceAdapter:
         return verify_bundle(artifact, root, evidence_dir, acceptance_criteria)
 
 
+BROWSER_IMPLEMENTATION_SOURCES = (
+    "agents.py",
+    "browser_toolpack.py",
+    "sixsense.py",
+    "uploads.py",
+    "verification.py",
+)
+
+
 BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
     toolpack_id="browser.product",
     version="1.0.0",
     display_name="Browser Product ToolPack",
     description="Builds, repairs, runs, and verifies bounded offline browser micro-products.",
+    implementation_sha256=source_set_sha256(Path(__file__).parent, BROWSER_IMPLEMENTATION_SOURCES),
     execution_adapter_id=BrowserExecutionAdapter.adapter_id,
     project_kinds=("browser", "web"),
     work_modes=("existing_project_repair", "new_product_build"),

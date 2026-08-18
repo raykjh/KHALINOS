@@ -20,6 +20,22 @@ ArtifactT = TypeVar("ArtifactT")
 EvidenceT = TypeVar("EvidenceT")
 
 
+def source_set_sha256(root: Path, relative_paths: Iterable[str]) -> str:
+    """Hash a declared implementation source set with platform-neutral newlines."""
+
+    digest = hashlib.sha256()
+    for relative in sorted(set(relative_paths)):
+        path = root / relative
+        if not path.is_file():
+            raise FileNotFoundError(f"ToolPack implementation source is missing: {relative}")
+        content = path.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n")
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(content.encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 class CapabilityDeclaration(BaseModel):
     """One bounded ability exposed by a ToolPack."""
 
@@ -85,6 +101,7 @@ class ToolPackManifest(BaseModel):
     version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     display_name: str = Field(min_length=3, max_length=80)
     description: str = Field(min_length=20, max_length=500)
+    implementation_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     execution_adapter_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
     project_kinds: tuple[str, ...] = Field(min_length=1, max_length=32)
     work_modes: tuple[str, ...] = Field(min_length=1, max_length=32)

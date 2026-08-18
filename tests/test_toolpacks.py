@@ -12,6 +12,7 @@ from khalinos.toolpacks import (
     ToolPackBinding,
     ToolPackManifest,
     ToolPackRegistry,
+    source_set_sha256,
 )
 
 
@@ -42,6 +43,7 @@ def manifest() -> ToolPackManifest:
         version="1.0.0",
         display_name="Fixture Product",
         description="A domain-neutral fixture used to test Kernel contracts.",
+        implementation_sha256="1" * 64,
         execution_adapter_id="fixture.execution.v1",
         project_kinds=("fixture",),
         work_modes=("build", "repair"),
@@ -114,3 +116,13 @@ def test_manifest_collections_and_paths_are_canonical_and_bounded() -> None:
     raw["output"]["authorized_paths"] = ["../outside.txt"]
     with pytest.raises(ValueError, match="artifact root"):
         ToolPackManifest.model_validate(raw)
+
+
+def test_implementation_source_digest_is_newline_neutral_and_change_sensitive(tmp_path: Path) -> None:
+    source = tmp_path / "adapter.py"
+    source.write_bytes(b"first\nsecond\n")
+    first = source_set_sha256(tmp_path, ["adapter.py"])
+    source.write_bytes(b"first\r\nsecond\r\n")
+    assert source_set_sha256(tmp_path, ["adapter.py"]) == first
+    source.write_bytes(b"first\nchanged\n")
+    assert source_set_sha256(tmp_path, ["adapter.py"]) != first
