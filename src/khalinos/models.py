@@ -29,6 +29,7 @@ class RunStatus(StrEnum):
     VISUALIZING = "visualizing"
     VISUAL_SELECTING = "visual_selecting"
     EXECUTING = "executing"
+    RUNTIME_CHECKING = "runtime_checking"
     VERIFYING = "verifying"
     REPAIRING = "repairing"
     PASSED = "passed"

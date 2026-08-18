@@ -60,10 +60,23 @@ def test_goal_has_no_leading_example_and_sixsense_requires_a_real_choice() -> No
     html = WEB.read_text(encoding="utf-8")
     goal = re.search(r'<textarea id="goal"[^>]*>', html)
     assert goal is not None
-    assert "placeholder=" not in goal.group(0)
+    assert "Describe what you want to create in detail" in goal.group(0)
+    assert "WASD" not in goal.group(0)
     assert 'id="answerOptions"' in html
     assert "question.answer_options" in html
     assert "Confirm this choice" in html
+    assert "SixSense asks no more than six questions" in html
+    assert "questionKicker" not in html
     assert 'id="userChoices"' in html
     assert "KHALINOS applied professional defaults" in html
     assert "$('#answer').value=question.recommended_answer" not in html
+
+
+def test_execution_camp_shows_branching_verification_and_repair_loop() -> None:
+    html = WEB.read_text(encoding="utf-8")
+    assert 'class="flow-lines"' in html
+    assert 'data-role="runtime"' in html
+    assert "Runtime Check" in html
+    assert "EXISTING PROJECT" in html
+    assert "REPAIR" in html
+    assert "runtime_checking:'runtime'" in html

@@ -37,7 +37,7 @@ Internally inspect exactly these six dimensions:
 Do not treat these as six mandatory survey questions. Infer a dimension when the goal,
 sources, previous answers, authoritative defaults, and low-risk assumptions make it clear.
 Ask only when a missing choice could materially change the result, cost, authority, safety,
-or visual direction. Ask exactly one concrete question at a time and no more than three
+or visual direction. Ask exactly one concrete question at a time and no more than six
 questions across one intake. Never repeat a dimension that is already answered or resolved.
 
 Every question must request a decision that the user can reasonably own: a subjective
@@ -178,8 +178,8 @@ def validate_decision(record: IntakeRecord, decision: SenseDecision) -> None:
     if not answered.issubset(resolved):
         raise ValueError("SixSense must preserve every confirmed answer as resolved")
     if decision.next_question:
-        if len(record.answers) >= 3:
-            raise ValueError("SixSense cannot ask more than three user questions")
+        if len(record.answers) >= 6:
+            raise ValueError("SixSense cannot ask more than six user questions")
         dimension = decision.next_question.dimension
         if dimension in answered or dimension in resolved:
             raise ValueError("SixSense repeated an answered or resolved dimension")

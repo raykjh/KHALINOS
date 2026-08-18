@@ -210,21 +210,20 @@ def test_sixsense_question_requires_short_real_choices() -> None:
         )
 
 
-def test_sixsense_stops_asking_after_three_user_decisions() -> None:
+def test_sixsense_stops_asking_after_six_user_decisions() -> None:
     record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
         intake_id="b" * 32,
         project_name="Minesweeper",
         goal="Create a classic Minesweeper game for a modern web browser.",
         answers={
+            SenseDimension.REQUIRED_ENABLERS.value: "Use approved runtime",
+            SenseDimension.EXCLUSIONS_PRESERVATION.value: "No external network",
             SenseDimension.EXPERIENCE_VISUAL_DIRECTION.value: "Classic",
             SenseDimension.OPERATING_CONTEXT.value: "Desktop only",
             SenseDimension.COMPLETION_QUALITY_STANDARD.value: "Safe first click",
+            SenseDimension.AUTHORITY_BUDGET_DELIVERY.value: "Use standard profile",
         },
-        resolved_dimensions=[
-            SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
-            SenseDimension.OPERATING_CONTEXT,
-            SenseDimension.COMPLETION_QUALITY_STANDARD,
-        ],
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
     )
     decision = SenseDecision(
         status="question",
@@ -236,7 +235,7 @@ def test_sixsense_stops_asking_after_three_user_decisions() -> None:
             why_it_matters="This determines whether autonomous execution is authorized.",
         ),
     )
-    with pytest.raises(ValueError, match="more than three"):
+    with pytest.raises(ValueError, match="more than six"):
         validate_decision(record, decision)
 
 

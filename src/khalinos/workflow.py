@@ -224,6 +224,12 @@ async def execute_run(
             )
             repair_round = 0
             while True:
+                record = record.model_copy(update={
+                    "status": RunStatus.RUNTIME_CHECKING,
+                    "message": f"Deterministic runtime is checking {quest.quest_id} revision {repair_round}.",
+                    "model_calls": team.call_count,
+                })
+                store.update(record)
                 with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{quest.quest_id}-") as temporary:
                     root = Path(temporary) / "product"
                     evidence_dir = Path(temporary) / "evidence"

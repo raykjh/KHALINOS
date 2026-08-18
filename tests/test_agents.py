@@ -24,7 +24,7 @@ def test_sixsense_visual_instruction_rejects_generic_template_defaults() -> None
 def test_sixsense_questions_preserve_real_user_choice_and_professional_defaults() -> None:
     assert "two to four mutually exclusive answer_options" in SIXSENSE_INSTRUCTION
     assert "no more than\n48 characters each" in SIXSENSE_INSTRUCTION
-    assert "no more than three" in SIXSENSE_INSTRUCTION
+    assert "no more than six" in SIXSENSE_INSTRUCTION
     assert "established best practices" in SIXSENSE_INSTRUCTION
     assert "first-click safety" in SIXSENSE_INSTRUCTION
     assert "strongest suitable standard" in SIXSENSE_INSTRUCTION
