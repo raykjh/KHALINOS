@@ -47,6 +47,26 @@ def _blocked_verification(criteria: list[str], issues: list[str]) -> AgentVerifi
     )
 
 
+def _enforce_verification_contract(
+    criteria: list[str],
+    criterion_evidence: dict[str, list[str]],
+    verification: AgentVerification,
+) -> AgentVerification:
+    finding_criteria = [item.criterion for item in verification.findings]
+    if len(finding_criteria) != len(set(finding_criteria)) or set(finding_criteria) != set(criteria):
+        return _blocked_verification(
+            criteria,
+            ["Independent Verifier must return exactly one finding for every active acceptance criterion."],
+        )
+    missing_runtime = [criterion for criterion in criteria if not criterion_evidence.get(criterion)]
+    if missing_runtime:
+        return _blocked_verification(
+            criteria,
+            ["Runtime-observable criteria lack typed assertion evidence: " + " | ".join(missing_runtime)],
+        )
+    return verification
+
+
 async def _select_visual_foundation(
     run_id: str,
     *,
@@ -238,7 +258,11 @@ async def execute_run(
                     # asyncio event-loop thread. Keep deterministic verification
                     # isolated from the agent runtime and await its result.
                     deterministic = await asyncio.to_thread(
-                        verify_bundle, candidate, root, evidence_dir
+                        verify_bundle,
+                        candidate,
+                        root,
+                        evidence_dir,
+                        quest.acceptance_criteria,
                     )
                     for file in candidate.files:
                         store.put_file(run_id, f"quests/{quest.quest_id}/r{repair_round}/product/{file.path}", root / file.path, "text/plain")
@@ -256,9 +280,15 @@ async def execute_run(
                         "quest": quest.model_dump(mode="json"),
                         "artifact": candidate.model_dump(mode="json"),
                         "deterministic_evidence": deterministic.model_dump(mode="json"),
+                        "criterion_evidence": deterministic.criterion_evidence,
                     })
                     if deterministic.passed
                     else _blocked_verification(quest.acceptance_criteria, deterministic.issues)
+                )
+                verification = _enforce_verification_contract(
+                    quest.acceptance_criteria,
+                    deterministic.criterion_evidence,
+                    verification,
                 )
                 passed = deterministic.passed and verification.verdict == "PASS"
                 if passed or repair_round >= brief.max_repairs_per_quest:

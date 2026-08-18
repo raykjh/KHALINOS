@@ -24,7 +24,12 @@ from khalinos.models import (
 )
 from khalinos.storage import LocalRunStore
 from khalinos.projects import LocalProjectStore
-from khalinos.workflow import execute_run
+from khalinos.workflow import _enforce_verification_contract, execute_run
+
+
+def runtime_criterion_evidence(args: tuple[object, ...]) -> dict[str, list[str]]:
+    criteria = args[3] if len(args) > 3 else []
+    return {str(criterion): ["typed runtime assertion observed"] for criterion in criteria}
 
 
 def bundle(summary: str = "Runnable complete revision") -> ArtifactBundle:
@@ -130,12 +135,30 @@ def setup_run(tmp_path: Path) -> tuple[LocalRunStore, str]:
     return store, run_id
 
 
+def test_source_claim_cannot_replace_direct_runtime_criterion_evidence() -> None:
+    criterion = "The random extra reveal is observable at runtime."
+    claimed = AgentVerification(
+        findings=[CriterionFinding(
+            criterion=criterion,
+            passed=True,
+            evidence="The source contains a random reveal function.",
+        )],
+        verdict="PASS",
+    )
+
+    enforced = _enforce_verification_contract([criterion], {}, claimed)
+
+    assert enforced.verdict == "REPAIR"
+    assert not enforced.findings[0].passed
+    assert "lack typed assertion evidence" in enforced.findings[0].evidence
+
+
 async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tmp_path: Path) -> None:
     def evidence(*args, **kwargs):
         evidence_dir = args[2]
         evidence_dir.mkdir(parents=True, exist_ok=True)
         (evidence_dir / "journey-01.png").write_bytes(b"png")
-        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"])
+        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"], criterion_evidence=runtime_criterion_evidence(args))
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
@@ -151,7 +174,7 @@ async def test_passed_run_registers_verified_project_checkpoint(monkeypatch, tmp
         evidence_dir = args[2]
         evidence_dir.mkdir(parents=True, exist_ok=True)
         (evidence_dir / "journey-01.png").write_bytes(b"png")
-        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"])
+        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"], criterion_evidence=runtime_criterion_evidence(args))
 
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
@@ -179,7 +202,7 @@ async def test_existing_project_enters_through_technical_repair_without_visual_r
         evidence_dir = args[2]
         evidence_dir.mkdir(parents=True, exist_ok=True)
         (evidence_dir / "journey-01.png").write_bytes(b"png")
-        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"])
+        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"], criterion_evidence=runtime_criterion_evidence(args))
 
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
@@ -212,6 +235,7 @@ async def test_deterministic_browser_verification_runs_off_event_loop_thread(mon
             checks={"runtime": True},
             issues=[],
             screenshot_names=["journey-01.png"],
+            criterion_evidence=runtime_criterion_evidence(args),
         )
 
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
@@ -238,6 +262,7 @@ async def test_visual_competition_continues_with_two_renderable_candidates(monke
             checks={"runtime": not visual_candidate_two},
             issues=["candidate did not render"] if visual_candidate_two else [],
             screenshot_names=[] if visual_candidate_two else ["journey-01.png"],
+            criterion_evidence=runtime_criterion_evidence(args),
         )
 
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
@@ -258,7 +283,7 @@ async def test_deterministic_failure_routes_to_bounded_technical_repair(monkeypa
         evidence_dir.mkdir(parents=True, exist_ok=True)
         (evidence_dir / "journey-01.png").write_bytes(b"png")
         passed = calls["count"] != 4
-        return DeterministicEvidence(passed=passed, checks={"runtime": passed}, issues=[] if passed else ["runtime failed"])
+        return DeterministicEvidence(passed=passed, checks={"runtime": passed}, issues=[] if passed else ["runtime failed"], criterion_evidence=runtime_criterion_evidence(args) if passed else {})
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
@@ -281,6 +306,7 @@ async def test_third_failure_stops_instead_of_looping(monkeypatch, tmp_path: Pat
             checks={"runtime": visual},
             issues=[] if visual else ["same structural failure"],
             screenshot_names=["journey-01.png"] if visual else [],
+            criterion_evidence=runtime_criterion_evidence(args) if visual else {},
         )
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)

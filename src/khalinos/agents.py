@@ -44,9 +44,19 @@ eval, dynamic code loading, analytics, or placeholder TODOs. The UI must be in E
 responsive, keyboard accessible, visually coherent, and actually interactive.
 
 journey.json must contain {"journeys":[...]} with at least one journey. Each journey has
-a name and ordered steps. Supported steps are {"click":"CSS selector"},
-{"press":"Keyboard key"}, and {"assert_text":"visible text"}. Selectors must point to
-real controls in index.html and the journey must prove the active Quest behavior. Preserve
+a name, a criteria array containing exactly one exact active-Quest acceptance-criterion string
+that it proves, an optional random_seed integer, and ordered steps. Use separate journeys when
+a Quest has multiple criteria. Supported typed steps are
+{"click":"CSS selector"}, {"right_click":"CSS selector"}, {"press":"Keyboard key"},
+{"wait_ms":1..12000}, {"assert_text":"visible text"},
+{"assert_count":{"selector":"CSS selector","operator":"eq|gt|gte|lt|lte","value":integer}},
+{"assert_attribute":{"selector":"CSS selector","name":"attribute","operator":"eq|contains|not_equals","value":"text"}},
+{"assert_class":{"selector":"CSS selector","includes":["class"],"excludes":["class"]}},
+or {"assert_state":{"selector":"CSS selector","state":"visible|hidden|enabled|disabled|checked|unchecked"}}.
+Do not emit arbitrary JavaScript. Every active criterion must be named by at least one journey
+and backed by a typed assertion that observes its runtime result; clicks, waits, screenshots,
+source code, and README claims alone are not proof. Selectors must point to real controls in
+index.html and the journey must prove the active Quest behavior. Preserve
 working behavior from the previous verified bundle and make only changes needed for the
 current Quest. When the previous bundle is an approved visual foundation, preserve its
 composition, typography, palette, material language, and anti-goals while adding behavior.
@@ -67,7 +77,11 @@ You are the KHALINOS Technical Repair Agent. Repair the complete artifact bundle
 the active Quest plus deterministic failures and independent verifier instructions. For an
 existing_project_entry, the validated supplied bundle is the authoritative starting point:
 make only the bounded change required by the active Quest and preserve everything else.
-Preserve all previously verified behavior. Do not change the Quest, criteria, authorized files, or journey format.
+Preserve all previously verified behavior. Do not change the Quest, criteria, authorized files,
+or invent a different journey schema.
+If the incoming artifact uses a legacy or incomplete journey, migrate it to the current typed
+journey contract, bind every exact active criterion to direct runtime assertions, and do not
+weaken the criterion while doing so.
 Keep revision_summary concise and under 500 characters. Return the complete five-file bundle
 and only the required schema.
 """.strip()
@@ -93,9 +107,11 @@ control. Every form control must have an explicit label or aria-label, and icon-
 must have aria-labels.
 
 journey.json must contain exactly the wrapper {"journeys":[...]} with at least one journey.
-Each journey has a name and ordered steps. A step must be exactly one of
-{"click":"CSS selector"}, {"press":"Keyboard key"}, or {"assert_text":"visible text"}.
-Do not use type, selector, text, or key fields as a different step schema. The journey must
+Each visual-foundation journey has a name and ordered steps. A step must use the same typed
+journey actions documented for the Maker, including {"click":"CSS selector"},
+{"press":"Keyboard key"}, and {"assert_text":"visible text"}. Visual foundations must omit
+criteria because no Quest is active during visual selection. Do not use type, selector, text, or key fields as
+a different step schema, and never emit arbitrary JavaScript. The journey must
 exercise real controls and produce a meaningful rendered screenshot. Keep revision_summary
 concise and under 500 characters. Return only the required schema.
 """.strip()

@@ -412,6 +412,7 @@ class DeterministicEvidence(BaseModel):
     checks: dict[str, bool]
     issues: list[str]
     screenshot_names: list[str] = Field(default_factory=list)
+    criterion_evidence: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class QuestReceipt(BaseModel):
