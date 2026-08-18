@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signal Board Atelier</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="atelier-header">
+    <div class="header-brass-line"></div>
+    <div class="header-content">
+      <p class="header-subtitle">PRIVATE STRATEGY ATELIER</p>
+      <h1 class="header-title">Signal Board Atelier</h1>
+      <p class="header-tagline">A deterministic workspace for high-stakes option appraisal.</p>
+    </div>
+    <div class="header-brass-line"></div>
+  </header>
+
+  <main class="triptych-container">
+    <!-- COLUMN 1: CRITERIA & ENTRY -->
+    <section class="triptych-panel panel-left" aria-labelledby="panel-entry-title">
+      <div class="panel-header">
+        <span class="panel-num">I</span>
+        <h2 id="panel-entry-title">Appraisal Criteria &amp; Entry</h2>
+      </div>
+      
+      <div class="panel-content">
+        <!-- Criteria Configuration -->
+        <fieldset class="atelier-fieldset">
+          <legend>Active Criteria</legend>
+          <p class="fieldset-desc">Refine the lenses through which your options are weighed. Renaming preserves existing scores.</p>
+          <div class="criteria-inputs" id="criteria-container">
+            <!-- Dynamic criteria inputs will be injected here -->
+          </div>
+          <div class="criteria-actions">
+            <button type="button" id="add-criterion-btn" class="atelier-btn btn-secondary btn-small">+ Add Criterion</button>
+          </div>
+        </fieldset>
+
+        <!-- Option Entry Form -->
+        <form id="option-form" class="atelier-form">
+          <fieldset class="atelier-fieldset">
+            <legend>Record New Option</legend>
+            
+            <div class="form-group">
+              <label for="opt-name">Option Name</label>
+              <input type="text" id="opt-name" required placeholder="e.g., Project Alexandria" class="atelier-input">
+            </div>
+
+            <div class="form-group">
+              <label for="opt-desc">Brief Description</label>
+              <textarea id="opt-desc" rows="2" placeholder="Core thesis or strategic leverage..." class="atelier-input"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Initial Scores (1 to 5)</label>
+              <div id="form-initial-scores" class="initial-scores-grid">
+                <!-- Dynamic score inputs based on criteria -->
+              </div>
+            </div>
+
+            <button type="submit" class="atelier-btn btn-primary" id="add-option-btn">Inscribe Option</button>
+          </fieldset>
+        </form>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: ACTIVE OPTIONS -->
+    <section class="triptych-panel panel-center" aria-labelledby="panel-options-title">
+      <div class="panel-header">
+        <span class="panel-num">II</span>
+        <h2 id="panel-options-title">The Option Ledger</h2>
+      </div>
+      <div class="panel-content">
+        <div class="ledger-controls">
+          <p class="ledger-count" id="ledger-count-text">0 Options Registered</p>
+        </div>
+        <div class="options-grid" id="options-grid" role="region" aria-live="polite">
+          <!-- Dynamic option cards will be injected here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: LEADER MONOLITH & ANALYTICS -->
+    <section class="triptych-panel panel-right" aria-labelledby="panel-monolith-title">
+      <div class="panel-header">
+        <span class="panel-num">III</span>
+        <h2 id="panel-monolith-title">The Monolith</h2>
+      </div>
+      <div class="panel-content monolith-layout">
+        <!-- Leader Monolith Frame -->
+        <div class="monolith-card" id="leader-monolith">
+          <div class="monolith-inner">
+            <span class="monolith-label">CURRENT LEADER</span>
+            <h3 class="monolith-title" id="leader-name">No Options Recorded</h3>
+            <div class="monolith-score-badge">
+              <span class="monolith-score-val" id="leader-score">—</span>
+              <span class="monolith-score-lbl">Weighted Score</span>
+            </div>
+            <p class="monolith-desc" id="leader-desc">Introduce strategic options in the ledger to determine the leading path forward.</p>
+          </div>
+        </div>
+
+        <!-- Real-time Distribution Chart -->
+        <div class="chart-container">
+          <h4 class="chart-title">Comparative Standing</h4>
+          <div class="chart-bars" id="chart-bars-container">
+            <!-- Dynamic CSS bars -->
+          </div>
+        </div>
+
+        <!-- System Actions -->
+        <div class="system-actions">
+          <button id="clear-board-btn" class="atelier-btn btn-danger">Purge Atelier Ledger</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="atelier-footer">
+    <p>© Signal Board Atelier — Handcrafted Strategy Engine</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

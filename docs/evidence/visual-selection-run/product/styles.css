@@ -1,0 +1,623 @@
+/* ==========================================================================
+   THE TRIPTYCH ATELIER - VISUAL CONTRACT
+   ========================================================================== */
+
+:root {
+  --parchment: #FDFBF7;
+  --charcoal: #1C1A17;
+  --brass: #A38A5E;
+  --brass-light: #BCA374;
+  --stone: #EFECE3;
+  
+  --font-serif: Georgia, Baskerville, "Playfair Display", serif;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--parchment);
+  color: var(--charcoal);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  padding: 1.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography */
+h1, h2, h3, h4 {
+  font-family: var(--font-serif);
+  font-weight: normal;
+  color: var(--charcoal);
+}
+
+/* Header */
+.atelier-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.header-brass-line {
+  height: 2px;
+  background-color: var(--brass);
+  margin: 0.5rem auto;
+  max-width: 1200px;
+}
+
+.header-content {
+  padding: 0.75rem 0;
+}
+
+.header-subtitle {
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: var(--brass);
+  font-weight: 600;
+}
+
+.header-title {
+  font-size: 2.5rem;
+  margin: 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.header-tagline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: #5C564E;
+}
+
+/* Triptych Layout */
+.triptych-container {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  flex-grow: 1;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .triptych-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Panel Styling */
+.triptych-panel {
+  background-color: var(--parchment);
+  border: 1px solid var(--brass);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 3px 3px 0px var(--charcoal);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.panel-header {
+  border-bottom: 1px solid var(--brass);
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--stone);
+}
+
+.panel-num {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  color: var(--brass);
+  border: 1px solid var(--brass);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.panel-header h2 {
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+.panel-content {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex-grow: 1;
+}
+
+/* Form Controls */
+.atelier-fieldset {
+  border: 1px solid var(--brass);
+  padding: 1.25rem;
+  background-color: var(--parchment);
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.atelier-fieldset legend {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  padding: 0 0.5rem;
+  color: var(--charcoal);
+  font-weight: bold;
+}
+
+.fieldset-desc {
+  font-size: 0.8rem;
+  color: #6B6255;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--charcoal);
+}
+
+.atelier-input {
+  background-color: var(--parchment);
+  border: 1px solid var(--brass);
+  color: var(--charcoal);
+  padding: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.atelier-input:focus {
+  outline: none;
+  border-color: var(--charcoal);
+  box-shadow: 0 0 0 2px var(--brass);
+}
+
+/* Criteria Inputs List */
+.criteria-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.criteria-item input {
+  flex-grow: 1;
+}
+
+.criteria-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-remove-criterion {
+  background: transparent;
+  border: none;
+  color: #8C2E2E;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 0.25rem;
+  transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-remove-criterion:hover {
+  color: red;
+  transform: scale(1.15);
+}
+
+.btn-remove-criterion:focus-visible {
+  outline: 2px solid var(--brass);
+}
+
+/* Initial Scores Grid */
+.initial-scores-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.initial-score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--stone);
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--brass);
+}
+
+.initial-score-row span {
+  font-size: 0.85rem;
+}
+
+/* Buttons with Tactile Micro-interactions */
+.atelier-btn {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  border: 1px solid var(--charcoal);
+  background-color: var(--parchment);
+  color: var(--charcoal);
+  box-shadow: 2px 2px 0px var(--charcoal);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease, color 0.2s ease;
+  text-align: center;
+  display: inline-block;
+}
+
+.atelier-btn:hover {
+  background-color: var(--stone);
+}
+
+.atelier-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px var(--charcoal);
+}
+
+.atelier-btn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background-color: var(--stone);
+  border-color: var(--brass);
+  font-weight: bold;
+}
+
+.btn-primary:hover {
+  background-color: var(--brass-light);
+  color: var(--parchment);
+}
+
+.btn-secondary {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.btn-danger {
+  background-color: #F5EBE6;
+  border-color: #A35E5E;
+  color: #8C2E2E;
+}
+
+.btn-danger:hover {
+  background-color: #8C2E2E;
+  color: var(--parchment);
+}
+
+/* Column 2: Option Ledger & Cards */
+.ledger-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--brass);
+  padding-bottom: 0.5rem;
+}
+
+.ledger-count {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  max-height: 650px;
+  padding-right: 0.25rem;
+}
+
+/* Option Card with Tactile Hover */
+.option-card {
+  background-color: var(--parchment);
+  border: 1px solid var(--brass);
+  padding: 1rem;
+  position: relative;
+  box-shadow: 2px 2px 0px var(--charcoal);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.option-card:hover {
+  border-color: var(--charcoal);
+  box-shadow: 4px 4px 0px var(--charcoal);
+  transform: translateY(-1px);
+}
+
+.option-card.is-leader {
+  border: 2px solid var(--brass);
+  background-image: linear-gradient(180deg, var(--stone) 0%, var(--parchment) 100%);
+}
+
+.option-card.is-leader::before {
+  content: "LEADER";
+  position: absolute;
+  top: -10px;
+  right: 15px;
+  background: var(--brass);
+  color: var(--parchment);
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 0.1rem 0.5rem;
+  letter-spacing: 0.1em;
+  border: 1px solid var(--charcoal);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.card-score-summary {
+  font-family: var(--font-serif);
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--brass);
+  border: 1px solid var(--brass);
+  padding: 0.1rem 0.4rem;
+  background: var(--stone);
+}
+
+.card-desc {
+  font-size: 0.85rem;
+  color: #5C564E;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+/* Scoring Rows inside Card */
+.card-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid var(--stone);
+  padding-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.score-label {
+  font-size: 0.8rem;
+  color: #6B6255;
+}
+
+/* Studs (1-5 rating buttons) */
+.studs-container {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.stud-btn {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--brass);
+  background: var(--parchment);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--brass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stud-btn:hover {
+  background: var(--stone);
+  color: var(--charcoal);
+  border-color: var(--charcoal);
+}
+
+.stud-btn.active {
+  background: var(--charcoal);
+  color: var(--parchment);
+  border-color: var(--charcoal);
+}
+
+.stud-btn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-delete-card {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: transparent;
+  border: 1px dashed #A35E5E;
+  color: #8C2E2E;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-delete-card:hover {
+  background: #F5EBE6;
+  color: red;
+}
+
+.btn-delete-card:focus-visible {
+  outline: 2px solid var(--brass);
+}
+
+/* Column 3: Leader Monolith & Analytics */
+.monolith-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.monolith-card {
+  border: 2px solid var(--brass);
+  background-color: var(--stone);
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 4px 4px 0px var(--charcoal);
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.monolith-inner {
+  border: 1px solid var(--brass);
+  padding: 1.5rem 1rem;
+  background-color: var(--parchment);
+}
+
+.monolith-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--brass);
+  font-weight: bold;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.monolith-title {
+  font-size: 1.6rem;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.monolith-score-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid var(--charcoal);
+  padding: 0.5rem 1rem;
+  background: var(--stone);
+  margin-bottom: 1rem;
+}
+
+.monolith-score-val {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.monolith-score-lbl {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5C564E;
+}
+
+.monolith-desc {
+  font-size: 0.85rem;
+  color: #5C564E;
+  font-style: italic;
+}
+
+/* Chart */
+.chart-container {
+  border: 1px solid var(--brass);
+  padding: 1rem;
+  background: var(--parchment);
+}
+
+.chart-title {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--stone);
+  padding-bottom: 0.25rem;
+}
+
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chart-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chart-bar-label {
+  font-size: 0.8rem;
+  width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-bar-track {
+  flex-grow: 1;
+  height: 12px;
+  background: var(--stone);
+  border: 1px solid var(--brass);
+  position: relative;
+}
+
+.chart-bar-fill {
+  height: 100%;
+  background: var(--brass);
+  width: 0%;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chart-bar-val {
+  font-size: 0.8rem;
+  font-weight: bold;
+  width: 25px;
+  text-align: right;
+}
+
+.system-actions {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--brass);
+}
+
+/* Footer */
+.atelier-footer {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #6B6255;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--stone);
+}

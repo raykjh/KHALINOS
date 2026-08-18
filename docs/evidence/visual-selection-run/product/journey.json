@@ -1,0 +1,60 @@
+{
+  "journeys": [
+    {
+      "name": "Create and appraisal cycle in the Triptych Atelier",
+      "steps": [
+        {
+          "click": "#opt-name"
+        },
+        {
+          "press": "P"
+        },
+        {
+          "press": "r"
+        },
+        {
+          "press": "o"
+        },
+        {
+          "press": "j"
+        },
+        {
+          "press": "e"
+        },
+        {
+          "press": "c"
+        },
+        {
+          "press": "t"
+        },
+        {
+          "press": " "
+        },
+        {
+          "press": "O"
+        },
+        {
+          "press": "m"
+        },
+        {
+          "press": "e"
+        },
+        {
+          "press": "g"
+        },
+        {
+          "press": "a"
+        },
+        {
+          "click": "#add-option-btn"
+        },
+        {
+          "assert_text": "Project Omega"
+        },
+        {
+          "assert_text": "CURRENT LEADER"
+        }
+      ]
+    }
+  ]
+}
