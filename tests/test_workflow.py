@@ -24,7 +24,7 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.storage import LocalRunStore
-from khalinos.toolpacks import RegisteredToolPack
+from khalinos.toolpacks import RegisteredToolPack, ToolPackBinding, ToolPackRegistry
 from khalinos.projects import LocalProjectStore
 from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority, execute_run
 
@@ -149,9 +149,16 @@ def setup_run(tmp_path: Path) -> tuple[LocalRunStore, str]:
         project_name="Demo",
         goal="Create a small interactive decision product with one complete browser workflow.",
         acceptance_criteria=["The primary action works.", "The interface is responsive."],
+        toolpack_binding=BROWSER_PRODUCT_TOOLPACK.binding(),
     )
     run_id = "a" * 32
-    store.create(RunRecord(run_id=run_id, status=RunStatus.QUEUED, brief_sha256=canonical_sha256(brief), message="Queued."), brief)
+    store.create(RunRecord(
+        run_id=run_id,
+        status=RunStatus.QUEUED,
+        brief_sha256=canonical_sha256(brief),
+        toolpack_binding=BROWSER_PRODUCT_TOOLPACK.binding(),
+        message="Queued.",
+    ), brief)
     return store, run_id
 
 
@@ -234,11 +241,42 @@ async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tm
     active_toolpack = toolpack_with_evidence(evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
-    result = await execute_run(run_id, store=store, team=team, toolpack=active_toolpack)
+    result = await execute_run(run_id, store=store, team=team, registry=ToolPackRegistry([active_toolpack]))
     assert result.status == RunStatus.PASSED
     assert len(result.completed_receipt_ids) == 3
     assert result.completed_receipt_ids[0].startswith("VS-")
     assert team.repairs == 0
+    expected_binding = BROWSER_PRODUCT_TOOLPACK.binding().model_dump(mode="json")
+    plan = json.loads((tmp_path / "runs" / run_id / "quest_plan.json").read_text(encoding="utf-8"))
+    receipt = json.loads((tmp_path / "runs" / run_id / "quests" / "Q1" / "receipt.json").read_text(encoding="utf-8"))
+    final_manifest = json.loads((tmp_path / "runs" / run_id / "final" / "artifact_manifest.json").read_text(encoding="utf-8"))
+    assert plan["toolpack_binding"] == expected_binding
+    assert receipt["toolpack_binding"] == expected_binding
+    assert final_manifest["toolpack_binding"] == expected_binding
+
+
+async def test_run_stops_before_planning_when_toolpack_binding_is_tampered(tmp_path: Path) -> None:
+    store, run_id = setup_run(tmp_path)
+    record = store.read_record(run_id)
+    approved = BROWSER_PRODUCT_TOOLPACK.binding()
+    tampered = ToolPackBinding(
+        toolpack_id=approved.toolpack_id,
+        version=approved.version,
+        manifest_sha256="0" * 64,
+    )
+    store.update(record.model_copy(update={"toolpack_binding": tampered}))
+    team = FakeTeam()
+
+    result = await execute_run(
+        run_id,
+        store=store,
+        team=team,
+        registry=ToolPackRegistry([BROWSER_PRODUCT_TOOLPACK]),
+    )
+
+    assert result.status == RunStatus.FAILED
+    assert "same ToolPack binding" in result.message
+    assert team.call_count == 0
 
 
 async def test_passed_run_registers_verified_project_checkpoint(monkeypatch, tmp_path: Path) -> None:
@@ -260,7 +298,7 @@ async def test_passed_run_registers_verified_project_checkpoint(monkeypatch, tmp
     ))
     record = store.read_record(run_id).model_copy(update={"owner_id": "owner-a", "project_id": "b" * 32})
     store.update(record)
-    result = await execute_run(run_id, store=store, team=FakeTeam(), toolpack=active_toolpack, project_store=project_store)
+    result = await execute_run(run_id, store=store, team=FakeTeam(), registry=ToolPackRegistry([active_toolpack]), project_store=project_store)
     registered = project_store.read_owned("b" * 32, "owner-a")
     assert result.status == RunStatus.PASSED
     assert registered.latest_status == RunStatus.PASSED
@@ -286,7 +324,7 @@ async def test_existing_project_enters_through_technical_repair_without_visual_r
     })
     store.update(record)
     team = FakeTeam()
-    result = await execute_run(run_id, store=store, team=team, toolpack=active_toolpack)
+    result = await execute_run(run_id, store=store, team=team, registry=ToolPackRegistry([active_toolpack]))
     assert result.status == RunStatus.PASSED
     assert team.repairs == 2
     assert result.completed_receipt_ids[0].startswith("SR-")
@@ -312,7 +350,7 @@ async def test_deterministic_browser_verification_runs_off_event_loop_thread(mon
 
     active_toolpack = toolpack_with_evidence(evidence)
     store, run_id = setup_run(tmp_path)
-    result = await execute_run(run_id, store=store, team=FakeTeam(), toolpack=active_toolpack)
+    result = await execute_run(run_id, store=store, team=FakeTeam(), registry=ToolPackRegistry([active_toolpack]))
 
     assert result.status == RunStatus.PASSED
     assert verifier_threads
@@ -339,7 +377,7 @@ async def test_visual_competition_continues_with_two_renderable_candidates(monke
 
     active_toolpack = toolpack_with_evidence(evidence)
     store, run_id = setup_run(tmp_path)
-    result = await execute_run(run_id, store=store, team=FakeTeam(), toolpack=active_toolpack)
+    result = await execute_run(run_id, store=store, team=FakeTeam(), registry=ToolPackRegistry([active_toolpack]))
 
     assert result.status == RunStatus.PASSED
     receipt = json.loads((tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
@@ -359,7 +397,7 @@ async def test_deterministic_failure_routes_to_bounded_technical_repair(monkeypa
     active_toolpack = toolpack_with_evidence(evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
-    result = await execute_run(run_id, store=store, team=team, toolpack=active_toolpack)
+    result = await execute_run(run_id, store=store, team=team, registry=ToolPackRegistry([active_toolpack]))
     assert result.status == RunStatus.PASSED
     assert team.repairs == 1
 
@@ -383,6 +421,6 @@ async def test_third_failure_stops_instead_of_looping(monkeypatch, tmp_path: Pat
     active_toolpack = toolpack_with_evidence(evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
-    result = await execute_run(run_id, store=store, team=team, toolpack=active_toolpack)
+    result = await execute_run(run_id, store=store, team=team, registry=ToolPackRegistry([active_toolpack]))
     assert result.status == RunStatus.BLOCKED
     assert team.repairs == 2

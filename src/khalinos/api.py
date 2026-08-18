@@ -28,6 +28,7 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.projects import CloudProjectStore
+from khalinos.registry import APPROVED_TOOLPACKS, DEFAULT_TOOLPACK_ID
 from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
 from khalinos.uploads import CloudUploadStore
@@ -71,11 +72,14 @@ def queue_run(
     project_id: str,
     source_snapshot=None,
 ) -> dict[str, object]:
+    binding = APPROVED_TOOLPACKS.binding_for(DEFAULT_TOOLPACK_ID)
+    brief = brief.model_copy(update={"toolpack_binding": binding})
     run_id = uuid4().hex
     record = RunRecord(
         run_id=run_id,
         status=RunStatus.QUEUED,
         brief_sha256=canonical_sha256(brief),
+        toolpack_binding=binding,
         message="The immutable user brief is queued for Cloud execution.",
         owner_id=owner_id,
         project_id=project_id,

@@ -11,6 +11,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
+from khalinos.toolpacks import ToolPackBinding
+
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat()
@@ -44,6 +46,7 @@ class UserBrief(BaseModel):
     acceptance_criteria: list[str] = Field(min_length=2, max_length=10)
     max_quests: int = Field(default=4, ge=2, le=5)
     max_repairs_per_quest: int = Field(default=2, ge=0, le=2)
+    toolpack_binding: ToolPackBinding | None = None
     authorized_output_files: list[str] = Field(
         default_factory=lambda: [
             "index.html", "styles.css", "app.js", "journey.json", "README.md"
@@ -275,6 +278,7 @@ class QuestSpec(BaseModel):
 class QuestPlan(BaseModel):
     product_summary: str = Field(min_length=30, max_length=800)
     architecture_decision: str = Field(min_length=30, max_length=800)
+    toolpack_binding: ToolPackBinding | None = None
     quests: list[QuestSpec] = Field(min_length=2, max_length=5)
 
     @model_validator(mode="after")
@@ -421,6 +425,7 @@ class QuestReceipt(BaseModel):
     quest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     parent_receipt_id: str | None = None
     artifact_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    toolpack_binding: ToolPackBinding | None = None
     deterministic_evidence: DeterministicEvidence
     independent_verification: AgentVerification
     repair_rounds: int = Field(ge=0, le=2)
@@ -432,6 +437,7 @@ class RunRecord(BaseModel):
     run_id: str
     status: RunStatus
     brief_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    toolpack_binding: ToolPackBinding | None = None
     current_quest_id: str | None = None
     completed_receipt_ids: list[str] = Field(default_factory=list)
     message: str

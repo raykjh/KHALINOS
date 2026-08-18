@@ -25,7 +25,7 @@ from khalinos.models import (
 )
 from khalinos.storage import RunStore
 from khalinos.projects import ProjectStore
-from khalinos.toolpacks import RegisteredToolPack
+from khalinos.toolpacks import RegisteredToolPack, ToolPackRegistry
 
 
 class Team(Protocol):
@@ -212,15 +212,20 @@ async def execute_run(
     *,
     store: RunStore,
     team: Team,
-    toolpack: RegisteredToolPack[ArtifactBundle, DeterministicEvidence],
+    registry: ToolPackRegistry,
     project_store: ProjectStore | None = None,
 ) -> RunRecord:
     record = store.read_record(run_id)
     brief = store.read_brief(run_id)
     try:
+        binding = brief.toolpack_binding
+        if binding is None or record.toolpack_binding != binding:
+            raise PermissionError("run and approved brief must carry the same ToolPack binding")
+        toolpack = registry.resolve(binding)
         record = record.model_copy(update={"status": RunStatus.PLANNING, "message": "Gemini Project Owner is issuing the Quest chain."})
         store.update(record)
         plan = await team.plan({"approved_brief": brief.model_dump(mode="json")})
+        plan = plan.model_copy(update={"toolpack_binding": binding})
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Project Owner exceeded the approved Quest limit")
         _validate_plan_authority(brief, plan)
@@ -235,6 +240,7 @@ async def execute_run(
                 "receipt_id": source_receipt_id,
                 "snapshot": record.source_snapshot.model_dump(mode="json"),
                 "artifact_sha256": canonical_sha256(current),
+                "toolpack_binding": binding.model_dump(mode="json"),
                 "admission": "validated bounded browser source archive",
             })
             parent_receipt_id: str | None = source_receipt_id
@@ -340,6 +346,7 @@ async def execute_run(
                         quest_sha256=canonical_sha256(quest),
                         parent_receipt_id=parent_receipt_id,
                         artifact_sha256=canonical_sha256(candidate),
+                        toolpack_binding=binding,
                         deterministic_evidence=deterministic,
                         independent_verification=verification,
                         repair_rounds=repair_round,
@@ -377,6 +384,7 @@ async def execute_run(
         source_snapshot = store.put_bundle_archive(run_id, current)
         store.put_json(run_id, "final/artifact_manifest.json", {
             "artifact_sha256": canonical_sha256(current),
+            "toolpack_binding": binding.model_dump(mode="json"),
             "files": [item.path for item in current.files],
             "receipt_ids": receipt_ids,
             "source_snapshot": source_snapshot.model_dump(mode="json"),
