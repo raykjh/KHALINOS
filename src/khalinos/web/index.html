@@ -34,6 +34,7 @@
     @keyframes enter { from { opacity:0; transform:translateY(8px); } }
     .kicker { color:var(--teal); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:10px; }
     .lead { font-size:18px; max-width:760px; margin:12px 0 28px; }
+    .sense-intro { max-width:760px; margin:12px 0 28px; color:#4c5b46; font-size:20px; font-weight:700; line-height:1.45; }
     label { display:grid; gap:8px; margin:18px 0; font-weight:700; }
     input,textarea { width:100%; border:1px solid #3a505d; border-radius:12px; background:#08141c; color:var(--ink); padding:14px 15px; font:inherit; transition:.2s; }
     input:focus,textarea:focus { outline:3px solid rgba(98,214,199,.2); border-color:var(--teal); }
@@ -208,8 +209,7 @@
 
       <div class="step" id="sensesStep">
         <div class="kicker">SixSense</div>
-        <h2>Help KHALINOS match your preferences.</h2>
-        <p class="lead">Answer only the questions where your preference changes the result. SixSense asks no more than six questions before work begins.</p>
+        <p class="sense-intro">Answer up to six questions to help KHALINOS produce the best possible result.</p>
         <div class="progress"><span id="senseProgress"></span></div>
         <h3 id="questionText">Reviewing the goal…</h3>
         <p id="questionWhy" class="lead"></p>

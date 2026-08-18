@@ -65,7 +65,9 @@ def test_goal_has_no_leading_example_and_sixsense_requires_a_real_choice() -> No
     assert 'id="answerOptions"' in html
     assert "question.answer_options" in html
     assert "Confirm this choice" in html
-    assert "SixSense asks no more than six questions" in html
+    assert "Answer up to six questions to help KHALINOS produce the best possible result." in html
+    assert "Help KHALINOS match your preferences" not in html
+    assert "Answer only the questions where your preference changes the result" not in html
     assert "questionKicker" not in html
     assert 'id="userChoices"' in html
     assert "KHALINOS applied professional defaults" in html
