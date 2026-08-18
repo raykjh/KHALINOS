@@ -1,0 +1,31 @@
+FROM python:3.12-slim
+
+ARG GODOT_URL=https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+ARG GODOT_ZIP_SHA256=c7ff14fd28472c8d4f193043de30278dcf7e5241a1dcf7566b02e27addaa33ba
+ARG GODOT_EXECUTABLE_SHA256=32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    KHALINOS_GODOT_EXECUTABLE=/opt/godot/Godot_v4.7.1-stable_linux.x86_64
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl unzip libfontconfig1 libgl1 libx11-6 libxcursor1 libxi6 libxinerama1 libxrandr2 \
+    && mkdir -p /opt/godot \
+    && curl --fail --location --retry 3 "$GODOT_URL" --output /tmp/godot.zip \
+    && echo "$GODOT_ZIP_SHA256  /tmp/godot.zip" | sha256sum --check --strict \
+    && unzip /tmp/godot.zip -d /opt/godot \
+    && chmod 0555 /opt/godot/Godot_v4.7.1-stable_linux.x86_64 \
+    && echo "$GODOT_EXECUTABLE_SHA256  /opt/godot/Godot_v4.7.1-stable_linux.x86_64" | sha256sum --check --strict \
+    && rm -f /tmp/godot.zip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN pip install --no-cache-dir .
+
+RUN useradd --create-home --uid 10001 khalinos \
+    && chown -R khalinos:khalinos /app
+USER khalinos
+
+CMD ["python", "-m", "khalinos.godot_smoke"]

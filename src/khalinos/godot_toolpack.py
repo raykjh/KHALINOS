@@ -22,8 +22,13 @@ from khalinos.toolpacks import (
 )
 
 
-APPROVED_GODOT_SHA256 = "323f9c4cc5db674e98815cdd8e69da007d5efc779abedc8c0e42883b7fdea12a"
-APPROVED_GODOT_SIZE = 178_997_256
+APPROVED_GODOT_RUNTIMES = {
+    # Official Godot 4.7.1 Windows x86_64 executable preserved from the engine bakeoff.
+    (178_997_256, "323f9c4cc5db674e98815cdd8e69da007d5efc779abedc8c0e42883b7fdea12a"),
+    # Official Godot 4.7.1 Linux x86_64 executable from the release asset whose
+    # ZIP sha256 is c7ff14fd28472c8d4f193043de30278dcf7e5241a1dcf7566b02e27addaa33ba.
+    (144_583_504, "32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde"),
+}
 CORE_PATHS = {
     "project.godot",
     "KHALINOS_TOPOLOGY.json",
@@ -133,7 +138,9 @@ class GodotHeadlessEvidenceAdapter:
         executable = Path(os.environ.get("KHALINOS_GODOT_EXECUTABLE", "")).resolve()
         if not executable.is_file():
             raise PermissionError("approved Godot executable is unavailable")
-        if executable.stat().st_size != APPROVED_GODOT_SIZE or _file_sha256(executable) != APPROVED_GODOT_SHA256:
+        executable_sha256 = _file_sha256(executable)
+        runtime_binding = (executable.stat().st_size, executable_sha256)
+        if runtime_binding not in APPROVED_GODOT_RUNTIMES:
             raise PermissionError("Godot executable size or digest changed after approval")
         evidence_dir.mkdir(parents=True, exist_ok=True)
         receipt_path = (evidence_dir / "godot-topology-probe.json").resolve()
@@ -165,7 +172,7 @@ class GodotHeadlessEvidenceAdapter:
         issues = [name for name, passed in checks.items() if not passed]
         observation = (
             f"Godot headless probe loaded {len(receipt.get('visited', []))}/{len(expected)} declared regions; "
-            f"executable sha256={APPROVED_GODOT_SHA256}."
+            f"executable sha256={executable_sha256}."
         )
         return DeterministicEvidence(
             passed=not issues,
@@ -179,7 +186,7 @@ GODOT_IMPLEMENTATION_SOURCES = ("godot_toolpack.py", "godot_topology.py")
 
 GODOT_TOPOLOGY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.topology",
-    version="1.0.0",
+    version="1.0.1",
     display_name="Godot Topology ToolPack",
     description="Compiles bounded screen topology plans and proves every generated scene with a digest-bound Godot headless runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_IMPLEMENTATION_SOURCES),
