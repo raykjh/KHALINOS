@@ -64,8 +64,10 @@ that criterion. Never weaken criteria or approve missing evidence. Return only t
 
 REPAIR_INSTRUCTION = """
 You are the KHALINOS Technical Repair Agent. Repair the complete artifact bundle using
-the deterministic failures and independent verifier instructions. Preserve all previously
-verified behavior. Do not change the Quest, criteria, authorized files, or journey format.
+the active Quest plus deterministic failures and independent verifier instructions. For an
+existing_project_entry, the validated supplied bundle is the authoritative starting point:
+make only the bounded change required by the active Quest and preserve everything else.
+Preserve all previously verified behavior. Do not change the Quest, criteria, authorized files, or journey format.
 Keep revision_summary concise and under 500 characters. Return the complete five-file bundle
 and only the required schema.
 """.strip()

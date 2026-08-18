@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from khalinos.models import ProjectRecord, RunRecord, RunStatus
+from khalinos.models import ArchiveSnapshot, MaterialDescriptor, ProjectRecord, RunRecord, RunStatus
 from khalinos.projects import LocalProjectStore
 
 
@@ -13,6 +13,20 @@ def project(owner: str = "owner-a") -> ProjectRecord:
         display_name="Verified project",
         latest_run_id="2" * 32,
         latest_status=RunStatus.QUEUED,
+    )
+
+
+def snapshot() -> ArchiveSnapshot:
+    names = ["index.html", "styles.css", "app.js", "journey.json", "README.md"]
+    return ArchiveSnapshot(
+        bucket="bucket",
+        object_name="runs/verified/final/source.zip",
+        generation=1,
+        sha256="6" * 64,
+        size_bytes=500,
+        entry_count=5,
+        uncompressed_size_bytes=400,
+        materials=[MaterialDescriptor(filename=name, relative_path=name, size_bytes=1) for name in names],
     )
 
 
@@ -37,7 +51,9 @@ def test_verified_run_updates_latest_checkpoint(tmp_path) -> None:
         project_id="1" * 32,
         completed_receipt_ids=["QR-one"],
     )
-    updated = store.update_checkpoint(run, "5" * 64)
+    source = snapshot()
+    updated = store.update_checkpoint(run, "5" * 64, source)
     assert updated.latest_run_id == run.run_id
     assert updated.latest_checkpoint_sha256 == "5" * 64
     assert updated.latest_receipt_ids == ["QR-one"]
+    assert updated.source_snapshot == source

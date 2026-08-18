@@ -2,7 +2,7 @@
 
 KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified browser micro-application without step-by-step human guidance. SixSense inspects six project dimensions, asks only material unanswered questions, and proposes editable professional defaults. After authorization, a Gemini Project Owner issues an incremental Quest chain. A Visual Director then commissions three distinct implementations, deterministic Chromium checks establish which ones are eligible, and an independent multimodal Visual Verifier selects the strongest rendered candidate. Separate Maker, Verifier, and Technical Repair agents build from that selected foundation. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
 
-The public entrance separates a no-sign-in Judge Demo from private work. Google OpenID Connect uses only `openid`, `email`, and `profile`; the verified Google subject is the owner boundary for intakes, runs, and Project Library records. A passed run registers its artifact digest and receipt chain as the project's latest verified checkpoint. External projects enter through ZIP classification, while large source-byte upload remains intentionally pending a bounded Cloud Storage resumable-upload path.
+The public entrance separates a no-sign-in Judge Demo from private work. Google OpenID Connect uses only `openid`, `email`, and `profile`; the verified Google subject is the owner boundary for uploads, intakes, runs, and Project Library records. A passed run registers its artifact digest, immutable source ZIP snapshot, and receipt chain as the project's latest verified checkpoint. External browser projects enter through an owner-bound Cloud Storage resumable session and deterministic ZIP admission before SixSense can reference them.
 
 This project targets the **Taskmaster** category of the All Things Agentic Hackathon.
 
@@ -37,12 +37,16 @@ For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example with
 - **Cloud Run Job** performs the asynchronous long-running workflow.
 - **Firestore** stores the current run projection.
 - **Cloud Storage** stores immutable briefs, candidates, screenshots, Quest receipts, and the final manifest.
+- **Cloud Storage resumable uploads** receive private project ZIP bytes without routing large archives through the API container.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     U["Materials first + user goal"] --> API["KHALINOS Cloud Run service"]
+    U -->|"External browser ZIP"| UPLOAD["Owner-bound GCS resumable session"]
+    UPLOAD --> ADMIT["Path, size, ratio, file-set, digest + generation admission"]
+    ADMIT --> API
     API --> SENSE["Gemini 3.5 SixSense via ADK"]
     SENSE -->|"Only material gaps"| QUESTION["Sequential question + editable recommendation"]
     QUESTION --> SENSE
@@ -52,11 +56,13 @@ flowchart LR
     API --> GCS["Cloud Storage sources and evidence"]
     BRIEF --> JOB["Cloud Run Job"]
     JOB --> OWNER["Gemini 3.5 Project Owner via ADK"]
-    OWNER --> VD["Gemini 3.5 Visual Director via ADK"]
+    OWNER --> MODE{"New build or existing repair?"}
+    MODE -->|"New"| VD["Gemini 3.5 Visual Director via ADK"]
     VD --> V1["Visual candidates V1–V3"]
     V1 --> VRT["Isolated Chromium eligibility checks"]
     VRT --> VV["Multimodal Visual Verifier"]
     VV --> MAKER["Gemini 3.5 Accountable Maker via ADK"]
+    MODE -->|"Existing verified snapshot"| REPAIR
     MAKER --> RUNTIME["Network-isolated Chromium verifier"]
     RUNTIME --> VERIFIER["Gemini 3.5 Independent Verifier via ADK"]
     VERIFIER -->|"REPAIR, max 2"| REPAIR["Gemini 3.5 Technical Repair via ADK"]
@@ -71,6 +77,7 @@ flowchart LR
 ## Safety and autonomy contract
 
 - The user authorizes one fixed five-file output surface and hard Quest/repair limits.
+- External ZIP admission currently accepts only that exact bounded browser profile. Godot, Unity, executables, symlinks, encrypted entries, traversal paths, extra files, oversized text, and high-ratio archives are rejected before execution.
 - The 30-minute setting is a per-execution runaway safety slice, not a general project deadline. The current browser micro-app profile is intentionally non-resumable, so an authorized run must fit one slice.
 - Visual selection requires at least two deterministically renderable candidates and records the concept plan, screenshots, rubric scores, selected artifact digest, and selection receipt.
 - Generated products cannot use external URLs, network calls, dynamic code loading, or additional files.
@@ -104,11 +111,12 @@ Set a unique project and bucket name, then enable the required services:
 $env:KHALINOS_PROJECT="YOUR_PROJECT_ID"
 $env:KHALINOS_REGION="asia-northeast3"
 $env:KHALINOS_BUCKET="$env:KHALINOS_PROJECT-runs"
-$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.1.0"
+$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.5.0"
 
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com firestore.googleapis.com storage.googleapis.com --project=$env:KHALINOS_PROJECT
 gcloud artifacts repositories create khalinos --repository-format=docker --location=$env:KHALINOS_REGION --project=$env:KHALINOS_PROJECT
 gcloud storage buckets create "gs://$env:KHALINOS_BUCKET" --project=$env:KHALINOS_PROJECT --location=$env:KHALINOS_REGION --uniform-bucket-level-access
+gcloud storage buckets update "gs://$env:KHALINOS_BUCKET" --cors-file=deploy/storage-cors.json
 gcloud firestore databases create --project=$env:KHALINOS_PROJECT --location=$env:KHALINOS_REGION --type=firestore-native
 ```
 
@@ -137,7 +145,7 @@ gcloud builds submit --project=$env:KHALINOS_PROJECT --tag=$env:KHALINOS_IMAGE
 
 gcloud run jobs deploy khalinos-worker --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --image=$env:KHALINOS_IMAGE --service-account=$worker --command=python --args="-m" --args="khalinos.worker" --set-env-vars="GOOGLE_CLOUD_PROJECT=$env:KHALINOS_PROJECT,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=TRUE,KHALINOS_BUCKET=$env:KHALINOS_BUCKET,KHALINOS_MODEL=gemini-3.5-flash" --task-timeout=1800 --max-retries=0 --memory=2Gi --cpu=2
 
-gcloud run deploy khalinos --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --image=$env:KHALINOS_IMAGE --service-account=$api --set-env-vars="GOOGLE_CLOUD_PROJECT=$env:KHALINOS_PROJECT,KHALINOS_REGION=$env:KHALINOS_REGION,KHALINOS_BUCKET=$env:KHALINOS_BUCKET,KHALINOS_WORKER_JOB=khalinos-worker,KHALINOS_MODEL=gemini-3.5-flash" --min=0 --max=2 --memory=512Mi --cpu=1 --allow-unauthenticated
+gcloud run deploy khalinos --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --image=$env:KHALINOS_IMAGE --service-account=$api --set-env-vars="GOOGLE_CLOUD_PROJECT=$env:KHALINOS_PROJECT,KHALINOS_REGION=$env:KHALINOS_REGION,KHALINOS_BUCKET=$env:KHALINOS_BUCKET,KHALINOS_WORKER_JOB=khalinos-worker,KHALINOS_MODEL=gemini-3.5-flash,KHALINOS_PUBLIC_ORIGIN=https://YOUR_CLOUD_RUN_HOST" --min=0 --max=2 --memory=512Mi --cpu=1 --allow-unauthenticated
 ```
 
 Create an External Google OAuth Web client for the deployed HTTPS origin and set its client ID on the API service. Request basic identity only; do not request Drive or `cloud-platform` scopes.

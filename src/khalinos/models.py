@@ -125,6 +125,39 @@ class MaterialInspection(BaseModel):
     notices: list[str] = Field(default_factory=list, max_length=8)
 
 
+class ArchiveSnapshot(BaseModel):
+    """Immutable, validated source archive admitted to an execution contract."""
+
+    bucket: str = Field(min_length=1, max_length=255)
+    object_name: str = Field(min_length=1, max_length=1024)
+    generation: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    size_bytes: int = Field(ge=1, le=200_000_000)
+    project_kind: Literal["browser"] = "browser"
+    root_prefix: str = Field(default="", max_length=500)
+    entry_count: int = Field(ge=5, le=1000)
+    uncompressed_size_bytes: int = Field(ge=1, le=25_000_000)
+    materials: list[MaterialDescriptor] = Field(min_length=5, max_length=5)
+
+
+class UploadCreate(BaseModel):
+    filename: str = Field(pattern=r"^[^/\\]{1,160}\.zip$")
+    size_bytes: int = Field(ge=1, le=200_000_000)
+
+
+class UploadRecord(BaseModel):
+    upload_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    owner_id: str = Field(min_length=3, max_length=255)
+    filename: str
+    expected_size_bytes: int = Field(ge=1, le=200_000_000)
+    object_name: str
+    status: Literal["pending", "finalized", "rejected"] = "pending"
+    snapshot: ArchiveSnapshot | None = None
+    rejection_reason: str | None = Field(default=None, max_length=500)
+    created_at: str = Field(default_factory=utc_now)
+    updated_at: str = Field(default_factory=utc_now)
+
+
 class IntakeCreate(BaseModel):
     project_name: str = Field(min_length=2, max_length=80)
     goal: str = Field(min_length=20, max_length=5000)
@@ -132,6 +165,7 @@ class IntakeCreate(BaseModel):
     project_locator: str = Field(default="", max_length=2000)
     materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
     selected_project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    upload_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
 
 
 class SenseQuestion(BaseModel):
@@ -208,6 +242,7 @@ class IntakeRecord(BaseModel):
     material_inspection: MaterialInspection | None = None
     owner_id: str = ""
     selected_project_id: str | None = None
+    source_snapshot: ArchiveSnapshot | None = None
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
     current_question: SenseQuestion | None = None
@@ -395,6 +430,8 @@ class RunRecord(BaseModel):
     model_calls: int = 0
     owner_id: str = ""
     project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
+    source_snapshot: ArchiveSnapshot | None = None
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)
 
@@ -412,5 +449,6 @@ class ProjectRecord(BaseModel):
     latest_status: RunStatus
     latest_checkpoint_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     latest_receipt_ids: list[str] = Field(default_factory=list)
+    source_snapshot: ArchiveSnapshot | None = None
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)

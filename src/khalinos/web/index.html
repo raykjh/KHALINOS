@@ -155,7 +155,7 @@
 </main>
 <script>
 const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, pollTimer=null;
+let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null;
 const $=selector=>document.querySelector(selector);
 function show(name){
   document.querySelectorAll('.step').forEach(node=>node.classList.remove('active'));
@@ -179,7 +179,7 @@ function describeFiles(files,empty){
   if(files.length>6)preview.push(`…and ${files.length-6} more files`);
   return preview.join('\n');
 }
-$('#externalZip').addEventListener('change',()=>{$('#zipList').textContent=describeFiles([...$('#externalZip').files],'No external project ZIP selected.');materialInspection=null;selectedProjectId=null;});
+$('#externalZip').addEventListener('change',()=>{$('#zipList').textContent=describeFiles([...$('#externalZip').files],'No external project ZIP selected.');materialInspection=null;selectedProjectId=null;externalUploadId=null;});
 $('#materials').addEventListener('change',()=>{$('#materialList').textContent=describeFiles([...$('#materials').files],'No additional material selected — starting without material is allowed.');materialInspection=null;});
 document.querySelector('[data-back="materials"]').addEventListener('click',()=>show('materials'));
 function authHeaders(extra={}){return authCredential?{...extra,Authorization:`Bearer ${authCredential}`}:{...extra};}
@@ -205,7 +205,7 @@ async function loadProjects(){
   library.querySelectorAll('[data-project-id]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.projectId))));
 }
 async function selectProject(project){
-  selectedProjectId=project.project_id;$('#projectName').value=project.display_name;$('#projectLocator').value=`khalinos://projects/${project.project_id}`;
+  selectedProjectId=project.project_id;externalUploadId=null;$('#projectName').value=project.display_name;$('#projectLocator').value=`khalinos://projects/${project.project_id}`;
   const markers={godot:[{filename:'project.godot',relative_path:'project.godot',media_type:'text/plain',size_bytes:1}],unity:[{filename:'Player.cs',relative_path:'Assets/Player.cs',media_type:'text/plain',size_bytes:1},{filename:'ProjectVersion.txt',relative_path:'ProjectSettings/ProjectVersion.txt',media_type:'text/plain',size_bytes:1}],web:[{filename:'index.html',relative_path:'index.html',media_type:'text/html',size_bytes:1}],browser:[{filename:'index.html',relative_path:'index.html',media_type:'text/html',size_bytes:1}]};
   materialDescriptors=markers[project.project_kind]||[];await inspectDescriptorSet();
 }
@@ -214,12 +214,26 @@ async function inspectDescriptorSet(){
   const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));materialInspection=JSON.parse(text);
   $('#inspection').hidden=false;$('#inspectionMode').textContent=materialInspection.recommended_work_mode.replaceAll('_',' ').toUpperCase();$('#inspectionSummary').textContent=materialInspection.summary;$('#inspectionNotices').innerHTML=materialInspection.notices.map(item=>`<li>${escapeHtml(item)}</li>`).join('');$('#goalContext').textContent=materialInspection.summary;show('goal');
 }
-$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());selectedProjectId=null;materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary}`;});
+async function uploadExternalZip(){
+  const file=$('#externalZip').files[0];if(!file)return null;
+  if(!authCredential)throw new Error('Sign in with Google before uploading a private project ZIP.');
+  if(externalUploadId)return externalUploadId;
+  const create=await fetch('/api/uploads',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({filename:file.name,size_bytes:file.size})});
+  const createText=await create.text();if(!create.ok)throw new Error(apiError(create,createText));const session=JSON.parse(createText);
+  const uploaded=await fetch(session.resumable_session_uri,{method:'PUT',headers:{'content-type':'application/zip','content-range':`bytes 0-${file.size-1}/${file.size}`},body:file});
+  if(!uploaded.ok)throw new Error(`Cloud Storage upload failed with HTTP ${uploaded.status}`);
+  const finalized=await fetch(`/api/uploads/${session.upload.upload_id}/finalize`,{method:'POST',headers:authHeaders()});
+  const finalizedText=await finalized.text();if(!finalized.ok)throw new Error(apiError(finalized,finalizedText));const record=JSON.parse(finalizedText);
+  externalUploadId=record.upload_id;materialDescriptors=record.snapshot.materials;$('#projectLocator').value=`gs://${record.snapshot.bucket}/${record.snapshot.object_name}`;
+  $('#zipList').textContent=`${file.name} · validated · ${record.snapshot.sha256.slice(0,12)}…`;return externalUploadId;
+}
+$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());selectedProjectId=null;externalUploadId=null;materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary}`;});
 $('#chooseProject').addEventListener('click',async()=>{if(!authCredential){alert('Sign in with Google to open your private Project Library.');return;}await loadProjects();});
 $('#inspectMaterials').addEventListener('click',async()=>{
   const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
   try{
-    materialDescriptors=selectedMaterialFiles().map(descriptor);
+    if($('#externalZip').files.length)await uploadExternalZip();
+    else materialDescriptors=selectedMaterialFiles().map(descriptor);
     selectedProjectId=null;await inspectDescriptorSet();
   }catch(error){alert(`Materials could not be inspected: ${error.message}`);}finally{busy(button,false);}
 });
@@ -228,9 +242,9 @@ $('#beginSensing').addEventListener('click',async()=>{
   try{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
     if(!authCredential)throw new Error('Sign in with Google before SixSense stores or executes a project. Judge Demo can be viewed without sign-in.');
-    const supported=selectedMaterialFiles().filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
+    const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
     const sources=await Promise.all(supported.map(filePayload));
-    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId})});
+    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId})});
     const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });

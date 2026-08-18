@@ -10,6 +10,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from khalinos.models import (
+    ArchiveSnapshot,
     IntakeAnswer,
     IntakeCreate,
     IntakeRecord,
@@ -186,6 +187,7 @@ async def start_intake(
     store: IntakeStore,
     agent: SensingAgent,
     owner_id: str = "",
+    source_snapshot: ArchiveSnapshot | None = None,
 ) -> IntakeRecord:
     sources = decode_sources(request)
     material_inspection = inspect_materials(MaterialInspectionRequest(
@@ -201,6 +203,7 @@ async def start_intake(
         material_inspection=material_inspection,
         owner_id=owner_id,
         selected_project_id=request.selected_project_id,
+        source_snapshot=source_snapshot,
     )
     store.create(record, sources)
     decision = await agent.assess(
@@ -269,6 +272,7 @@ async def restart_intake(
         material_inspection=previous.material_inspection,
         owner_id=previous.owner_id,
         selected_project_id=previous.selected_project_id,
+        source_snapshot=previous.source_snapshot,
     )
     store.create(record, copied_sources)
     decision = await agent.assess(

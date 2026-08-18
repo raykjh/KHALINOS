@@ -171,6 +171,31 @@ async def test_passed_run_registers_verified_project_checkpoint(monkeypatch, tmp
     assert registered.latest_status == RunStatus.PASSED
     assert registered.latest_run_id == run_id
     assert registered.latest_checkpoint_sha256 is not None
+    assert registered.source_snapshot is not None
+
+
+async def test_existing_project_enters_through_technical_repair_without_visual_regeneration(monkeypatch, tmp_path: Path) -> None:
+    def evidence(*args, **kwargs):
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"])
+
+    monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
+    store, run_id = setup_run(tmp_path)
+    starting = bundle("Existing verified project")
+    snapshot = store.put_bundle_archive("source" * 5 + "ab", starting)
+    record = store.read_record(run_id).model_copy(update={
+        "work_mode": "existing_project_repair",
+        "source_snapshot": snapshot,
+    })
+    store.update(record)
+    team = FakeTeam()
+    result = await execute_run(run_id, store=store, team=team)
+    assert result.status == RunStatus.PASSED
+    assert team.repairs == 2
+    assert result.completed_receipt_ids[0].startswith("SR-")
+    assert not (tmp_path / "runs" / run_id / "visuals").exists()
 
 
 async def test_deterministic_browser_verification_runs_off_event_loop_thread(monkeypatch, tmp_path: Path) -> None:

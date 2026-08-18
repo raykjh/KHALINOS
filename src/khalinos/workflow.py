@@ -164,22 +164,40 @@ async def execute_run(
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Project Owner exceeded the approved Quest limit")
         store.put_json(run_id, "quest_plan.json", plan.model_dump(mode="json"))
-        current, visual_receipt, record = await _select_visual_foundation(
-            run_id,
-            record=record,
-            brief=brief,
-            plan=plan,
-            store=store,
-            team=team,
-        )
-        parent_receipt_id: str | None = visual_receipt.receipt_id
-        receipt_ids: list[str] = [visual_receipt.receipt_id]
+        existing_repair = record.work_mode == "existing_project_repair"
+        if existing_repair:
+            if record.source_snapshot is None:
+                raise ValueError("existing-project repair requires an immutable source snapshot")
+            current = store.read_bundle_archive(record.source_snapshot)
+            source_receipt_id = f"SR-{record.source_snapshot.sha256[:16]}"
+            store.put_json(run_id, "source/receipt.json", {
+                "receipt_id": source_receipt_id,
+                "snapshot": record.source_snapshot.model_dump(mode="json"),
+                "artifact_sha256": canonical_sha256(current),
+                "admission": "validated bounded browser source archive",
+            })
+            parent_receipt_id: str | None = source_receipt_id
+            receipt_ids: list[str] = [source_receipt_id]
+        else:
+            current, visual_receipt, record = await _select_visual_foundation(
+                run_id,
+                record=record,
+                brief=brief,
+                plan=plan,
+                store=store,
+                team=team,
+            )
+            parent_receipt_id = visual_receipt.receipt_id
+            receipt_ids = [visual_receipt.receipt_id]
         for quest in plan.quests:
             record = record.model_copy(update={
                 "status": RunStatus.EXECUTING,
                 "current_quest_id": quest.quest_id,
                 "completed_receipt_ids": receipt_ids,
-                "message": f"Accountable Maker is executing {quest.quest_id}.",
+                "message": (
+                    f"Technical Repair Agent is applying {quest.quest_id} to the verified project snapshot."
+                    if existing_repair else f"Accountable Maker is executing {quest.quest_id}."
+                ),
                 "model_calls": team.call_count,
             })
             store.update(record)
@@ -189,7 +207,21 @@ async def execute_run(
                 "previous_verified_bundle": current.model_dump(mode="json") if current else None,
                 "parent_receipt_id": parent_receipt_id,
             }
-            candidate = await team.make(payload)
+            candidate = (
+                await team.repair({
+                    **payload,
+                    "failed_bundle": current.model_dump(mode="json"),
+                    "deterministic_evidence": {"passed": True, "checks": {"source_admission": True}, "issues": []},
+                    "independent_verification": {
+                        "verdict": "REPAIR",
+                        "repair_instructions": [quest.objective],
+                        "findings": [],
+                    },
+                    "repair_round": 0,
+                    "existing_project_entry": True,
+                })
+                if existing_repair else await team.make(payload)
+            )
             repair_round = 0
             while True:
                 with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{quest.quest_id}-") as temporary:
@@ -264,10 +296,12 @@ async def execute_run(
                 })
         if current is None:
             raise RuntimeError("Project Owner produced no executable Quest")
+        source_snapshot = store.put_bundle_archive(run_id, current)
         store.put_json(run_id, "final/artifact_manifest.json", {
             "artifact_sha256": canonical_sha256(current),
             "files": [item.path for item in current.files],
             "receipt_ids": receipt_ids,
+            "source_snapshot": source_snapshot.model_dump(mode="json"),
         })
         record = record.model_copy(update={
             "status": RunStatus.PASSED,
@@ -278,7 +312,7 @@ async def execute_run(
         })
         store.update(record)
         if project_store is not None and record.project_id and record.owner_id:
-            project_store.update_checkpoint(record, canonical_sha256(current))
+            project_store.update_checkpoint(record, canonical_sha256(current), source_snapshot)
         return record
     except Exception as exc:
         record = record.model_copy(update={

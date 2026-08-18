@@ -24,14 +24,16 @@ from khalinos.models import (
     RunRecord,
     RunStatus,
     UserBrief,
+    UploadCreate,
     canonical_sha256,
 )
 from khalinos.projects import CloudProjectStore
 from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
+from khalinos.uploads import CloudUploadStore
 
 
-app = FastAPI(title="KHALINOS", version="0.4.0")
+app = FastAPI(title="KHALINOS", version="0.5.0")
 web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
 
@@ -49,7 +51,7 @@ def health() -> dict[str, object]:
         "model": os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash"),
         "framework": "Google ADK 2.6.2",
         "runtime": "Google Cloud Run",
-        "version": "0.4.0",
+        "version": "0.5.0",
     }
 
 
@@ -62,7 +64,13 @@ def require_identity(authorization: Annotated[str | None, Header()] = None) -> I
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
-def queue_run(brief: UserBrief, *, owner_id: str, project_id: str) -> dict[str, object]:
+def queue_run(
+    brief: UserBrief,
+    *,
+    owner_id: str,
+    project_id: str,
+    source_snapshot=None,
+) -> dict[str, object]:
     run_id = uuid4().hex
     record = RunRecord(
         run_id=run_id,
@@ -71,6 +79,8 @@ def queue_run(brief: UserBrief, *, owner_id: str, project_id: str) -> dict[str, 
         message="The immutable user brief is queued for Cloud execution.",
         owner_id=owner_id,
         project_id=project_id,
+        work_mode="existing_project_repair" if source_snapshot else "new_product_build",
+        source_snapshot=source_snapshot,
     )
     store = CloudRunStore()
     store.create(record, brief)
@@ -128,19 +138,62 @@ def list_projects(identity: Annotated[Identity, Depends(require_identity)]) -> l
     return [item.model_dump(mode="json") for item in CloudProjectStore().list_owned(identity.owner_id)]
 
 
+@app.post("/api/uploads", status_code=201)
+def create_upload(
+    request: UploadCreate,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    try:
+        record, session_uri = CloudUploadStore().create_session(request, identity.owner_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    return {
+        "upload": record.model_dump(mode="json"),
+        "resumable_session_uri": session_uri,
+        "required_content_type": "application/zip",
+    }
+
+
+@app.post("/api/uploads/{upload_id}/finalize")
+def finalize_upload(
+    upload_id: str,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    try:
+        return CloudUploadStore().finalize(upload_id, identity.owner_id).model_dump(mode="json")
+    except (FileNotFoundError, PermissionError) as exc:
+        raise HTTPException(status_code=404, detail="upload not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @app.post("/api/intakes", status_code=201)
 async def create_intake(
     request: IntakeCreate,
     identity: Annotated[Identity, Depends(require_identity)],
 ) -> dict[str, object]:
     try:
+        if request.selected_project_id and request.upload_id:
+            raise ValueError("choose either a KHALINOS project or one external ZIP")
+        source_snapshot = None
         if request.selected_project_id:
-            CloudProjectStore().read_owned(request.selected_project_id, identity.owner_id)
+            project = CloudProjectStore().read_owned(request.selected_project_id, identity.owner_id)
+            if project.source_snapshot is None:
+                raise ValueError("the selected project has no verified source snapshot yet")
+            source_snapshot = project.source_snapshot
+        elif request.upload_id:
+            source_snapshot = CloudUploadStore().finalized_snapshot(request.upload_id, identity.owner_id)
+        if source_snapshot is not None:
+            request = request.model_copy(update={
+                "materials": source_snapshot.materials,
+                "project_locator": f"gs://{source_snapshot.bucket}/{source_snapshot.object_name}",
+            })
         record = await start_intake(
             request,
             store=CloudIntakeStore(),
             agent=SixSenseAgent(),
             owner_id=identity.owner_id,
+            source_snapshot=source_snapshot,
         )
         return record.model_dump(mode="json")
     except (FileNotFoundError, PermissionError) as exc:
@@ -242,7 +295,12 @@ def authorize_intake(
         origin = "external" if intake.material_inspection and intake.material_inspection.source_available else "khalinos"
         detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
         project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
-    result = queue_run(authorized_brief(intake.preview), owner_id=identity.owner_id, project_id=project_id)
+    result = queue_run(
+        authorized_brief(intake.preview),
+        owner_id=identity.owner_id,
+        project_id=project_id,
+        source_snapshot=intake.source_snapshot,
+    )
     run_id = result["record"]["run_id"]
     project_store.prepare(ProjectRecord(
         project_id=project_id,
@@ -252,6 +310,7 @@ def authorize_intake(
         origin=origin,
         latest_run_id=run_id,
         latest_status=RunStatus.QUEUED,
+        source_snapshot=intake.source_snapshot,
         created_at=created_at,
     ))
     intake = intake.model_copy(update={"status": "authorized", "authorized_run_id": run_id})

@@ -7,15 +7,16 @@ from pathlib import Path
 from typing import Protocol
 
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
 
-from khalinos.models import ProjectRecord, RunRecord, RunStatus, utc_now
+from khalinos.models import ArchiveSnapshot, ProjectRecord, RunRecord, RunStatus, utc_now
 
 
 class ProjectStore(Protocol):
     def prepare(self, record: ProjectRecord) -> None: ...
     def read_owned(self, project_id: str, owner_id: str) -> ProjectRecord: ...
     def list_owned(self, owner_id: str) -> list[ProjectRecord]: ...
-    def update_checkpoint(self, run: RunRecord, checkpoint_sha256: str) -> ProjectRecord: ...
+    def update_checkpoint(self, run: RunRecord, checkpoint_sha256: str, source_snapshot: ArchiveSnapshot) -> ProjectRecord: ...
 
 
 class LocalProjectStore:
@@ -50,7 +51,7 @@ class LocalProjectStore:
         records = [ProjectRecord.model_validate_json(path.read_text(encoding="utf-8")) for path in self.root.glob("*.json")]
         return sorted((item for item in records if item.owner_id == owner_id), key=lambda item: item.updated_at, reverse=True)
 
-    def update_checkpoint(self, run: RunRecord, checkpoint_sha256: str) -> ProjectRecord:
+    def update_checkpoint(self, run: RunRecord, checkpoint_sha256: str, source_snapshot: ArchiveSnapshot) -> ProjectRecord:
         if not run.project_id or not run.owner_id:
             raise ValueError("run is not bound to an owner project")
         previous = self.read_owned(run.project_id, run.owner_id)
@@ -59,6 +60,7 @@ class LocalProjectStore:
             "latest_status": run.status,
             "latest_checkpoint_sha256": checkpoint_sha256,
             "latest_receipt_ids": run.completed_receipt_ids,
+            "source_snapshot": source_snapshot,
             "updated_at": utc_now(),
         })
         self.prepare(updated)
@@ -92,11 +94,13 @@ class CloudProjectStore:
         return record
 
     def list_owned(self, owner_id: str) -> list[ProjectRecord]:
-        snapshots = self.firestore.collection("khalinos_projects").where("owner_id", "==", owner_id).stream()
+        snapshots = self.firestore.collection("khalinos_projects").where(
+            filter=FieldFilter("owner_id", "==", owner_id)
+        ).stream()
         records = [ProjectRecord.model_validate(item.to_dict()) for item in snapshots]
         return sorted(records, key=lambda item: item.updated_at, reverse=True)
 
-    def update_checkpoint(self, run: RunRecord, checkpoint_sha256: str) -> ProjectRecord:
+    def update_checkpoint(self, run: RunRecord, checkpoint_sha256: str, source_snapshot: ArchiveSnapshot) -> ProjectRecord:
         if not run.project_id or not run.owner_id:
             raise ValueError("run is not bound to an owner project")
         previous = self.read_owned(run.project_id, run.owner_id)
@@ -105,6 +109,7 @@ class CloudProjectStore:
             "latest_status": RunStatus.PASSED,
             "latest_checkpoint_sha256": checkpoint_sha256,
             "latest_receipt_ids": run.completed_receipt_ids,
+            "source_snapshot": source_snapshot,
             "updated_at": utc_now(),
         })
         self.prepare(updated)

@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+import zipfile
 from pathlib import Path
 from typing import Protocol
 
 from google.cloud import firestore, storage
 
-from khalinos.models import RunRecord, UserBrief, utc_now
+from khalinos.models import ArchiveSnapshot, ArtifactBundle, RunRecord, UserBrief, utc_now
+from khalinos.uploads import bundle_from_browser_zip, inspect_browser_zip
 
 
 class RunStore(Protocol):
@@ -19,6 +22,8 @@ class RunStore(Protocol):
     def update(self, record: RunRecord) -> None: ...
     def put_json(self, run_id: str, relative: str, payload: dict | list) -> str: ...
     def put_file(self, run_id: str, relative: str, source: Path, content_type: str) -> str: ...
+    def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot: ...
+    def read_bundle_archive(self, snapshot: ArchiveSnapshot) -> ArtifactBundle: ...
 
 
 class LocalRunStore:
@@ -58,6 +63,19 @@ class LocalRunStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(source.read_bytes())
         return str(target)
+
+    def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot:
+        target = self._run(run_id) / "final" / "source.zip"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for item in bundle.files:
+                archive.writestr(item.path, item.content.encode("utf-8"))
+        return inspect_browser_zip(target, bucket="local", object_name=str(target), generation=1)
+
+    def read_bundle_archive(self, snapshot: ArchiveSnapshot) -> ArtifactBundle:
+        if snapshot.bucket != "local":
+            raise ValueError("local run store cannot read a Cloud snapshot")
+        return bundle_from_browser_zip(Path(snapshot.object_name), snapshot)
 
 
 class CloudRunStore:
@@ -107,3 +125,35 @@ class CloudRunStore:
         blob.upload_from_filename(str(source), content_type=content_type)
         return f"gs://{self.bucket_name}/{blob.name}"
 
+    def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot:
+        with tempfile.TemporaryDirectory(prefix=f"khalinos-final-{run_id}-") as temporary:
+            target = Path(temporary) / "source.zip"
+            with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                for item in bundle.files:
+                    archive.writestr(item.path, item.content.encode("utf-8"))
+            blob = self._blob(run_id, "final/source.zip")
+            blob.upload_from_filename(str(target), content_type="application/zip")
+            blob.reload()
+            return inspect_browser_zip(
+                target,
+                bucket=self.bucket_name,
+                object_name=blob.name,
+                generation=int(blob.generation),
+            )
+
+    def read_bundle_archive(self, snapshot: ArchiveSnapshot) -> ArtifactBundle:
+        if snapshot.bucket != self.bucket_name:
+            raise PermissionError("source snapshot is outside the approved KHALINOS bucket")
+        blob = self.bucket.blob(snapshot.object_name, generation=snapshot.generation)
+        with tempfile.TemporaryDirectory(prefix="khalinos-source-") as temporary:
+            target = Path(temporary) / "source.zip"
+            blob.download_to_filename(target, if_generation_match=snapshot.generation)
+            admitted = inspect_browser_zip(
+                target,
+                bucket=snapshot.bucket,
+                object_name=snapshot.object_name,
+                generation=snapshot.generation,
+            )
+            if admitted.sha256 != snapshot.sha256:
+                raise ValueError("source archive digest no longer matches the approved snapshot")
+            return bundle_from_browser_zip(target, snapshot)
