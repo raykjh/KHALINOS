@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from khalinos.agents import AgentTeam
+from khalinos.agents import AgentTeam, VISUAL_MAKER_INSTRUCTION
 from khalinos.sixsense import SIXSENSE_INSTRUCTION
 
 
@@ -19,3 +19,10 @@ def test_sixsense_visual_instruction_rejects_generic_template_defaults() -> None
     assert "inspect supplied reference images concretely" in SIXSENSE_INSTRUCTION
     assert "Do not use generic" in SIXSENSE_INSTRUCTION
     assert "explicit anti-goals" in SIXSENSE_INSTRUCTION
+
+
+def test_visual_maker_has_exact_runtime_and_accessibility_contract() -> None:
+    assert '{"journeys":[...]}' in VISUAL_MAKER_INSTRUCTION
+    assert '{"click":"CSS selector"}' in VISUAL_MAKER_INSTRUCTION
+    assert "Do not use type, selector, text, or key fields" in VISUAL_MAKER_INSTRUCTION
+    assert "explicit label or aria-label" in VISUAL_MAKER_INSTRUCTION

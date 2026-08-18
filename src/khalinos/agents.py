@@ -87,9 +87,15 @@ README.md. Create a presentation-ready representative state with enough real int
 prove hierarchy, controls, responsive composition, and visual identity in Chromium. Follow
 the concept precisely and honor all anti-goals. Use HTML, CSS, inline SVG, Canvas, and vanilla
 JavaScript only. No external URL, package, network call, data URL, placeholder, or unfinished
-control. journey.json may use only click, press, and assert_text steps and must produce a
-meaningful screenshot. Keep revision_summary concise and under 500 characters. Return only
-the required schema.
+control. Every form control must have an explicit label or aria-label, and icon-only buttons
+must have aria-labels.
+
+journey.json must contain exactly the wrapper {"journeys":[...]} with at least one journey.
+Each journey has a name and ordered steps. A step must be exactly one of
+{"click":"CSS selector"}, {"press":"Keyboard key"}, or {"assert_text":"visible text"}.
+Do not use type, selector, text, or key fields as a different step schema. The journey must
+exercise real controls and produce a meaningful rendered screenshot. Keep revision_summary
+concise and under 500 characters. Return only the required schema.
 """.strip()
 
 VISUAL_VERIFIER_INSTRUCTION = """
