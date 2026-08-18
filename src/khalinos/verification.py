@@ -193,11 +193,13 @@ def verify_bundle(
         "bounded_size": sum(len(value.encode("utf-8")) for value in files.values()) <= 150_000,
         "no_external_network_or_dynamic_code": not any(pattern.search(value) for value in files.values() for pattern in FORBIDDEN),
         "html_document": "<!doctype html" in files["index.html"].casefold(),
+        "local_assets_linked": bool(re.search(r"href=[\"']styles\.css[\"']", files["index.html"], re.IGNORECASE))
+        and bool(re.search(r"src=[\"']app\.js[\"']", files["index.html"], re.IGNORECASE)),
         "accessible_controls": "<button" in files["index.html"].casefold() and ("aria-" in files["index.html"].casefold() or "<label" in files["index.html"].casefold()),
-        "responsive_css": "@media" in files["styles.css"],
+        "responsive_layout": False,
         "no_placeholders": not re.search(r"\b(TODO|FIXME|lorem ipsum)\b", "\n".join(files.values()), re.IGNORECASE),
     }
-    issues = [name for name, passed in checks.items() if not passed]
+    issues = [name for name, passed in checks.items() if not passed and name != "responsive_layout"]
     screenshot_names: list[str] = []
     required = list(required_criteria or [])
     criterion_evidence: dict[str, list[str]] = {criterion: [] for criterion in required}
@@ -221,6 +223,7 @@ def verify_bundle(
             )
             context = browser.new_context(viewport={"width": 1280, "height": 720})
             console_errors: list[str] = []
+            responsive_journeys: list[bool] = []
             for index, entry in enumerate(journeys, start=1):
                 if not isinstance(entry, dict) or not set(entry).issubset({"name", "criterion", "random_seed", "steps"}):
                     raise ValueError("each journey may contain only name, criterion, random_seed, and steps")
@@ -282,6 +285,22 @@ def verify_bundle(
                     criterion_evidence[claimed].extend(
                         f"journey={name_value!r}; seed={seed!r}; {summary}" for summary in assertion_summaries
                     )
+                page.set_viewport_size({"width": 320, "height": 720})
+                responsive_journeys.append(bool(page.evaluate("""() => {
+                    const tolerance = 1;
+                    const visible = [...document.querySelectorAll('body > *, button, input, select, textarea')]
+                      .filter((element) => {
+                        const style = getComputedStyle(element);
+                        const rect = element.getBoundingClientRect();
+                        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+                      });
+                    const contained = visible.every((element) => {
+                      const rect = element.getBoundingClientRect();
+                      return rect.left >= -tolerance && rect.right <= window.innerWidth + tolerance;
+                    });
+                    return contained && document.documentElement.scrollWidth <= window.innerWidth + tolerance;
+                }""")))
+                page.set_viewport_size({"width": 1280, "height": 720})
                 name = f"journey-{index:02d}.png"
                 page.screenshot(path=str(evidence_dir / name), full_page=True)
                 screenshot_names.append(name)
@@ -293,6 +312,9 @@ def verify_bundle(
         checks["browser_journeys"] = True
         checks["criterion_runtime_coverage"] = not missing
         checks["console_clean"] = not console_errors
+        checks["responsive_layout"] = bool(responsive_journeys) and all(responsive_journeys)
+        if not checks["responsive_layout"]:
+            issues.append("responsive_layout: visible content overflows a 320px viewport")
         if console_errors:
             issues.append("console_clean: " + " | ".join(console_errors[:3]))
     except Exception as exc:
