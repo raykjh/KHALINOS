@@ -9,6 +9,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from khalinos.models import QuestPlan
+
 
 def _sha256(value: object) -> str:
     if isinstance(value, BaseModel):
@@ -78,6 +80,16 @@ class CompiledGodotTopology(BaseModel):
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     files: dict[str, str] = Field(min_length=6, max_length=20)
+
+
+class GodotProjectPlan(BaseModel):
+    """The only model-authored contract accepted by the Godot workflow."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: str = "khalinos-godot-project-plan-v1"
+    quest_plan: QuestPlan
+    topology: GodotTopologyPlan
 
 
 def _quoted(value: str) -> str:

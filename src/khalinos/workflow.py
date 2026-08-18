@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import tempfile
+from collections import Counter
 from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
@@ -80,11 +81,12 @@ def _enforce_verification_contract(
 
 def _validate_plan_authority(brief: UserBrief, plan: QuestPlan) -> None:
     approved = set(brief.acceptance_criteria)
-    planned = {
+    planned_items = [
         criterion
         for quest in plan.quests
         for criterion in quest.acceptance_criteria
-    }
+    ]
+    planned = set(planned_items)
     if planned != approved:
         invented = sorted(planned - approved)
         missing = sorted(approved - planned)
@@ -96,6 +98,14 @@ def _validate_plan_authority(brief: UserBrief, plan: QuestPlan) -> None:
         raise PermissionError(
             "Project Owner acceptance criteria must exactly preserve the approved brief; "
             + "; ".join(details)
+        )
+    repeated = sorted(
+        criterion for criterion, count in Counter(planned_items).items() if count != 1
+    )
+    if repeated:
+        raise PermissionError(
+            "Project Owner acceptance criteria must each appear exactly once; repeated criteria: "
+            + " | ".join(repeated)
         )
 
 

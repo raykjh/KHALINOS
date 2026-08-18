@@ -28,7 +28,7 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.projects import CloudProjectStore
-from khalinos.registry import APPROVED_TOOLPACKS, DEFAULT_TOOLPACK_ID
+from khalinos.registry import APPROVED_TOOLPACKS
 from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
 from khalinos.uploads import CloudUploadStore
@@ -70,10 +70,15 @@ def queue_run(
     *,
     owner_id: str,
     project_id: str,
+    project_kind: str,
     source_snapshot=None,
 ) -> dict[str, object]:
-    binding = APPROVED_TOOLPACKS.binding_for(DEFAULT_TOOLPACK_ID)
-    toolpack = APPROVED_TOOLPACKS.resolve(binding)
+    work_mode = "existing_project_repair" if source_snapshot else "new_product_build"
+    toolpack = APPROVED_TOOLPACKS.select(
+        project_kind=project_kind,
+        work_mode=work_mode,
+    )
+    binding = toolpack.binding()
     brief = brief.model_copy(update={
         "toolpack_binding": binding,
         "authorized_output_files": list(toolpack.manifest.output.authorized_paths),
@@ -87,7 +92,7 @@ def queue_run(
         message="The immutable user brief is queued for Cloud execution.",
         owner_id=owner_id,
         project_id=project_id,
-        work_mode="existing_project_repair" if source_snapshot else "new_product_build",
+        work_mode=work_mode,
         source_snapshot=source_snapshot,
     )
     store = CloudRunStore()
@@ -321,6 +326,7 @@ def authorize_intake(
         authorized_brief(intake.preview),
         owner_id=identity.owner_id,
         project_id=project_id,
+        project_kind=project_kind,
         source_snapshot=intake.source_snapshot,
     )
     run_id = result["record"]["run_id"]

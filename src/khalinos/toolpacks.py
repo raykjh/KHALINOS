@@ -214,5 +214,43 @@ class ToolPackRegistry:
             raise PermissionError("ToolPack binding does not match the approved manifest")
         return toolpack
 
+    def select(
+        self,
+        *,
+        project_kind: str,
+        work_mode: str,
+        requested_toolpack_id: str | None = None,
+    ) -> RegisteredToolPack:
+        """Select one compatible approved ToolPack without a default fallback."""
+
+        if requested_toolpack_id is not None:
+            try:
+                candidates = [self._toolpacks[requested_toolpack_id]]
+            except KeyError as exc:
+                raise PermissionError(
+                    f"ToolPack is not approved: {requested_toolpack_id}"
+                ) from exc
+        else:
+            candidates = list(self._toolpacks.values())
+        compatible = [
+            toolpack
+            for toolpack in candidates
+            if project_kind in toolpack.manifest.project_kinds
+            and work_mode in toolpack.manifest.work_modes
+        ]
+        if not compatible:
+            requested = f" requested={requested_toolpack_id}" if requested_toolpack_id else ""
+            raise PermissionError(
+                "No approved ToolPack matches "
+                f"project_kind={project_kind} work_mode={work_mode}{requested}"
+            )
+        if len(compatible) != 1:
+            identifiers = sorted(item.manifest.toolpack_id for item in compatible)
+            raise PermissionError(
+                "ToolPack selection is ambiguous; an explicit approved ToolPack is required: "
+                + ", ".join(identifiers)
+            )
+        return compatible[0]
+
     def manifest_snapshots(self) -> tuple[ToolPackManifest, ...]:
         return tuple(self._toolpacks[key].manifest for key in sorted(self._toolpacks))

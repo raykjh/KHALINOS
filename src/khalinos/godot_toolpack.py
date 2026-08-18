@@ -182,11 +182,17 @@ class GodotHeadlessEvidenceAdapter:
         )
 
 
-GODOT_IMPLEMENTATION_SOURCES = ("godot_toolpack.py", "godot_topology.py")
+GODOT_IMPLEMENTATION_SOURCES = (
+    "agents.py",
+    "godot_toolpack.py",
+    "godot_topology.py",
+    "godot_workflow.py",
+    "run_router.py",
+)
 
 GODOT_TOPOLOGY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.topology",
-    version="1.0.1",
+    version="1.1.0",
     display_name="Godot Topology ToolPack",
     description="Compiles bounded screen topology plans and proves every generated scene with a digest-bound Godot headless runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_IMPLEMENTATION_SOURCES),

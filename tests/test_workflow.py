@@ -234,6 +234,41 @@ def test_project_owner_cannot_promote_evidence_mechanics_to_product_criteria() -
         raise AssertionError("widened Project Owner criteria must be rejected")
 
 
+def test_project_owner_cannot_repeat_an_approved_criterion_across_quests() -> None:
+    brief = UserBrief(
+        project_name="Counter",
+        goal="Repair a compact counter so increment and reset behavior work in the browser.",
+        acceptance_criteria=["Increase changes the count.", "Reset restores zero."],
+        authorized_output_files=list(BROWSER_PRODUCT_MANIFEST.output.authorized_paths),
+    )
+    repeated = QuestPlan(
+        product_summary="A bounded browser counter with verified increment and reset behavior.",
+        architecture_decision="Use the fixed offline browser artifact and runtime verification surface.",
+        quests=[
+            QuestSpec(
+                quest_id="Q1",
+                objective="Repair and verify the approved counter increment behavior without widening scope.",
+                acceptance_criteria=["Increase changes the count."],
+                evidence_required=["A criterion-bound browser journey."],
+            ),
+            QuestSpec(
+                quest_id="Q2",
+                objective="Verify the reset behavior and complete the approved counter outcome.",
+                acceptance_criteria=["Increase changes the count.", "Reset restores zero."],
+                evidence_required=["A criterion-bound browser journey."],
+                depends_on=["Q1"],
+            ),
+        ],
+    )
+
+    try:
+        _validate_plan_authority(brief, repeated)
+    except PermissionError as exc:
+        assert "exactly once" in str(exc)
+    else:
+        raise AssertionError("repeated approved criteria must be rejected")
+
+
 async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tmp_path: Path) -> None:
     def evidence(*args, **kwargs):
         evidence_dir = args[2]

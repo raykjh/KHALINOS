@@ -31,7 +31,7 @@ def topology_plan() -> GodotTopologyPlan:
 def test_registry_resolves_exact_godot_toolpack_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.topology")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_TOPOLOGY_TOOLPACK
-    assert binding.version == "1.0.1"
+    assert binding.version == "1.1.0"
 
 
 def test_godot_plan_compiles_deterministically_and_materializes_only_declared_files(tmp_path) -> None:

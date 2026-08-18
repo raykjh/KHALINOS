@@ -71,6 +71,15 @@ def registered() -> RegisteredToolPack:
     return RegisteredToolPack(manifest(), FakeExecutionAdapter(), FakeEvidenceAdapter())
 
 
+def registered_for(toolpack_id: str, project_kind: str) -> RegisteredToolPack:
+    value = manifest().model_copy(update={
+        "toolpack_id": toolpack_id,
+        "project_kinds": (project_kind,),
+        "work_modes": ("new_product_build",),
+    })
+    return RegisteredToolPack(value, FakeExecutionAdapter(), FakeEvidenceAdapter())
+
+
 def test_manifest_digest_is_canonical_and_binding_is_exact() -> None:
     first = registered()
     second = registered()
@@ -92,6 +101,40 @@ def test_registry_resolves_only_the_exact_approved_binding() -> None:
         registry.resolve(changed)
     with pytest.raises(PermissionError, match="not approved"):
         registry.binding_for("unknown.product")
+
+
+def test_registry_selects_only_one_exact_compatible_toolpack() -> None:
+    browser = registered_for("browser.product", "browser")
+    godot = registered_for("godot.topology", "godot")
+    registry = ToolPackRegistry([browser, godot])
+
+    assert registry.select(
+        project_kind="browser", work_mode="new_product_build"
+    ) is browser
+    assert registry.select(
+        project_kind="godot", work_mode="new_product_build"
+    ) is godot
+    with pytest.raises(PermissionError, match="No approved ToolPack"):
+        registry.select(project_kind="unity", work_mode="new_product_build")
+    with pytest.raises(PermissionError, match="No approved ToolPack"):
+        registry.select(
+            project_kind="godot",
+            work_mode="new_product_build",
+            requested_toolpack_id="browser.product",
+        )
+
+
+def test_registry_rejects_ambiguous_implicit_selection() -> None:
+    first = registered_for("browser.first", "browser")
+    second = registered_for("browser.second", "browser")
+    registry = ToolPackRegistry([first, second])
+    with pytest.raises(PermissionError, match="ambiguous"):
+        registry.select(project_kind="browser", work_mode="new_product_build")
+    assert registry.select(
+        project_kind="browser",
+        work_mode="new_product_build",
+        requested_toolpack_id="browser.first",
+    ) is first
 
 
 def test_registry_and_adapter_contracts_reject_ambiguous_registration() -> None:

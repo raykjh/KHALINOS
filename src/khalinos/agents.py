@@ -14,6 +14,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from khalinos.browser_artifacts import BrowserArtifactBundle
+from khalinos.godot_topology import GodotProjectPlan
 from khalinos.models import (
     AgentVerification,
     ArtifactBundle,
@@ -135,6 +136,33 @@ by candidate ID. Select the candidate with the highest rubric average; ties may 
 by stronger contract alignment, then distinctiveness. Return only the required schema.
 """.strip()
 
+GODOT_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Project Owner. Convert one immutable approved brief into
+exactly one bounded GodotProjectPlan. You do not write GDScript, scenes, commands,
+files, tests, executable paths, or verification code. The trusted Godot ToolPack owns
+all of those. Your topology may contain only two to sixteen connected screen or overlay
+regions with explicit directed transitions and one declared initial region. Use the
+approved project_name exactly. Infer only the minimum conventional screen topology
+needed to express the approved goal; do not invent product features, network services,
+assets, or mechanics outside the brief.
+
+Issue two to five linear Quests. Quest acceptance_criteria may use only verbatim strings
+from the approved brief, every approved criterion must appear exactly once across the
+chain, and no criterion may be omitted or added. Put topology compilation, scene loading,
+headless execution, file inspection, and receipt requirements only in evidence_required.
+The model must not set or alter the ToolPack binding. Return only the required schema.
+""".strip()
+
+GODOT_VERIFIER_INSTRUCTION = """
+You are the independent KHALINOS Godot Verifier. You did not plan or materialize the
+artifact and cannot modify it. Judge each active Quest acceptance criterion only from
+the immutable brief, structured topology plan, compiled artifact digests, and supplied
+digest-bound Godot headless evidence. Return findings in the exact supplied criterion
+order. PASS only when each criterion has direct deterministic evidence; a plan, source
+file, README claim, or Project Owner assertion alone is not runtime proof. Never weaken
+criteria or broaden authority. Return only the required schema.
+""".strip()
+
 
 def _agent(
     name: str,
@@ -160,7 +188,7 @@ def _agent(
 
 
 class AgentTeam:
-    """Seven role-separated ADK agents; Python only enforces the approved state machine."""
+    """Role-separated ADK agents; Python enforces the approved state machines."""
 
     def __init__(self) -> None:
         os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
@@ -200,6 +228,18 @@ class AgentTeam:
             VisualSelection,
             temperature=0.0,
         )
+        self.godot_owner = _agent(
+            "khalinos_godot_project_owner",
+            GODOT_OWNER_INSTRUCTION,
+            GodotProjectPlan,
+            temperature=0.1,
+        )
+        self.godot_verifier = _agent(
+            "khalinos_godot_independent_verifier",
+            GODOT_VERIFIER_INSTRUCTION,
+            AgentVerification,
+            temperature=0.0,
+        )
         self.call_count = 0
 
     async def _run(
@@ -231,11 +271,17 @@ class AgentTeam:
     async def plan(self, payload: dict) -> QuestPlan:
         return await self._run(self.owner, payload, QuestPlan)
 
+    async def plan_godot(self, payload: dict) -> GodotProjectPlan:
+        return await self._run(self.godot_owner, payload, GodotProjectPlan)
+
     async def make(self, payload: dict) -> ArtifactBundle:
         return await self._run(self.maker, payload, BrowserArtifactBundle)
 
     async def verify(self, payload: dict) -> AgentVerification:
         return await self._run(self.verifier, payload, AgentVerification)
+
+    async def verify_godot(self, payload: dict) -> AgentVerification:
+        return await self._run(self.godot_verifier, payload, AgentVerification)
 
     async def repair(self, payload: dict) -> ArtifactBundle:
         return await self._run(self.repairer, payload, BrowserArtifactBundle)
