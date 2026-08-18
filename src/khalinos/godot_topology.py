@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -37,7 +38,7 @@ class GodotRegion(BaseModel):
 class GodotTopologyPlan(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: str = "khalinos-godot-topology-plan-v1"
+    schema_version: Literal["khalinos-godot-topology-plan-v1"] = "khalinos-godot-topology-plan-v1"
     project_name: str = Field(min_length=2, max_length=80)
     initial_region: str = Field(pattern=r"^[a-z][a-z0-9_]{1,47}$")
     regions: tuple[GodotRegion, ...] = Field(min_length=2, max_length=16)
@@ -75,7 +76,7 @@ class GodotTopologyPlan(BaseModel):
 class CompiledGodotTopology(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: str = "khalinos-compiled-godot-topology-v1"
+    schema_version: Literal["khalinos-compiled-godot-topology-v1"] = "khalinos-compiled-godot-topology-v1"
     plan: GodotTopologyPlan
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -87,7 +88,7 @@ class GodotProjectPlan(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: str = "khalinos-godot-project-plan-v1"
+    schema_version: Literal["khalinos-godot-project-plan-v1"] = "khalinos-godot-project-plan-v1"
     quest_plan: QuestPlan
     topology: GodotTopologyPlan
 

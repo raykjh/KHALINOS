@@ -71,6 +71,13 @@ def test_godot_plan_rejects_unknown_or_unreachable_regions() -> None:
         )
 
 
+def test_godot_plan_rejects_model_authored_schema_version_changes() -> None:
+    raw = topology_plan().model_dump(mode="json")
+    raw["schema_version"] = "1.1.0"
+    with pytest.raises(ValueError, match="khalinos-godot-topology-plan-v1"):
+        GodotTopologyPlan.model_validate(raw)
+
+
 def test_godot_materializer_refuses_to_overwrite_existing_product(tmp_path) -> None:
     destination = tmp_path / "existing"
     destination.mkdir()
