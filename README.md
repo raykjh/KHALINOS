@@ -101,6 +101,8 @@ The Project Owner must preserve the exact acceptance-criterion set from the appr
 
 The Browser visual-asset path passed an isolated production qualification on run `708ec62505e544ca85bbfa898343704b`. Two raw-gated candidates rendered successfully under network isolation; the independent Visual Verifier selected V2, and both Quest receipts preserved cumulative selector-bound runtime evidence. The qualified Browser ToolPack manifest SHA-256 is `162bd5734bdc4dab9810ce1e127b9110ec0400d30b36c7d83ea5d381009f2f8a`.
 
+That qualified code is deployed from commit `aff16fbdeeb6104b0b064ca38e04f609a099ecfd` to Cloud Run revision `khalinos-00022-2wj` and Worker generation `19`. Both use image digest `sha256:30cd4669fa6430fa7414f1145abf48dbea5889a126f1d4ca7a4035440ed7768e`.
+
 ## Local setup
 
 Requirements: Python 3.12+, a local Chromium or Chrome executable, and Google Cloud Application Default Credentials with Vertex AI access.

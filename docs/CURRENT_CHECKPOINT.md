@@ -45,9 +45,15 @@ Qualification run `708ec62505e544ca85bbfa898343704b` passed with 16 model calls.
 - Cloud Run Job: `khalinos-worker`
 - Service: `khalinos`
 - Cloud Run Job: `khalinos-worker`
+- Code commit deployed: `aff16fbdeeb6104b0b064ca38e04f609a099ecfd`.
+- Image: `asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/runtime:visual-assets-aff16fb`.
+- Digest: `sha256:30cd4669fa6430fa7414f1145abf48dbea5889a126f1d4ca7a4035440ed7768e`.
+- Cloud Build: `c04f577b-2a34-4586-8f58-2e3c9a29544b`.
+- Service revision: `khalinos-00022-2wj`, serving 100 percent of traffic.
+- Worker generation: `19`.
 - Safety: zero retries, 1800-second task timeout.
 
-The qualified code is ready for exact commit, image build, and synchronized service/Worker deployment. Record the resulting commit, image digest, service revision, and Worker generation here after deployment.
+The qualified code is deployed to the service and Worker with the same image digest. The public `/health` endpoint returned `ok: true` after deployment.
 
 ## Next decision
 
