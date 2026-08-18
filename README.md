@@ -1,6 +1,6 @@
 # KHALINOS
 
-KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified browser micro-application without step-by-step human guidance. SixSense inspects six project dimensions, asks only material unanswered questions, and proposes editable professional defaults. After authorization, a Gemini Project Owner issues an incremental Quest chain; separate Maker, Verifier, and Technical Repair agents execute it. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
+KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified browser micro-application without step-by-step human guidance. SixSense inspects six project dimensions, asks only material unanswered questions, and proposes editable professional defaults. After authorization, a Gemini Project Owner issues an incremental Quest chain. A Visual Director then commissions three distinct implementations, deterministic Chromium checks establish which ones are eligible, and an independent multimodal Visual Verifier selects the strongest rendered candidate. Separate Maker, Verifier, and Technical Repair agents build from that selected foundation. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
 
 This project targets the **Taskmaster** category of the All Things Agentic Hackathon.
 
@@ -27,7 +27,7 @@ The user first supplies a goal and optional text, JSON, or reference images. Eac
 
 ## Google technology
 
-- **Gemini 3.5 Flash on Vertex AI** performs Project Owner, Maker, independent Verifier, and Technical Repair decisions.
+- **Gemini 3.5 Flash on Vertex AI** performs Project Owner, Visual Director, Visual Candidate Maker, multimodal Visual Verifier, Maker, independent Quest Verifier, and Technical Repair decisions.
 - **Google Agent Development Kit 2.6.2** runs every role as a schema-bound `LlmAgent`.
 - **Cloud Run service** accepts an immutable brief and displays live status.
 - **Cloud Run Job** performs the asynchronous long-running workflow.
@@ -48,7 +48,11 @@ flowchart LR
     API --> GCS["Cloud Storage sources and evidence"]
     BRIEF --> JOB["Cloud Run Job"]
     JOB --> OWNER["Gemini 3.5 Project Owner via ADK"]
-    OWNER --> MAKER["Gemini 3.5 Accountable Maker via ADK"]
+    OWNER --> VD["Gemini 3.5 Visual Director via ADK"]
+    VD --> V1["Visual candidates V1–V3"]
+    V1 --> VRT["Isolated Chromium eligibility checks"]
+    VRT --> VV["Multimodal Visual Verifier"]
+    VV --> MAKER["Gemini 3.5 Accountable Maker via ADK"]
     MAKER --> RUNTIME["Network-isolated Chromium verifier"]
     RUNTIME --> VERIFIER["Gemini 3.5 Independent Verifier via ADK"]
     VERIFIER -->|"REPAIR, max 2"| REPAIR["Gemini 3.5 Technical Repair via ADK"]
@@ -63,6 +67,8 @@ flowchart LR
 ## Safety and autonomy contract
 
 - The user authorizes one fixed five-file output surface and hard Quest/repair limits.
+- The 30-minute setting is a per-execution runaway safety slice, not a general project deadline. The current browser micro-app profile is intentionally non-resumable, so an authorized run must fit one slice.
+- Visual selection requires at least two deterministically renderable candidates and records the concept plan, screenshots, rubric scores, selected artifact digest, and selection receipt.
 - Generated products cannot use external URLs, network calls, dynamic code loading, or additional files.
 - Browser verification blocks every request except the local isolated product server.
 - The Maker cannot approve its own work.

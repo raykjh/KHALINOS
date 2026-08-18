@@ -15,6 +15,10 @@ from khalinos.models import (
     RunRecord,
     RunStatus,
     UserBrief,
+    VisualAssessment,
+    VisualConcept,
+    VisualConceptPlan,
+    VisualSelection,
     canonical_sha256,
 )
 from khalinos.storage import LocalRunStore
@@ -63,6 +67,54 @@ class FakeTeam:
         self.repairs += 1
         return bundle("Technical repair completed")
 
+    async def plan_visuals(self, payload: dict) -> VisualConceptPlan:
+        self.call_count += 1
+        return VisualConceptPlan(
+            shared_contract="A polished, accessible visual foundation for the approved browser product.",
+            candidates=[
+                VisualConcept(
+                    candidate_id=f"V{index}",
+                    name=name,
+                    design_thesis=f"Create a distinct {name} composition that clearly expresses the approved product purpose.",
+                    composition="Use a clear primary workspace with a strong focal action and balanced supporting information.",
+                    typography="Use a deliberate type hierarchy with readable controls.",
+                    palette=["charcoal", "ivory", accent],
+                    interaction_emphasis="Make the primary action and current state immediately legible.",
+                    anti_goals=["generic template cards", "decorative clutter"],
+                )
+                for index, (name, accent) in enumerate([
+                    ("Editorial", "brass"),
+                    ("Instrument", "cobalt"),
+                    ("Tactile", "terracotta"),
+                ], start=1)
+            ],
+        )
+
+    async def make_visual(self, payload: dict) -> ArtifactBundle:
+        self.call_count += 1
+        return bundle(f"Visual foundation {payload['visual_concept']['candidate_id']}")
+
+    async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection:
+        self.call_count += 1
+        ids = [candidate_id for candidate_id, _ in screenshots]
+        assessments = [
+            VisualAssessment(
+                candidate_id=candidate_id,
+                contract_alignment=9 if candidate_id == ids[0] else 8,
+                visual_hierarchy=9,
+                distinctiveness=9 if candidate_id == ids[0] else 8,
+                interaction_clarity=9,
+                craft_and_cohesion=9,
+                strengths=["Clear visual foundation."],
+            )
+            for candidate_id in ids
+        ]
+        return VisualSelection(
+            assessments=assessments,
+            selected_candidate_id=ids[0],
+            rationale="The selected candidate has the strongest verified hierarchy and contract alignment.",
+        )
+
 
 def setup_run(tmp_path: Path) -> tuple[LocalRunStore, str]:
     store = LocalRunStore(tmp_path)
@@ -77,12 +129,18 @@ def setup_run(tmp_path: Path) -> tuple[LocalRunStore, str]:
 
 
 async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("khalinos.workflow.verify_bundle", lambda *args, **kwargs: DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"]))
+    def evidence(*args, **kwargs):
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(passed=True, checks={"runtime": True}, issues=[], screenshot_names=["journey-01.png"])
+    monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
     result = await execute_run(run_id, store=store, team=team)
     assert result.status == RunStatus.PASSED
-    assert len(result.completed_receipt_ids) == 2
+    assert len(result.completed_receipt_ids) == 3
+    assert result.completed_receipt_ids[0].startswith("VS-")
     assert team.repairs == 0
 
 
@@ -92,6 +150,9 @@ async def test_deterministic_browser_verification_runs_off_event_loop_thread(mon
 
     def evidence(*args, **kwargs):
         verifier_threads.append(threading.get_ident())
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
         return DeterministicEvidence(
             passed=True,
             checks={"runtime": True},
@@ -108,11 +169,41 @@ async def test_deterministic_browser_verification_runs_off_event_loop_thread(mon
     assert all(thread_id != event_loop_thread for thread_id in verifier_threads)
 
 
+async def test_visual_competition_continues_with_two_renderable_candidates(monkeypatch, tmp_path: Path) -> None:
+    calls = {"count": 0}
+
+    def evidence(*args, **kwargs):
+        calls["count"] += 1
+        visual_candidate_two = calls["count"] == 2
+        evidence_dir = args[2]
+        if not visual_candidate_two:
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(
+            passed=not visual_candidate_two,
+            checks={"runtime": not visual_candidate_two},
+            issues=["candidate did not render"] if visual_candidate_two else [],
+            screenshot_names=[] if visual_candidate_two else ["journey-01.png"],
+        )
+
+    monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
+    store, run_id = setup_run(tmp_path)
+    result = await execute_run(run_id, store=store, team=FakeTeam())
+
+    assert result.status == RunStatus.PASSED
+    receipt = json.loads((tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
+    assert receipt["eligible_candidate_ids"] == ["V1", "V3"]
+    assert list(receipt["selection"]["assessments"][index]["candidate_id"] for index in range(2)) == ["V1", "V3"]
+
+
 async def test_deterministic_failure_routes_to_bounded_technical_repair(monkeypatch, tmp_path: Path) -> None:
     calls = {"count": 0}
     def evidence(*args, **kwargs):
         calls["count"] += 1
-        passed = calls["count"] != 1
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
+        passed = calls["count"] != 4
         return DeterministicEvidence(passed=passed, checks={"runtime": passed}, issues=[] if passed else ["runtime failed"])
     monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
@@ -123,7 +214,21 @@ async def test_deterministic_failure_routes_to_bounded_technical_repair(monkeypa
 
 
 async def test_third_failure_stops_instead_of_looping(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("khalinos.workflow.verify_bundle", lambda *args, **kwargs: DeterministicEvidence(passed=False, checks={"runtime": False}, issues=["same structural failure"]))
+    calls = {"count": 0}
+    def evidence(*args, **kwargs):
+        calls["count"] += 1
+        visual = calls["count"] <= 3
+        evidence_dir = args[2]
+        if visual:
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(
+            passed=visual,
+            checks={"runtime": visual},
+            issues=[] if visual else ["same structural failure"],
+            screenshot_names=["journey-01.png"] if visual else [],
+        )
+    monkeypatch.setattr("khalinos.workflow.verify_bundle", evidence)
     store, run_id = setup_run(tmp_path)
     team = FakeTeam()
     result = await execute_run(run_id, store=store, team=team)

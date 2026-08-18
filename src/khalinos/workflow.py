@@ -17,6 +17,9 @@ from khalinos.models import (
     RunRecord,
     RunStatus,
     UserBrief,
+    VisualConceptPlan,
+    VisualSelection,
+    VisualSelectionReceipt,
     canonical_sha256,
 )
 from khalinos.storage import RunStore
@@ -29,6 +32,9 @@ class Team(Protocol):
     async def make(self, payload: dict) -> ArtifactBundle: ...
     async def verify(self, payload: dict) -> AgentVerification: ...
     async def repair(self, payload: dict) -> ArtifactBundle: ...
+    async def plan_visuals(self, payload: dict) -> VisualConceptPlan: ...
+    async def make_visual(self, payload: dict) -> ArtifactBundle: ...
+    async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection: ...
 
 
 def _blocked_verification(criteria: list[str], issues: list[str]) -> AgentVerification:
@@ -38,6 +44,107 @@ def _blocked_verification(criteria: list[str], issues: list[str]) -> AgentVerifi
         verdict="REPAIR",
         repair_instructions=issues or ["Repair the deterministic runtime failure."],
     )
+
+
+async def _select_visual_foundation(
+    run_id: str,
+    *,
+    record: RunRecord,
+    brief: UserBrief,
+    plan: QuestPlan,
+    store: RunStore,
+    team: Team,
+) -> tuple[ArtifactBundle, VisualSelectionReceipt, RunRecord]:
+    record = record.model_copy(update={
+        "status": RunStatus.VISUALIZING,
+        "message": "Visual Director is issuing three distinct visual concepts.",
+        "model_calls": team.call_count,
+    })
+    store.update(record)
+    visual_plan = await team.plan_visuals({
+        "approved_brief": brief.model_dump(mode="json"),
+        "quest_plan_summary": plan.model_dump(mode="json"),
+    })
+    store.put_json(run_id, "visuals/concept_plan.json", visual_plan.model_dump(mode="json"))
+
+    eligible: dict[str, ArtifactBundle] = {}
+    evidence_by_candidate: dict[str, dict] = {}
+    screenshot_payloads: list[tuple[str, bytes]] = []
+    screenshot_paths: dict[str, str] = {}
+    for concept in visual_plan.candidates:
+        record = record.model_copy(update={
+            "status": RunStatus.VISUALIZING,
+            "message": f"Visual Candidate Maker is rendering {concept.candidate_id}: {concept.name}.",
+            "model_calls": team.call_count,
+        })
+        store.update(record)
+        candidate = await team.make_visual({
+            "approved_brief": brief.model_dump(mode="json"),
+            "shared_visual_contract": visual_plan.shared_contract,
+            "visual_concept": concept.model_dump(mode="json"),
+        })
+        with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{concept.candidate_id}-") as temporary:
+            root = Path(temporary) / "product"
+            evidence_dir = Path(temporary) / "evidence"
+            materialize(candidate, root)
+            deterministic = await asyncio.to_thread(verify_bundle, candidate, root, evidence_dir)
+            for file in candidate.files:
+                store.put_file(run_id, f"visuals/{concept.candidate_id}/product/{file.path}", root / file.path, "text/plain")
+            screenshots = sorted(evidence_dir.glob("*.png"))
+            for index, screenshot in enumerate(screenshots, start=1):
+                path = store.put_file(
+                    run_id,
+                    f"visuals/{concept.candidate_id}/evidence/{screenshot.name}",
+                    screenshot,
+                    "image/png",
+                )
+                if index == 1:
+                    screenshot_paths[concept.candidate_id] = path
+                    screenshot_payloads.append((concept.candidate_id, screenshot.read_bytes()))
+        evidence_by_candidate[concept.candidate_id] = deterministic.model_dump(mode="json")
+        store.put_json(
+            run_id,
+            f"visuals/{concept.candidate_id}/deterministic_evidence.json",
+            deterministic.model_dump(mode="json"),
+        )
+        if deterministic.passed and concept.candidate_id in screenshot_paths:
+            eligible[concept.candidate_id] = candidate
+
+    if len(eligible) < 2:
+        raise RuntimeError("fewer than two visual candidates passed deterministic rendering")
+    eligible_screenshots = [item for item in screenshot_payloads if item[0] in eligible]
+    record = record.model_copy(update={
+        "status": RunStatus.VISUAL_SELECTING,
+        "message": "Independent Visual Verifier is comparing rendered candidates.",
+        "model_calls": team.call_count,
+    })
+    store.update(record)
+    selection = await team.select_visual(
+        {
+            "approved_brief": brief.model_dump(mode="json"),
+            "visual_concept_plan": visual_plan.model_dump(mode="json"),
+            "eligible_candidate_ids": list(eligible),
+            "deterministic_evidence": evidence_by_candidate,
+        },
+        eligible_screenshots,
+    )
+    assessed_ids = [item.candidate_id for item in selection.assessments]
+    if assessed_ids != list(eligible):
+        raise ValueError("Visual Verifier must assess exactly the eligible candidates")
+    if selection.selected_candidate_id not in eligible:
+        raise ValueError("Visual Verifier selected an ineligible candidate")
+    selected = eligible[selection.selected_candidate_id]
+    receipt = VisualSelectionReceipt(
+        receipt_id=f"VS-{uuid4().hex[:16]}",
+        plan_sha256=canonical_sha256(visual_plan),
+        selected_candidate_id=selection.selected_candidate_id,
+        selected_artifact_sha256=canonical_sha256(selected),
+        eligible_candidate_ids=list(eligible),
+        screenshot_paths={key: value for key, value in screenshot_paths.items() if key in eligible},
+        selection=selection,
+    )
+    store.put_json(run_id, "visuals/selection_receipt.json", receipt.model_dump(mode="json"))
+    return selected, receipt, record
 
 
 async def execute_run(run_id: str, *, store: RunStore, team: Team) -> RunRecord:
@@ -50,9 +157,16 @@ async def execute_run(run_id: str, *, store: RunStore, team: Team) -> RunRecord:
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Project Owner exceeded the approved Quest limit")
         store.put_json(run_id, "quest_plan.json", plan.model_dump(mode="json"))
-        current: ArtifactBundle | None = None
-        parent_receipt_id: str | None = None
-        receipt_ids: list[str] = []
+        current, visual_receipt, record = await _select_visual_foundation(
+            run_id,
+            record=record,
+            brief=brief,
+            plan=plan,
+            store=store,
+            team=team,
+        )
+        parent_receipt_id: str | None = visual_receipt.receipt_id
+        receipt_ids: list[str] = [visual_receipt.receipt_id]
         for quest in plan.quests:
             record = record.model_copy(update={
                 "status": RunStatus.EXECUTING,

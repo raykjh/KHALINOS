@@ -26,7 +26,7 @@ from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
 
 
-app = FastAPI(title="KHALINOS", version="0.2.2")
+app = FastAPI(title="KHALINOS", version="0.3.0")
 web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
 

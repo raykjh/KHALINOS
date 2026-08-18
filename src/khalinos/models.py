@@ -26,6 +26,8 @@ def canonical_sha256(value: BaseModel | dict | list) -> str:
 class RunStatus(StrEnum):
     QUEUED = "queued"
     PLANNING = "planning"
+    VISUALIZING = "visualizing"
+    VISUAL_SELECTING = "visual_selecting"
     EXECUTING = "executing"
     VERIFYING = "verifying"
     REPAIRING = "repairing"
@@ -214,6 +216,80 @@ class ArtifactBundle(BaseModel):
 
     def file_map(self) -> dict[str, str]:
         return {item.path: item.content for item in self.files}
+
+
+class VisualConcept(BaseModel):
+    candidate_id: str = Field(pattern=r"^V[1-3]$")
+    name: str = Field(min_length=3, max_length=80)
+    design_thesis: str = Field(min_length=30, max_length=800)
+    composition: str = Field(min_length=20, max_length=800)
+    typography: str = Field(min_length=15, max_length=500)
+    palette: list[str] = Field(min_length=3, max_length=8)
+    interaction_emphasis: str = Field(min_length=20, max_length=500)
+    anti_goals: list[str] = Field(min_length=2, max_length=8)
+
+
+class VisualConceptPlan(BaseModel):
+    shared_contract: str = Field(min_length=30, max_length=1000)
+    candidates: list[VisualConcept] = Field(min_length=3, max_length=3)
+
+    @model_validator(mode="after")
+    def three_distinct_candidates(self) -> "VisualConceptPlan":
+        if [item.candidate_id for item in self.candidates] != ["V1", "V2", "V3"]:
+            raise ValueError("visual candidates must be ordered V1, V2, V3")
+        if len({item.name.casefold() for item in self.candidates}) != 3:
+            raise ValueError("visual candidates must have distinct names")
+        return self
+
+
+class VisualAssessment(BaseModel):
+    candidate_id: str = Field(pattern=r"^V[1-3]$")
+    contract_alignment: int = Field(ge=1, le=10)
+    visual_hierarchy: int = Field(ge=1, le=10)
+    distinctiveness: int = Field(ge=1, le=10)
+    interaction_clarity: int = Field(ge=1, le=10)
+    craft_and_cohesion: int = Field(ge=1, le=10)
+    strengths: list[str] = Field(min_length=1, max_length=5)
+    weaknesses: list[str] = Field(default_factory=list, max_length=5)
+
+    def score(self) -> float:
+        return sum([
+            self.contract_alignment,
+            self.visual_hierarchy,
+            self.distinctiveness,
+            self.interaction_clarity,
+            self.craft_and_cohesion,
+        ]) / 5
+
+
+class VisualSelection(BaseModel):
+    assessments: list[VisualAssessment] = Field(min_length=2, max_length=3)
+    selected_candidate_id: str = Field(pattern=r"^V[1-3]$")
+    rationale: str = Field(min_length=30, max_length=1000)
+
+    @model_validator(mode="after")
+    def selected_candidate_has_top_score(self) -> "VisualSelection":
+        ids = [item.candidate_id for item in self.assessments]
+        expected_order = [item for item in ["V1", "V2", "V3"] if item in ids]
+        if ids != expected_order or len(ids) != len(set(ids)):
+            raise ValueError("eligible visual assessments must be unique and ordered")
+        if self.selected_candidate_id not in ids:
+            raise ValueError("selected visual candidate must be assessed")
+        scores = {item.candidate_id: item.score() for item in self.assessments}
+        if scores[self.selected_candidate_id] != max(scores.values()):
+            raise ValueError("selected visual candidate must have the highest rubric score")
+        return self
+
+
+class VisualSelectionReceipt(BaseModel):
+    receipt_id: str
+    plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    selected_candidate_id: str = Field(pattern=r"^V[1-3]$")
+    selected_artifact_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    eligible_candidate_ids: list[str] = Field(min_length=2, max_length=3)
+    screenshot_paths: dict[str, str]
+    selection: VisualSelection
+    created_at: str = Field(default_factory=utc_now)
 
 
 class CriterionFinding(BaseModel):

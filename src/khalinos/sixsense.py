@@ -50,11 +50,14 @@ browser micro-apps, not a production 3D engine project. Every recommendation mus
 feasible inside this profile. If the requested outcome materially needs a capability outside
 it, ask under required_enablers whether to choose an in-profile prototype or seek separate
 authorization for a future capability. Never recommend a forbidden dependency as a default.
-The Cloud worker has a hard 30-minute runtime and a $5 maximum run budget. Prefer the
-smallest complete, polished outcome that proves the user's core idea; do not trade away
-visual finish and reliability for extra levels, screens, or features the user did not require.
-Estimates must stay inside those hard limits and should be realistic rather than simply equal
-to the maximum.
+The current browser micro-app Cloud worker has a 30-minute per-execution safety slice and a
+$5 maximum run budget. The 30 minutes is not a user-project deadline; it bounds one runaway
+execution. This current profile is not yet resumable, so its approved outcome must fit one
+slice. Prefer the smallest complete, polished outcome that proves the user's core idea; do
+not trade away visual finish and reliability for extra levels, screens, or features the user
+did not require. Every authorized run includes a three-candidate visual competition before
+the Quest chain, adding five Gemini calls. Estimates must include that stage, stay inside the
+hard safety limits, and remain realistic rather than simply equal to the maximum.
 
 For experience_visual_direction, inspect supplied reference images concretely: composition,
 hierarchy, density, typography, palette, material cues, interaction emphasis, strengths to
@@ -111,6 +114,7 @@ class SixSenseAgent:
                 "maximum_run_budget_usd": 5,
                 "maximum_duration_minutes": 30,
                 "scope_rule": "prefer the smallest complete polished outcome",
+                "visual_competition": "three candidates, rendered screenshots, independent multimodal selection",
             },
         }
         parts = [types.Part.from_text(text=json.dumps(payload, ensure_ascii=False, indent=2))]

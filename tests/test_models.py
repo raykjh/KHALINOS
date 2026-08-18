@@ -2,7 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from khalinos.models import ArtifactBundle, ArtifactFile, QuestPlan, QuestSpec, UserBrief
+from khalinos.models import (
+    ArtifactBundle,
+    ArtifactFile,
+    QuestPlan,
+    QuestSpec,
+    UserBrief,
+    VisualAssessment,
+    VisualSelection,
+)
 
 
 def brief() -> UserBrief:
@@ -37,3 +45,30 @@ def test_artifact_requires_exact_file_set() -> None:
     files = [ArtifactFile(path=name, content="x") for name in ["index.html", "styles.css", "app.js", "journey.json", "README.md"]]
     assert len(ArtifactBundle(revision_summary="Complete safe revision", files=files).files) == 5
 
+
+def visual_assessment(candidate_id: str, score: int) -> VisualAssessment:
+    return VisualAssessment(
+        candidate_id=candidate_id,
+        contract_alignment=score,
+        visual_hierarchy=score,
+        distinctiveness=score,
+        interaction_clarity=score,
+        craft_and_cohesion=score,
+        strengths=["Clear visual hierarchy."],
+    )
+
+
+def test_visual_selection_requires_an_assessed_top_scoring_candidate() -> None:
+    assessments = [visual_assessment("V1", 8), visual_assessment("V2", 9)]
+    with pytest.raises(ValueError, match="highest rubric score"):
+        VisualSelection(
+            assessments=assessments,
+            selected_candidate_id="V1",
+            rationale="V1 was selected even though its rubric score is lower than V2.",
+        )
+    with pytest.raises(ValueError, match="must be assessed"):
+        VisualSelection(
+            assessments=assessments,
+            selected_candidate_id="V3",
+            rationale="V3 was selected without a corresponding eligible visual assessment.",
+        )
