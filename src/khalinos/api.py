@@ -11,12 +11,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
-from khalinos.intake import answer_intake, authorized_brief, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, inspect_materials, restart_intake, start_intake
 from khalinos.intake_storage import CloudIntakeStore
 from khalinos.models import (
     IntakeAnswer,
     IntakeCreate,
     IntakeRevision,
+    MaterialInspectionRequest,
     RunRecord,
     RunStatus,
     UserBrief,
@@ -26,7 +27,7 @@ from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
 
 
-app = FastAPI(title="KHALINOS", version="0.3.2")
+app = FastAPI(title="KHALINOS", version="0.3.3")
 web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
 
@@ -80,6 +81,12 @@ async def create_intake(request: IntakeCreate) -> dict[str, object]:
         return record.model_dump(mode="json")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/materials/inspect")
+def inspect_submitted_materials(request: MaterialInspectionRequest) -> dict[str, object]:
+    """Return advisory static classification; this endpoint never executes submitted files."""
+    return inspect_materials(request).model_dump(mode="json")
 
 
 @app.get("/api/intakes/{intake_id}")

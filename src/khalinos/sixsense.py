@@ -17,6 +17,11 @@ from khalinos.models import ALL_SENSE_DIMENSIONS, IntakeRecord, SenseDecision, S
 SIXSENSE_INSTRUCTION = """
 You are KHALINOS SixSense, an adaptive project discovery agent. Your job is to turn a
 non-expert user's goal and supplied sources into an executable, bounded outcome contract.
+The intake includes a static material inspection performed before the goal was submitted.
+Use its recommended work mode as advisory evidence, not as execution authority. For existing
+projects, distinguish source-backed work, reproduce-and-repair, and executable-only black-box
+diagnosis. Never promise a repair from an executable alone, and preserve existing behavior or
+files unless the goal explicitly authorizes changing them.
 Internally inspect exactly these six dimensions:
 
 1. required_enablers: required data, APIs, accounts, engines, assets, expertise, or inputs;
@@ -98,6 +103,8 @@ class SixSenseAgent:
         payload = {
             "project_name": record.project_name,
             "goal": record.goal,
+            "project_locator": record.project_locator,
+            "material_inspection": record.material_inspection.model_dump(mode="json") if record.material_inspection else None,
             "sources": [
                 {"filename": name, "media_type": media_type, "size_bytes": len(data)}
                 for name, media_type, data in source_payloads

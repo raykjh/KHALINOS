@@ -46,6 +46,9 @@
     button:disabled { opacity:.5; cursor:wait; }
     .upload { border:1px dashed #48606e; padding:20px; border-radius:14px; color:var(--muted); }
     .source-list { display:grid; gap:8px; margin-top:10px; font-size:13px; color:var(--teal); }
+    .inspection { margin-top:18px; padding:18px; border:1px solid #36505d; background:#08141c; border-radius:14px; }
+    .inspection strong { color:var(--gold); display:block; margin-bottom:6px; }
+    .inspection ul { color:var(--muted); margin:10px 0 0; padding-left:20px; }
     .progress { height:3px; background:#23343f; margin:26px 0; overflow:hidden; border-radius:3px; }
     .progress span { display:block; height:100%; width:18%; background:linear-gradient(90deg,var(--teal),var(--gold)); transition:.3s; }
     .preview-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; }
@@ -68,31 +71,37 @@
   </header>
   <div class="shell">
     <aside class="rail" aria-label="Progress">
-      <div class="phase active" data-phase="intent">Intent</div>
-      <div class="phase" data-phase="sources">Sources</div>
+      <div class="phase active" data-phase="materials">Materials</div>
+      <div class="phase" data-phase="goal">Goal</div>
       <div class="phase" data-phase="senses">SixSense</div>
       <div class="phase" data-phase="preview">Preview</div>
       <div class="phase" data-phase="execute">Execute</div>
     </aside>
     <section class="panel">
-      <div class="step active" id="intentStep">
-        <div class="kicker">Step 1 · State the destination</div>
-        <h2>What should exist when this is finished?</h2>
-        <p class="lead">Plain language is enough. SixSense will identify missing decisions and propose professional defaults.</p>
-        <label>Project name<input id="projectName" value="Signal Board" minlength="2" required></label>
-        <label>Goal<textarea id="goal" minlength="20" required>Create a polished decision board for a small team. People should add options, score them, see the current leader, preserve the board after reload, and safely clear it.</textarea></label>
-        <div class="actions"><button id="toSources">Continue to sources</button></div>
+      <div class="step active" id="materialsStep">
+        <div class="kicker">Step 1 · Submit the working material</div>
+        <h2>What should KHALINOS work from?</h2>
+        <p class="lead">Submit an existing project, a runnable build, references, or nothing. Detection is static: files are not executed at this stage.</p>
+        <label>Project location (optional)<input id="projectLocator" placeholder="Git repository URL, gs:// location, or a descriptive project location"></label>
+        <label class="upload">Existing project folder
+          <input id="projectFolder" type="file" multiple webkitdirectory directory>
+          <span class="source-list" id="folderList">No project folder selected.</span>
+        </label>
+        <label class="upload">Builds and reference files
+          <input id="materials" type="file" multiple>
+          <span class="source-list" id="materialList">No additional material selected — starting without material is allowed.</span>
+        </label>
+        <div class="inspection" id="inspection" hidden><strong id="inspectionMode"></strong><p id="inspectionSummary"></p><ul id="inspectionNotices"></ul></div>
+        <div class="actions"><button id="inspectMaterials">Inspect materials</button></div>
       </div>
 
-      <div class="step" id="sourcesStep">
-        <div class="kicker">Step 2 · Ground the outcome</div>
-        <h2>Add anything KHALINOS should see.</h2>
-        <p class="lead">Optional text, JSON, or reference images help SixSense preserve facts and understand visual intent.</p>
-        <label class="upload">Reference files
-          <input id="sources" type="file" multiple accept=".txt,.md,.json,.png,.jpg,.jpeg,.webp">
-          <span class="source-list" id="sourceList">No files selected — continuing without sources is allowed.</span>
-        </label>
-        <div class="actions"><button class="secondary" data-back="intent">Back</button><button id="beginSensing">Submit goal and sources</button></div>
+      <div class="step" id="goalStep">
+        <div class="kicker">Step 2 · State the destination</div>
+        <h2>What should change or exist when this is finished?</h2>
+        <p class="lead" id="goalContext">Plain language is enough. SixSense will identify missing decisions and propose professional defaults.</p>
+        <label>Project name<input id="projectName" value="My project" minlength="2" required></label>
+        <label>Goal<textarea id="goal" minlength="20" required placeholder="For example: Fix the project so WASD and arrow-key movement work without changing the existing game rules or visuals."></textarea></label>
+        <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Submit goal</button></div>
       </div>
 
       <div class="step" id="sensesStep">
@@ -110,6 +119,7 @@
         <h2 id="previewTitle">Expected final result</h2>
         <p class="lead" id="finalResult"></p>
         <div class="preview-grid">
+          <article class="card wide"><h3>Submitted material</h3><p id="materialSummary"></p></article>
           <article class="card wide"><h3>Visual direction</h3><p id="visualDirection"></p></article>
           <article class="card"><h3>Required enablers</h3><ul id="enablers"></ul></article>
           <article class="card"><h3>Exclusions & preservation</h3><ul id="exclusions"></ul></article>
@@ -131,8 +141,8 @@
   </div>
 </main>
 <script>
-const phases=['intent','sources','senses','preview','execute'];
-let intake=null, pollTimer=null;
+const phases=['materials','goal','senses','preview','execute'];
+let intake=null, materialInspection=null, materialDescriptors=[], pollTimer=null;
 const $=selector=>document.querySelector(selector);
 function show(name){
   document.querySelectorAll('.step').forEach(node=>node.classList.remove('active'));
@@ -145,16 +155,38 @@ function apiError(response,text){try{return JSON.parse(text).detail||text;}catch
 async function filePayload(file){
   const data=await file.arrayBuffer(); let binary=''; const bytes=new Uint8Array(data); const chunk=0x8000;
   for(let i=0;i<bytes.length;i+=chunk) binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-  return {filename:file.name,media_type:file.type||({'txt':'text/plain','md':'text/markdown','json':'application/json'}[file.name.split('.').pop().toLowerCase()]||'text/plain'),data_base64:btoa(binary)};
+  const inferred={'txt':'text/plain','md':'text/markdown','json':'application/json','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp'};
+  return {filename:file.name,media_type:file.type||inferred[file.name.split('.').pop().toLowerCase()]||'text/plain',data_base64:btoa(binary)};
 }
-$('#toSources').addEventListener('click',()=>{if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;show('sources');});
-document.querySelector('[data-back="intent"]').addEventListener('click',()=>show('intent'));
-$('#sources').addEventListener('change',()=>{$('#sourceList').textContent=[...$('#sources').files].map(file=>`${file.name} · ${Math.ceil(file.size/1024)} KB`).join('\n')||'No files selected — continuing without sources is allowed.';});
+function selectedMaterialFiles(){return [...$('#projectFolder').files,...$('#materials').files];}
+function descriptor(file){return {filename:file.name,relative_path:file.webkitRelativePath||file.name,media_type:file.type||'application/octet-stream',size_bytes:file.size};}
+function describeFiles(files,empty){
+  if(!files.length)return empty;
+  const preview=files.slice(0,6).map(file=>`${file.webkitRelativePath||file.name} · ${Math.ceil(file.size/1024)} KB`);
+  if(files.length>6)preview.push(`…and ${files.length-6} more files`);
+  return preview.join('\n');
+}
+$('#projectFolder').addEventListener('change',()=>{$('#folderList').textContent=describeFiles([...$('#projectFolder').files],'No project folder selected.');materialInspection=null;});
+$('#materials').addEventListener('change',()=>{$('#materialList').textContent=describeFiles([...$('#materials').files],'No additional material selected — starting without material is allowed.');materialInspection=null;});
+document.querySelector('[data-back="materials"]').addEventListener('click',()=>show('materials'));
+$('#inspectMaterials').addEventListener('click',async()=>{
+  const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
+  try{
+    materialDescriptors=selectedMaterialFiles().map(descriptor);
+    const response=await fetch('/api/materials/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors})});
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));materialInspection=JSON.parse(text);
+    $('#inspection').hidden=false;$('#inspectionMode').textContent=materialInspection.recommended_work_mode.replaceAll('_',' ').toUpperCase();$('#inspectionSummary').textContent=materialInspection.summary;
+    $('#inspectionNotices').innerHTML=materialInspection.notices.map(item=>`<li>${escapeHtml(item)}</li>`).join('');
+    $('#goalContext').textContent=materialInspection.summary;show('goal');
+  }catch(error){alert(`Materials could not be inspected: ${error.message}`);}finally{busy(button,false);}
+});
 $('#beginSensing').addEventListener('click',async()=>{
   const button=$('#beginSensing'); busy(button,true,'Analyzing six dimensions…');
   try{
-    const sources=await Promise.all([...$('#sources').files].map(filePayload));
-    const response=await fetch('/api/intakes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources})});
+    if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
+    const supported=selectedMaterialFiles().filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
+    const sources=await Promise.all(supported.map(filePayload));
+    const response=await fetch('/api/intakes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors})});
     const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
@@ -177,6 +209,7 @@ const list=(selector,items)=>{$(selector).innerHTML=items.map(item=>`<li>${escap
 const escapeHtml=value=>{const node=document.createElement('span');node.textContent=value;return node.innerHTML;};
 function renderPreview(){
   show('preview'); const p=intake.preview; $('#previewTitle').textContent=`${intake.project_name} · Expected final result`; $('#finalResult').textContent=p.final_result;
+  $('#materialSummary').textContent=intake.material_inspection?`${intake.material_inspection.recommended_work_mode.replaceAll('_',' ').toUpperCase()} — ${intake.material_inspection.summary}`:'No material inspection was recorded.';
   $('#visualDirection').textContent=p.visual_direction;list('#enablers',p.required_enablers);list('#exclusions',p.exclusions_and_preservation);list('#context',p.operating_context);list('#quality',p.completion_and_quality);list('#authority',p.authority_budget_and_delivery);
   const e=p.estimate;$('#estimate').innerHTML=`<span>${e.quest_count} Quests</span><span>$${e.cost_usd_min.toFixed(2)}–$${e.cost_usd_max.toFixed(2)}</span><span>${e.duration_minutes_min}–${e.duration_minutes_max} min</span>`;
 }

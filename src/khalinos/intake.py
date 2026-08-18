@@ -14,10 +14,97 @@ from khalinos.models import (
     IntakeCreate,
     IntakeRecord,
     IntakeRevision,
+    MaterialInspection,
+    MaterialInspectionRequest,
     OutcomePreview,
     SenseDecision,
     SourceReference,
 )
+
+
+def inspect_materials(request: MaterialInspectionRequest) -> MaterialInspection:
+    """Classify submitted material names without opening or executing untrusted products."""
+    paths = [item.relative_path.replace("\\", "/").lower() for item in request.materials]
+    names = [item.filename.lower() for item in request.materials]
+    locator = request.project_locator.strip().lower()
+    is_godot = any(path.endswith("/project.godot") or path == "project.godot" for path in paths)
+    has_unity_assets = any(path.startswith("assets/") or "/assets/" in path for path in paths)
+    has_unity_settings = any(path.startswith("projectsettings/") or "/projectsettings/" in path for path in paths)
+    is_unity = has_unity_assets and has_unity_settings
+    is_web = any(name in {"package.json", "index.html", "vite.config.js", "vite.config.ts"} for name in names)
+    project_kind = "godot" if is_godot else "unity" if is_unity else "web" if is_web else "unknown" if paths or locator else "none"
+
+    source_suffixes = (".gd", ".cs", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".py", ".go", ".rs")
+    archive_suffixes = (".zip", ".tar", ".tgz", ".tar.gz")
+    runnable_suffixes = (".exe", ".app", ".apk", ".x86_64", ".appimage", ".wasm")
+    locator_is_source = bool(
+        locator.startswith(("git@", "ssh://", "gs://"))
+        or locator.endswith(".git")
+        or any(host in locator for host in ("github.com/", "gitlab.com/", "bitbucket.org/"))
+    )
+    source_available = bool(
+        is_godot
+        or is_unity
+        or is_web
+        or locator_is_source
+        or any(path.endswith(source_suffixes + archive_suffixes) for path in paths)
+    )
+    runnable_available = any(path.endswith(runnable_suffixes) for path in paths)
+    reference_available = any(
+        path.endswith((".png", ".jpg", ".jpeg", ".webp", ".md", ".txt", ".json", ".pdf"))
+        for path in paths
+    )
+
+    if source_available and runnable_available:
+        mode = "reproduce_and_repair"
+    elif source_available:
+        mode = "existing_project_work"
+    elif runnable_available:
+        mode = "black_box_diagnosis"
+    elif reference_available:
+        mode = "reference_guided_build"
+    else:
+        mode = "new_product_build"
+
+    detected: list[str] = []
+    if project_kind != "none":
+        detected.append(f"{project_kind.capitalize()} project indicators")
+    if locator:
+        detected.append("Project location supplied")
+    if source_available:
+        detected.append("Source or project material")
+    if runnable_available:
+        detected.append("Runnable build")
+    if reference_available:
+        detected.append("Reference material")
+    notices: list[str] = []
+    if runnable_available and not source_available:
+        notices.append("A runnable build supports black-box diagnosis, but repair cannot be promised without source material.")
+    if request.materials:
+        notices.append("Submitted files were classified statically and were not executed.")
+    if any(path.endswith(archive_suffixes) for path in paths):
+        notices.append("An archive is treated as possible source material until its contents are validated in an authorized sandbox.")
+    if locator and not locator_is_source:
+        notices.append("The supplied project location is descriptive until a supported connector validates it.")
+
+    labels = {
+        "new_product_build": "No existing source project was detected; KHALINOS recommends a new product build.",
+        "existing_project_work": "Existing source material was detected; KHALINOS recommends work on the supplied project.",
+        "reproduce_and_repair": "Source material and a runnable build were detected; KHALINOS recommends reproduce-and-repair work.",
+        "black_box_diagnosis": "Only a runnable build was detected; KHALINOS recommends black-box diagnosis before any repair commitment.",
+        "reference_guided_build": "Reference material was detected without a source project; KHALINOS recommends a reference-guided build.",
+    }
+    return MaterialInspection(
+        project_kind=project_kind,
+        recommended_work_mode=mode,
+        source_available=source_available,
+        runnable_build_available=runnable_available,
+        material_count=len(request.materials),
+        total_size_bytes=sum(item.size_bytes for item in request.materials),
+        detected_materials=detected[:12],
+        summary=labels[mode],
+        notices=notices,
+    )
 
 
 class IntakeStore(Protocol):
@@ -95,11 +182,17 @@ def apply_decision(record: IntakeRecord, decision: SenseDecision) -> IntakeRecor
 
 async def start_intake(request: IntakeCreate, *, store: IntakeStore, agent: SensingAgent) -> IntakeRecord:
     sources = decode_sources(request)
+    material_inspection = inspect_materials(MaterialInspectionRequest(
+        project_locator=request.project_locator,
+        materials=request.materials,
+    ))
     record = IntakeRecord(
         intake_id=uuid4().hex,
         project_name=request.project_name,
         goal=request.goal,
         sources=[reference for reference, _ in sources],
+        project_locator=request.project_locator,
+        material_inspection=material_inspection,
     )
     store.create(record, sources)
     decision = await agent.assess(
@@ -164,6 +257,8 @@ async def restart_intake(
         project_name=previous.project_name,
         goal=synthesized,
         sources=list(previous.sources),
+        project_locator=previous.project_locator,
+        material_inspection=previous.material_inspection,
     )
     store.create(record, copied_sources)
     decision = await agent.assess(

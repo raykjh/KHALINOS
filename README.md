@@ -21,7 +21,7 @@ SixSense is not a fixed six-question survey. It always checks six dimensions but
 5. Completion and quality standard
 6. Authority, budget, and delivery
 
-The user first supplies a goal and optional text, JSON, or reference images. Each necessary question appears separately with a complete recommended answer already placed in an editable field. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Revise outcome** carries confirmed decisions and sources into a fresh SixSense pass.
+The user first supplies working material, then states the goal. Material may describe an existing project location, source folder structure, runnable build, or ordinary text and image references. KHALINOS classifies it statically without executing untrusted files and proposes new-build, existing-project, reproduce-and-repair, executable-only diagnosis, or reference-guided work. Each necessary SixSense question then appears separately with a complete recommended answer already placed in an editable field. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, material mode, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Revise outcome** carries confirmed decisions, material inspection, and sources into a fresh SixSense pass.
 
 ![SixSense adaptive intake](docs/evidence/sixsense-intake.png)
 
@@ -38,7 +38,7 @@ The user first supplies a goal and optional text, JSON, or reference images. Eac
 
 ```mermaid
 flowchart LR
-    U["User goal + optional sources"] --> API["KHALINOS Cloud Run service"]
+    U["Materials first + user goal"] --> API["KHALINOS Cloud Run service"]
     API --> SENSE["Gemini 3.5 SixSense via ADK"]
     SENSE -->|"Only material gaps"| QUESTION["Sequential question + editable recommendation"]
     QUESTION --> SENSE

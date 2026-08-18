@@ -85,10 +85,52 @@ class SourceReference(BaseModel):
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
 
 
+class MaterialDescriptor(BaseModel):
+    filename: str = Field(min_length=1, max_length=260)
+    relative_path: str = Field(min_length=1, max_length=1000)
+    media_type: str = Field(default="application/octet-stream", max_length=160)
+    size_bytes: int = Field(ge=0, le=5_000_000_000)
+
+    @model_validator(mode="after")
+    def safe_relative_path(self) -> "MaterialDescriptor":
+        normalized = self.relative_path.replace("\\", "/")
+        parts = [part for part in normalized.split("/") if part]
+        if not parts or normalized.startswith("/") or ":" in parts[0] or any(part in {".", ".."} for part in parts):
+            raise ValueError("material relative_path must be a safe relative path")
+        if parts[-1] != self.filename:
+            raise ValueError("material filename must match the relative_path basename")
+        return self
+
+
+class MaterialInspectionRequest(BaseModel):
+    project_locator: str = Field(default="", max_length=2000)
+    materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
+
+
+class MaterialInspection(BaseModel):
+    project_kind: Literal["godot", "unity", "web", "unknown", "none"]
+    recommended_work_mode: Literal[
+        "new_product_build",
+        "existing_project_work",
+        "reproduce_and_repair",
+        "black_box_diagnosis",
+        "reference_guided_build",
+    ]
+    source_available: bool
+    runnable_build_available: bool
+    material_count: int = Field(ge=0)
+    total_size_bytes: int = Field(ge=0)
+    detected_materials: list[str] = Field(default_factory=list, max_length=12)
+    summary: str = Field(min_length=10, max_length=800)
+    notices: list[str] = Field(default_factory=list, max_length=8)
+
+
 class IntakeCreate(BaseModel):
     project_name: str = Field(min_length=2, max_length=80)
     goal: str = Field(min_length=20, max_length=5000)
     sources: list[SourceUpload] = Field(default_factory=list, max_length=8)
+    project_locator: str = Field(default="", max_length=2000)
+    materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
 
 
 class SenseQuestion(BaseModel):
@@ -161,6 +203,8 @@ class IntakeRecord(BaseModel):
     project_name: str
     goal: str
     sources: list[SourceReference] = Field(default_factory=list)
+    project_locator: str = ""
+    material_inspection: MaterialInspection | None = None
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
     current_question: SenseQuestion | None = None

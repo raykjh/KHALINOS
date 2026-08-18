@@ -4,7 +4,7 @@ import base64
 
 import pytest
 
-from khalinos.intake import answer_intake, authorized_brief, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, inspect_materials, restart_intake, start_intake
 from khalinos.intake_storage import LocalIntakeStore
 from khalinos.models import (
     ALL_SENSE_DIMENSIONS,
@@ -12,6 +12,8 @@ from khalinos.models import (
     IntakeAnswer,
     IntakeCreate,
     IntakeRevision,
+    MaterialDescriptor,
+    MaterialInspectionRequest,
     OutcomePreview,
     SenseDecision,
     SenseDimension,
@@ -109,6 +111,36 @@ async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tm
     assert agent.source_counts == [1, 1]
 
 
+def test_material_inspection_routes_source_and_build_to_reproduce_and_repair() -> None:
+    result = inspect_materials(MaterialInspectionRequest(materials=[
+        MaterialDescriptor(filename="project.godot", relative_path="puzzle/project.godot", media_type="text/plain", size_bytes=400),
+        MaterialDescriptor(filename="player.gd", relative_path="puzzle/scripts/player.gd", media_type="text/plain", size_bytes=2400),
+        MaterialDescriptor(filename="puzzle.exe", relative_path="build/puzzle.exe", size_bytes=109_000_000),
+    ]))
+    assert result.project_kind == "godot"
+    assert result.recommended_work_mode == "reproduce_and_repair"
+    assert result.source_available is True
+    assert result.runnable_build_available is True
+
+
+def test_material_inspection_does_not_promise_repair_from_executable_alone() -> None:
+    result = inspect_materials(MaterialInspectionRequest(materials=[
+        MaterialDescriptor(filename="puzzle.exe", relative_path="puzzle.exe", size_bytes=109_000_000),
+    ]))
+    assert result.recommended_work_mode == "black_box_diagnosis"
+    assert result.source_available is False
+    assert any("cannot be promised" in notice for notice in result.notices)
+
+
+def test_material_inspection_detects_unity_folder_structure() -> None:
+    result = inspect_materials(MaterialInspectionRequest(materials=[
+        MaterialDescriptor(filename="Player.cs", relative_path="Assets/Scripts/Player.cs", media_type="text/plain", size_bytes=1000),
+        MaterialDescriptor(filename="ProjectVersion.txt", relative_path="ProjectSettings/ProjectVersion.txt", media_type="text/plain", size_bytes=30),
+    ]))
+    assert result.project_kind == "unity"
+    assert result.recommended_work_mode == "existing_project_work"
+
+
 async def test_revision_keeps_sources_and_restarts_discovery(tmp_path) -> None:
     store = LocalIntakeStore(tmp_path)
     agent = AdaptiveFake()
@@ -116,6 +148,8 @@ async def test_revision_keeps_sources_and_restarts_discovery(tmp_path) -> None:
         project_name="Decision product",
         goal="Create a complete team decision product with a polished and responsive interface.",
         sources=[SourceUpload(filename="facts.txt", media_type="text/plain", data_base64=base64.b64encode(b"facts").decode())],
+        project_locator="https://github.com/example/project.git",
+        materials=[MaterialDescriptor(filename="project.godot", relative_path="project.godot", size_bytes=400)],
     )
     first = await start_intake(request, store=store, agent=agent)
     first = await answer_intake(
@@ -132,6 +166,8 @@ async def test_revision_keeps_sources_and_restarts_discovery(tmp_path) -> None:
     )
     assert revised.intake_id != first.intake_id
     assert revised.sources == first.sources
+    assert revised.project_locator == first.project_locator
+    assert revised.material_inspection == first.material_inspection
     assert "Requested revision" in revised.goal
     assert store.source_bytes(revised.intake_id, revised.sources[0]) == b"facts"
 
