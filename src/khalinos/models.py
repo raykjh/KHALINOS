@@ -201,7 +201,7 @@ class ArtifactFile(BaseModel):
 
 
 class ArtifactBundle(BaseModel):
-    revision_summary: str = Field(min_length=10, max_length=500)
+    revision_summary: str = Field(min_length=10, max_length=2000)
     files: list[ArtifactFile] = Field(min_length=5, max_length=5)
 
     @model_validator(mode="after")

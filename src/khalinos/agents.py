@@ -50,7 +50,7 @@ real controls in index.html and the journey must prove the active Quest behavior
 working behavior from the previous verified bundle and make only changes needed for the
 current Quest. When the previous bundle is an approved visual foundation, preserve its
 composition, typography, palette, material language, and anti-goals while adding behavior.
-Return only the required schema.
+Keep revision_summary concise and under 500 characters. Return only the required schema.
 """.strip()
 
 VERIFIER_INSTRUCTION = """
@@ -66,7 +66,8 @@ REPAIR_INSTRUCTION = """
 You are the KHALINOS Technical Repair Agent. Repair the complete artifact bundle using
 the deterministic failures and independent verifier instructions. Preserve all previously
 verified behavior. Do not change the Quest, criteria, authorized files, or journey format.
-Return the complete five-file bundle and only the required schema.
+Keep revision_summary concise and under 500 characters. Return the complete five-file bundle
+and only the required schema.
 """.strip()
 
 VISUAL_DIRECTOR_INSTRUCTION = """
@@ -87,13 +88,14 @@ prove hierarchy, controls, responsive composition, and visual identity in Chromi
 the concept precisely and honor all anti-goals. Use HTML, CSS, inline SVG, Canvas, and vanilla
 JavaScript only. No external URL, package, network call, data URL, placeholder, or unfinished
 control. journey.json may use only click, press, and assert_text steps and must produce a
-meaningful screenshot. Return only the required schema.
+meaningful screenshot. Keep revision_summary concise and under 500 characters. Return only
+the required schema.
 """.strip()
 
 VISUAL_VERIFIER_INSTRUCTION = """
 You are the independent KHALINOS Visual Verifier. You did not create the candidates and
-cannot modify them. Compare the two or three eligible rendered Chromium screenshots against the approved
-visual contract and each concept. Score contract alignment, visual hierarchy,
+cannot modify them. Compare the two or three eligible rendered Chromium screenshots against
+the approved visual contract and each concept. Score contract alignment, visual hierarchy,
 distinctiveness, interaction clarity, and craft/cohesion from 1 to 10. Penalize generic SaaS
 templates, superficial color variation, weak typography, cramped density, unclear primary
 action, or divergence from explicit anti-goals. Judge visible evidence rather than README or

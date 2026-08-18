@@ -44,6 +44,9 @@ def test_quest_plan_requires_linear_receipt_chain() -> None:
 def test_artifact_requires_exact_file_set() -> None:
     files = [ArtifactFile(path=name, content="x") for name in ["index.html", "styles.css", "app.js", "journey.json", "README.md"]]
     assert len(ArtifactBundle(revision_summary="Complete safe revision", files=files).files) == 5
+    assert ArtifactBundle(revision_summary="x" * 1200, files=files).revision_summary == "x" * 1200
+    with pytest.raises(ValueError):
+        ArtifactBundle(revision_summary="x" * 2001, files=files)
 
 
 def visual_assessment(candidate_id: str, score: int) -> VisualAssessment:
