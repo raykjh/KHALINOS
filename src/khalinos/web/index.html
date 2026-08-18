@@ -51,11 +51,18 @@
     .inspection ul { color:var(--muted); margin:10px 0 0; padding-left:20px; }
     .entry-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; }
     .entry { text-align:left; min-height:92px; background:#0a1821; color:var(--ink); border:1px solid #3a505d; }
+    .entry.selected { border-color:#4f703f; box-shadow:0 0 0 3px rgba(79,112,63,.16); }
     .entry strong,.entry span { display:block; }
     .entry span { color:var(--muted); font-weight:500; font-size:13px; margin-top:5px; }
     .library { display:grid; gap:9px; margin-top:14px; }
     .library button { text-align:left; background:#10232e; color:var(--ink); border:1px solid #36505d; }
     .identity { color:var(--teal); font-size:13px; margin-top:10px; }
+    .auth-panel { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:20px 0; padding:14px 16px; border:1px solid rgba(81,101,59,.32); border-radius:14px; background:rgba(255,252,232,.72); }
+    .auth-panel.attention { border-color:#b7673c; box-shadow:0 0 0 3px rgba(183,103,60,.14); }
+    .auth-panel .identity { margin:0; }
+    .auth-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .compact { padding:8px 12px; font-size:12px; }
+    .mode-options { margin-top:16px; padding:18px; border:1px solid #a2aa8b; border-radius:14px; background:rgba(255,252,237,.62); }
     .progress { height:3px; background:#23343f; margin:26px 0; overflow:hidden; border-radius:3px; }
     .progress span { display:block; height:100%; width:18%; background:linear-gradient(90deg,var(--teal),var(--gold)); transition:.3s; }
     .preview-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; }
@@ -134,7 +141,7 @@
 <body>
 <main>
   <header>
-    <div><span class="eyebrow">Outcome discovery · autonomous execution</span><h1>KHALINOS</h1><p>SixSense resolves what matters before the first Quest begins.</p></div>
+    <div><h1>KHALINOS</h1></div>
     <p class="cloud">Gemini 3.5 Flash · Google ADK<br>Vertex AI · Cloud Run · Firestore · Cloud Storage</p>
   </header>
   <div class="shell">
@@ -150,23 +157,26 @@
         <div class="kicker">Step 1 · Submit the working material</div>
         <h2>What should KHALINOS work from?</h2>
         <p class="lead">Submit an existing project, a runnable build, references, or nothing. Detection is static: files are not executed at this stage.</p>
+        <div class="auth-panel" id="authPanel"><div><strong>Private workspace</strong><p class="identity" id="identityStatus">Checking sign-in availability…</p></div><div class="auth-actions"><div id="googleSignIn"></div><button class="secondary compact" id="signOut" hidden>Sign out</button></div></div>
         <div class="entry-grid">
-          <button class="entry" id="judgeDemo"><strong>Try Judge Demo</strong><span>No sign-in. Load a bounded PUZZLE repair example.</span></button>
-          <button class="entry" id="chooseProject"><strong>Choose a KHALINOS project</strong><span>Continue from your latest verified checkpoint.</span></button>
+          <button class="entry" id="startNewProject"><strong>New project</strong><span>Create a product from a goal and optional reference material.</span></button>
+          <button class="entry" id="improveExisting"><strong>Improve an existing project</strong><span>Repair or extend a KHALINOS checkpoint, repository, or ZIP.</span></button>
         </div>
-        <div id="googleSignIn"></div><p class="identity" id="identityStatus">Checking sign-in availability…</p>
-        <div class="library" id="projectLibrary" hidden></div>
-        <label>Project location (optional)<input id="projectLocator" placeholder="Git repository URL or gs:// location"></label>
-        <label class="upload">External project ZIP
-          <input id="externalZip" type="file" accept=".zip,application/zip">
-          <span class="source-list" id="zipList">No external project ZIP selected.</span>
-        </label>
-        <label class="upload">Builds and reference files
+        <div class="mode-options" id="existingOptions" hidden>
+          <button class="secondary" id="chooseProject">Choose from Project Library</button>
+          <div class="library" id="projectLibrary" hidden></div>
+          <label>Project location (optional)<input id="projectLocator" placeholder="Git repository URL or gs:// location"></label>
+          <label class="upload">External project ZIP
+            <input id="externalZip" type="file" accept=".zip,application/zip">
+            <span class="source-list" id="zipList">No external project ZIP selected.</span>
+          </label>
+        </div>
+        <div id="materialOptions" hidden><label class="upload">Builds and reference files (optional)
           <input id="materials" type="file" multiple>
           <span class="source-list" id="materialList">No additional material selected — starting without material is allowed.</span>
-        </label>
+        </label></div>
         <div class="inspection" id="inspection" hidden><strong id="inspectionMode"></strong><p id="inspectionSummary"></p><ul id="inspectionNotices"></ul></div>
-        <div class="actions"><button id="inspectMaterials">Inspect materials</button></div>
+        <div class="actions"><button id="inspectMaterials" hidden>Continue</button><button class="secondary" id="judgeDemo">Load Judge Demo inputs</button></div>
       </div>
 
       <div class="step" id="goalStep">
@@ -238,7 +248,8 @@
 </main>
 <script>
 const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null;
+let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='';
+const AUTH_SESSION_KEY='khalinos_google_credential';
 const $=selector=>document.querySelector(selector);
 function show(name){
   document.querySelectorAll('.step').forEach(node=>node.classList.remove('active'));
@@ -266,20 +277,32 @@ $('#externalZip').addEventListener('change',()=>{$('#zipList').textContent=descr
 $('#materials').addEventListener('change',()=>{$('#materialList').textContent=describeFiles([...$('#materials').files],'No additional material selected — starting without material is allowed.');materialInspection=null;});
 document.querySelector('[data-back="materials"]').addEventListener('click',()=>show('materials'));
 function authHeaders(extra={}){return authCredential?{...extra,Authorization:`Bearer ${authCredential}`}:{...extra};}
+function storedCredential(){try{return sessionStorage.getItem(AUTH_SESSION_KEY)||'';}catch{return '';}}
+function storeCredential(value){try{value?sessionStorage.setItem(AUTH_SESSION_KEY,value):sessionStorage.removeItem(AUTH_SESSION_KEY);}catch{}}
+function signedInView(signedIn){
+  $('#googleSignIn').hidden=signedIn;$('#signOut').hidden=!signedIn;$('#authPanel').classList.remove('attention');
+  $('#identityStatus').textContent=signedIn?`Signed in as ${currentUser.email}`:'Sign in before choosing a project. Judge Demo inputs remain available without sign-in.';
+}
+async function verifyCredential(credential){
+  authCredential=credential;const identityResponse=await fetch('/api/auth/me',{headers:authHeaders()});
+  if(!identityResponse.ok){authCredential='';currentUser=null;storeCredential('');signedInView(false);return false;}
+  currentUser=await identityResponse.json();storeCredential(credential);signedInView(true);await loadProjects();if(pendingWorkChoice)chooseWork(pendingWorkChoice);return true;
+}
+function requireSignIn(){
+  if(authCredential)return true;show('materials');$('#authPanel').classList.add('attention');$('#identityStatus').textContent='Sign in first. Your project choice and goal will then stay in one private workspace.';$('#authPanel').scrollIntoView({behavior:'smooth',block:'center'});return false;
+}
 async function loadGoogleIdentity(){
   const config=await fetch('/api/config').then(response=>response.json());
   if(!config.google_sign_in_enabled){$('#identityStatus').textContent='Google sign-in is not configured on this deployment. Judge Demo remains available.';return;}
   const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=()=>{
     google.accounts.id.initialize({client_id:config.google_client_id,callback:handleGoogleCredential});
     google.accounts.id.renderButton($('#googleSignIn'),{theme:'outline',size:'large',text:'signin_with',shape:'rectangular'});
-  };document.head.appendChild(script);$('#identityStatus').textContent='Sign in to open your private Project Library or start execution.';
+  };document.head.appendChild(script);signedInView(false);const saved=storedCredential();if(saved)await verifyCredential(saved);
 }
 async function handleGoogleCredential(response){
-  authCredential=response.credential;
-  const identityResponse=await fetch('/api/auth/me',{headers:authHeaders()});
-  if(!identityResponse.ok){authCredential='';throw new Error('Google identity could not be verified.');}
-  currentUser=await identityResponse.json();$('#identityStatus').textContent=`Signed in as ${currentUser.email}`;await loadProjects();
+  if(!await verifyCredential(response.credential))throw new Error('Google identity could not be verified.');
 }
+$('#signOut').addEventListener('click',()=>{authCredential='';currentUser=null;storeCredential('');selectedProjectId=null;$('#projectLibrary').hidden=true;signedInView(false);if(globalThis.google)google.accounts.id.disableAutoSelect();});
 async function loadProjects(){
   if(!authCredential)return;
   const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
@@ -310,21 +333,31 @@ async function uploadExternalZip(){
   externalUploadId=record.upload_id;materialDescriptors=record.snapshot.materials;$('#projectLocator').value=`gs://${record.snapshot.bucket}/${record.snapshot.object_name}`;
   $('#zipList').textContent=`${file.name} · validated · ${record.snapshot.sha256.slice(0,12)}…`;return externalUploadId;
 }
-$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());selectedProjectId=null;externalUploadId=null;materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary}`;});
-$('#chooseProject').addEventListener('click',async()=>{if(!authCredential){alert('Sign in with Google to open your private Project Library.');return;}await loadProjects();});
+function clearWorkingMaterial(){
+  selectedProjectId=null;externalUploadId=null;materialInspection=null;materialDescriptors=[];$('#projectLocator').value='';$('#externalZip').value='';$('#materials').value='';$('#zipList').textContent='No external project ZIP selected.';$('#materialList').textContent='No additional material selected — starting without material is allowed.';$('#inspection').hidden=true;
+}
+function chooseWork(mode){
+  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Inspect existing project';
+}
+$('#startNewProject').addEventListener('click',()=>chooseWork('new'));
+$('#improveExisting').addEventListener('click',()=>chooseWork('existing'));
+$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
+$('#chooseProject').addEventListener('click',async()=>{if(!requireSignIn())return;await loadProjects();});
 $('#inspectMaterials').addEventListener('click',async()=>{
   const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
   try{
-    if($('#externalZip').files.length)await uploadExternalZip();
-    else materialDescriptors=selectedMaterialFiles().map(descriptor);
-    selectedProjectId=null;await inspectDescriptorSet();
+    if(!requireSignIn())return;
+    if(workChoice==='existing'&&$('#externalZip').files.length)await uploadExternalZip();
+    else materialDescriptors=[...$('#materials').files].map(descriptor);
+    if(workChoice==='new'){$('#projectLocator').value='';selectedProjectId=null;externalUploadId=null;}
+    await inspectDescriptorSet();
   }catch(error){alert(`Materials could not be inspected: ${error.message}`);}finally{busy(button,false);}
 });
 $('#beginSensing').addEventListener('click',async()=>{
+  if(!requireSignIn())return;
   const button=$('#beginSensing'); busy(button,true,'Analyzing six dimensions…');
   try{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
-    if(!authCredential)throw new Error('Sign in with Google before SixSense stores or executes a project. Judge Demo can be viewed without sign-in.');
     const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
     const sources=await Promise.all(supported.map(filePayload));
     const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId})});
