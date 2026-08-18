@@ -61,6 +61,26 @@ def validate_godot_topology_brief(brief: UserBrief) -> None:
             raise ValueError(f"Godot topology criteria must be screen/load/navigation observations: {criterion}")
 
 
+def validate_godot_visual_brief(brief: UserBrief) -> None:
+    """Bind visual-prototype completion to evidence the real renderer can observe."""
+    observable_terms = (
+        "visual", "appearance", "style", "screen", "scene", "layout", "composition",
+        "palette", "readable", "visible", "render", "navigation", "transition", "open", "load",
+    )
+    unsupported_terms = (
+        "gameplay", "combat", "enemy ai", "player movement", "physics", "save game",
+        "score", "puzzle logic", "multiplayer", "audio playback",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot visual-prototype evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(
+                f"Godot visual-prototype criteria must be visible render or screen-flow observations: {criterion}"
+            )
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(web_root / "index.html")
@@ -113,6 +133,9 @@ def queue_run(
     }
     if toolpack.manifest.toolpack_id == "godot.topology":
         validate_godot_topology_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    elif toolpack.manifest.toolpack_id == "godot.visual-prototype":
+        validate_godot_visual_brief(brief)
         brief_updates["max_repairs_per_quest"] = 0
     brief = brief.model_copy(update=brief_updates)
     run_id = uuid4().hex
@@ -421,8 +444,18 @@ def authorize_intake(
                 raise HTTPException(status_code=409, detail="existing-project repair requires a verified source snapshot")
             detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
             project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
+    requested_toolpack_id = (
+        intake.requested_toolpack_binding.toolpack_id
+        if intake.requested_toolpack_binding is not None
+        else intake.requested_toolpack_id
+    )
     result = queue_run(
-        authorized_brief(intake.preview, include_preview_quality=project_kind != "godot"),
+        authorized_brief(
+            intake.preview,
+            include_preview_quality=(
+                project_kind != "godot" or requested_toolpack_id == "godot.visual-prototype"
+            ),
+        ),
         owner_id=identity.owner_id,
         project_id=project_id,
         project_kind=project_kind,

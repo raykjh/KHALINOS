@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     KHALINOS_GODOT_EXECUTABLE=/opt/godot/Godot_v4.7.1-stable_linux.x86_64
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends chromium ca-certificates curl fonts-liberation unzip libfontconfig1 libgl1 libx11-6 libxcursor1 libxi6 libxinerama1 libxrandr2 \
+    && apt-get install -y --no-install-recommends chromium ca-certificates curl fonts-liberation unzip libfontconfig1 libgl1 libx11-6 libxcursor1 libxi6 libxinerama1 libxrandr2 xvfb xauth \
     && mkdir -p /opt/godot \
     && curl --fail --location --retry 3 "$GODOT_URL" --output /tmp/godot.zip \
     && echo "$GODOT_ZIP_SHA256  /tmp/godot.zip" | sha256sum --check --strict \

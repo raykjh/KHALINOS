@@ -1,6 +1,6 @@
 # KHALINOS
 
-KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified product without step-by-step human guidance. For a new project, a bounded Route Advisor compares the goal only with statically approved ToolPack manifests, explains exact fits, bounded alternatives, and incompatible routes, and waits for the user's confirmation. SixSense then inspects six project dimensions inside that selected capability boundary, asking only material unanswered questions. After authorization, a Gemini Project Owner issues an incremental Quest chain. Maker, deterministic Runtime Check, Independent Verifier, and bounded Technical Repair remain separated by receipts. Browser products also use multimodal visual selection; the Godot topology profile proves connected scenes and overlays with a digest-bound headless runtime.
+KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified product without step-by-step human guidance. For a new project, a bounded Route Advisor compares the goal only with statically approved ToolPack manifests, explains exact fits, bounded alternatives, and incompatible routes, and waits for the user's confirmation. SixSense then inspects six project dimensions inside that selected capability boundary, asking only material unanswered questions. After authorization, a Gemini Project Owner issues an incremental Quest chain. Maker, deterministic Runtime Check, Independent Verifier, and bounded Technical Repair remain separated by receipts. Browser products use multimodal visual selection; Godot can use either a structural topology profile or a separate Nano Banana visual-prototype profile with real display-backed renders.
 
 The public entrance separates a no-sign-in Judge Demo from private work. Google OpenID Connect uses only `openid`, `email`, and `profile`; the verified Google subject is the owner boundary for uploads, intakes, runs, and Project Library records. A passed run registers its artifact digest, immutable source ZIP snapshot, and receipt chain as the project's latest verified checkpoint. External browser projects enter through an owner-bound Cloud Storage resumable session and deterministic ZIP admission before SixSense can reference them.
 
@@ -32,7 +32,7 @@ For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example with
 ## Google technology
 
 - **Gemini 3.5 Flash on Vertex AI** performs Project Owner, Visual Director, Visual Candidate Maker, multimodal Visual Verifier, Maker, independent Quest Verifier, and Technical Repair decisions.
-- **Nano Banana (`gemini-3.1-flash-lite-image`) on Vertex AI** generates one bounded Browser-only environmental PNG per visual concept. A separate multimodal gate inspects the raw image before any Maker or rendered verifier can use it.
+- **Nano Banana (`gemini-3.1-flash-lite-image`) on Vertex AI** generates one bounded environmental PNG per Browser or Godot visual concept. A separate multimodal gate inspects the raw image before any trusted compiler or rendered verifier can use it.
 - **Google Agent Development Kit 2.6.2** runs every role as a schema-bound `LlmAgent`.
 - **Cloud Run service** accepts an immutable brief and displays live status.
 - **Cloud Run Job** performs the asynchronous long-running workflow.
@@ -64,7 +64,9 @@ flowchart LR
     NB --> GATE["Raw image gate: no text, UI, logo, or watermark"]
     GATE --> V1["Visual candidates V1–V3"]
     V1 --> VRT["Isolated Chromium eligibility checks"]
+    V1 --> GRT["Trusted Godot scenes + real display-backed PNG renders"]
     VRT --> VV["Multimodal Visual Verifier"]
+    GRT --> VV
     VV --> MAKER["Gemini 3.5 Accountable Maker via ADK"]
     MODE -->|"Existing verified snapshot"| REPAIR
     MAKER --> RUNTIME["Network-isolated Chromium verifier"]
@@ -84,6 +86,7 @@ flowchart LR
 - External ZIP admission currently accepts only that exact bounded browser profile. Godot, Unity, executables, symlinks, encrypted entries, traversal paths, extra files, oversized text, and high-ratio archives are rejected before execution.
 - The 30-minute setting is a per-execution runaway safety slice, not a general project deadline. The current browser micro-app profile is intentionally non-resumable, so an authorized run must fit one slice.
 - Browser new-product visual selection requires at least two deterministically renderable candidates and records raw-asset gate receipts, asset digests, the concept plan, screenshots, rubric scores, selected artifact digest, and selection receipt.
+- Godot visual-prototype selection has the same two-candidate minimum, but the host compiles every accepted PNG into bounded Godot scenes, imports the texture, proves scene loading and translucent composition, and captures three real 1280×720 frames through an isolated Xvfb display before multimodal selection.
 - The model never emits binary asset fields. The trusted host validates and attaches exactly one `assets/visual-foundation.png` sidecar, while Makers receive only its path, digest, and dimensions.
 - Image generation retries only transient 429/5xx responses, at most twice with backoff. Content rejection, invalid output, and non-transient client errors stop immediately.
 - Generated Browser products cannot use external URLs, network calls, dynamic code loading, or files outside the five text files plus the one approved PNG. Prohibited external CSS imports are removed at the trusted promotion boundary before verification.
@@ -100,6 +103,8 @@ Every active acceptance criterion must be exercised by its own browser journey a
 The Project Owner must preserve the exact acceptance-criterion set from the approved brief. It cannot promote verification files, logs, or implementation conveniences into new product requirements. Independent Verifier findings are host-bound back to the immutable ordered criteria, so model wording drift cannot lose or broaden the user's contract.
 
 The Browser visual-asset path passed an isolated production qualification on run `708ec62505e544ca85bbfa898343704b`. Two raw-gated candidates rendered successfully under network isolation; the independent Visual Verifier selected V2, and both Quest receipts preserved cumulative selector-bound runtime evidence. The qualified Browser ToolPack manifest SHA-256 is `162bd5734bdc4dab9810ce1e127b9110ec0400d30b36c7d83ea5d381009f2f8a`.
+
+The separate Godot visual-prototype path passed isolated Cloud qualification on run `5ac8abad53dd4919bca5708557421c3c`. All three Nano Banana assets passed the strict no-text/no-glyph/no-interface gate, all three produced real 1280×720 Godot renders, the independent multimodal Visual Verifier selected V2, and two Quest receipts plus the final source ZIP were stored in Cloud Storage. The qualification used 12 model calls and completed in 2 minutes 7 seconds.
 
 That qualified code is deployed from commit `aff16fbdeeb6104b0b064ca38e04f609a099ecfd` to Cloud Run revision `khalinos-00022-2wj` and Worker generation `19`. Both use image digest `sha256:30cd4669fa6430fa7414f1145abf48dbea5889a126f1d4ca7a4035440ed7768e`.
 

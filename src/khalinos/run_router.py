@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from khalinos.godot_workflow import execute_godot_run
+from khalinos.godot_visual_workflow import execute_godot_visual_run
 from khalinos.models import RunRecord, RunStatus, canonical_sha256
 from khalinos.projects import ProjectStore
 from khalinos.storage import RunStore
@@ -54,6 +55,14 @@ async def execute_authorized_run(
         )
     if toolpack.manifest.toolpack_id == "godot.topology":
         return await execute_godot_run(
+            run_id,
+            store=store,
+            team=team,
+            registry=registry,
+            project_store=project_store,
+        )
+    if toolpack.manifest.toolpack_id == "godot.visual-prototype":
+        return await execute_godot_visual_run(
             run_id,
             store=store,
             team=team,

@@ -47,7 +47,7 @@ def trusted_png_asset(payload: bytes) -> ArtifactAsset:
 
 def asset_prompt(brief: UserBrief, concept: VisualConcept) -> str:
     return f"""
-Create one polished 16:9 supporting environmental illustration for a browser product.
+Create one polished 16:9 supporting environmental illustration for an interactive product.
 
 Approved product goal (design context only):
 {brief.goal}
@@ -59,10 +59,13 @@ Anti-goals: {'; '.join(concept.anti_goals)}
 Translate only the physical environment, material language, atmosphere, and palette into the
 image. Do not reproduce the concept name, product name, labels, route names, or interface
 composition. The image is a supporting visual layer, never a screenshot or interface. Preserve generous
-negative space and restrained contrast so accessible HTML controls and text remain legible
+negative space and restrained contrast so trusted accessible controls and text remain legible
 above it. Do not include text, letters, numbers, logos, icons, buttons, HUD elements, borders,
 maps with labels, diagrams, readable glyph sequences, watermarks, signatures, or instructions.
-Abstract non-linguistic environmental carvings are allowed, but any readable text will make
+Do not include runes, inscriptions, carvings, symbols, signage, interface-like geometry, or
+decorative markings of any kind, even when they seem abstract or non-linguistic. If the goal
+mentions screens, routes, controls, maps, or labels, do not visualize those elements; generate
+only the unmarked physical environment behind them. Any text-like or interface-like mark makes
 the asset ineligible. Do not add product features or content outside the
 approved goal and concept. Return one PNG image.
 """.strip()

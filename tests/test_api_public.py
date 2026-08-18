@@ -171,7 +171,7 @@ async def test_route_recommendation_exposes_only_registry_candidates(monkeypatch
     )
     assert result["recommendation"]["recommended_toolpack_id"] == "browser.product"
     assert {item["toolpack"]["toolpack_id"] for item in result["options"]} == {
-        "browser.product", "godot.topology"
+        "browser.product", "godot.topology", "godot.visual-prototype"
     }
     assert all(len(item["toolpack"]["manifest_sha256"]) == 64 for item in result["options"])
 

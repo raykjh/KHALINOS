@@ -10,10 +10,10 @@ from pathlib import Path
 import pytest
 from google.genai import errors
 
-from khalinos.models import ArtifactAsset, ArtifactBundle, ArtifactFile, VisualAssetGate
+from khalinos.models import ArtifactAsset, ArtifactBundle, ArtifactFile, UserBrief, VisualAssetGate, VisualConcept
 from khalinos.storage import LocalRunStore
 from khalinos.verification import materialize, verify_bundle
-from khalinos.visual_assets import ASSET_PATH, _generate_with_transient_retry, trusted_png_asset
+from khalinos.visual_assets import ASSET_PATH, _generate_with_transient_retry, asset_prompt, trusted_png_asset
 
 
 class FakeImageModels:
@@ -72,6 +72,29 @@ def test_trusted_png_asset_binds_bytes_dimensions_and_digest() -> None:
     assert asset.sha256 == hashlib.sha256(payload).hexdigest()
     assert (asset.width, asset.height) == (256, 256)
     assert asset.bytes() == payload
+
+
+def test_asset_prompt_forbids_ui_and_abstract_glyph_escape_hatches() -> None:
+    brief = UserBrief(
+        project_name="Route Screen",
+        goal="Create a polished route-selection screen with a strong environmental identity.",
+        acceptance_criteria=["The route screen is visible.", "The visual style is coherent."],
+        authorized_output_files=["index.html"],
+    )
+    concept = VisualConcept(
+        candidate_id="V1",
+        name="Ancient Route",
+        design_thesis="A restrained physical environment supports an accessible route decision surface.",
+        composition="A wide environmental field leaves controlled negative space for the trusted interface.",
+        typography="Clear display headings pair with compact readable interface labels.",
+        palette=["stone", "midnight", "copper"],
+        interaction_emphasis="The trusted interface remains visually dominant over the supporting environment.",
+        anti_goals=["generic cards", "ornamental clutter"],
+    )
+    prompt = asset_prompt(brief, concept)
+    assert "do not visualize those elements" in prompt
+    assert "runes, inscriptions, carvings, symbols" in prompt
+    assert "only the unmarked physical environment" in prompt
 
 
 def test_image_generation_retries_only_bounded_transient_errors() -> None:

@@ -188,7 +188,22 @@ class SixSenseAgent:
         return final_text
 
     async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision:
-        if record.requested_project_kind == "godot":
+        if record.requested_toolpack_id == "godot.visual-prototype":
+            execution_profile = {
+                "profile_id": "godot.visual-prototype.new-product",
+                "scope": "a presentation-ready offline Godot 4.7.1 visual and screen-flow prototype",
+                "files": ["Godot project and scenes", "one trusted PNG visual foundation", "trusted topology and render evidence"],
+                "technologies": ["Godot 4.7.1", "Nano Banana", "trusted generated scenes", "real display-backed PNG capture"],
+                "supported_outcomes": ["visual direction", "connected screens", "declared transitions", "real rendered prototype evidence"],
+                "forbidden": ["finished gameplay claim", "existing-project repair", "arbitrary scripts", "physics", "network services", "unbounded assets"],
+                "quest_limit": "2 to 5",
+                "repair_limit_per_quest": "0",
+                "maximum_run_budget_usd": 5,
+                "maximum_duration_minutes": 30,
+                "scope_rule": "bind completion to visible render quality and bounded screen flow, never to unimplemented gameplay",
+                "visual_competition": "three Nano Banana candidates, raw asset gate, real Godot renders, independent multimodal selection",
+            }
+        elif record.requested_project_kind == "godot":
             execution_profile = {
                 "profile_id": "godot.topology.new-product",
                 "scope": "a bounded offline Godot 4.7.1 screen-and-overlay topology prototype",
