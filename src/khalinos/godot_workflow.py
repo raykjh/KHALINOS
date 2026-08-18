@@ -19,6 +19,7 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.storage import RunStore
+from khalinos.projects import ProjectStore
 from khalinos.toolpacks import ToolPackRegistry
 from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority
 
@@ -49,6 +50,7 @@ async def execute_godot_run(
     store: RunStore,
     team: GodotTeam,
     registry: ToolPackRegistry,
+    project_store: ProjectStore | None = None,
 ) -> RunRecord:
     """Plan once, compile with trusted code, and verify every Quest independently."""
 
@@ -227,6 +229,14 @@ async def execute_godot_run(
             "model_calls": team.call_count,
         })
         store.update(record)
+        if project_store is not None and record.project_id and record.owner_id:
+            project = project_store.read_owned(record.project_id, record.owner_id)
+            project_store.prepare(project.model_copy(update={
+                "latest_run_id": record.run_id,
+                "latest_status": RunStatus.PASSED,
+                "latest_checkpoint_sha256": canonical_sha256(artifact),
+                "latest_receipt_ids": receipt_ids,
+            }))
         return record
     except Exception as exc:
         record = record.model_copy(update={

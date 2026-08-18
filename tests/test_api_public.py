@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 import khalinos.api as api
 from khalinos.api import app
+from khalinos.auth import Identity
 from khalinos.godot_toolpack import GODOT_TOPOLOGY_TOOLPACK
-from khalinos.models import UserBrief
+from khalinos.models import IntakeCreate, UserBrief
 
 
 client = TestClient(app)
@@ -76,6 +78,7 @@ def test_queue_run_selects_toolpack_from_exact_project_kind_and_work_mode(monkey
         owner_id="owner@example.com",
         project_id="a" * 32,
         project_kind="godot",
+        work_mode="new_product_build",
     )
 
     assert captured["selection"] == ("godot", "new_product_build", None)
@@ -84,3 +87,49 @@ def test_queue_run_selects_toolpack_from_exact_project_kind_and_work_mode(monkey
         GODOT_TOPOLOGY_TOOLPACK.manifest.output.authorized_paths
     )
     assert result["record"]["work_mode"] == "new_product_build"
+    assert captured["brief"].max_repairs_per_quest == 0
+
+
+def test_public_godot_route_rejects_unprovable_gameplay_criteria() -> None:
+    brief = UserBrief(
+        project_name="Stealth Game",
+        goal="Create a complete stealth game with connected screens and a playable guard encounter.",
+        acceptance_criteria=[
+            "The project opens on an arrival screen.",
+            "Enemy gameplay and keyboard input work correctly.",
+        ],
+        authorized_output_files=["placeholder.txt"],
+    )
+    with pytest.raises(ValueError, match="cannot verify"):
+        api.validate_godot_topology_brief(brief)
+
+
+async def test_new_intake_requires_an_explicit_approved_runtime() -> None:
+    request = IntakeCreate(
+        project_name="Route Observatory",
+        goal="Create a bounded project with a clearly verified primary workflow.",
+    )
+    with pytest.raises(api.HTTPException) as raised:
+        await api.create_intake(
+            request,
+            Identity(owner_id="owner", email="owner@example.com", name="Owner"),
+        )
+    assert raised.value.status_code == 422
+    assert "approved new-project runtime" in raised.value.detail
+
+
+async def test_godot_existing_project_mode_remains_fail_closed() -> None:
+    request = IntakeCreate(
+        project_name="Existing Godot",
+        goal="Repair an existing Godot product without changing its approved behavior.",
+        selected_project_id="a" * 32,
+        requested_project_kind="godot",
+        requested_work_mode="existing_project_repair",
+    )
+    with pytest.raises(api.HTTPException) as raised:
+        await api.create_intake(
+            request,
+            Identity(owner_id="owner", email="owner@example.com", name="Owner"),
+        )
+    assert raised.value.status_code == 422
+    assert "new topology projects only" in raised.value.detail

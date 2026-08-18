@@ -58,6 +58,7 @@ async def execute_authorized_run(
             store=store,
             team=team,
             registry=registry,
+            project_store=project_store,
         )
     failed = record.model_copy(update={
         "status": RunStatus.FAILED,

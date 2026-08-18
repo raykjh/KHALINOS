@@ -12,12 +12,14 @@ from khalinos.models import (
     DeterministicEvidence,
     QuestPlan,
     QuestSpec,
+    ProjectRecord,
     RunRecord,
     RunStatus,
     UserBrief,
     canonical_sha256,
 )
 from khalinos.run_router import execute_authorized_run
+from khalinos.projects import LocalProjectStore
 from khalinos.storage import LocalRunStore
 from khalinos.toolpacks import RegisteredToolPack, ToolPackRegistry
 
@@ -171,6 +173,37 @@ async def test_godot_router_dispatches_by_exact_approved_binding(tmp_path: Path)
     )
     assert result.status == RunStatus.PASSED
     assert "Godot topology" in result.message
+
+
+async def test_godot_pass_updates_the_owner_project_library(tmp_path: Path) -> None:
+    store, run_id, registry = setup_run(tmp_path)
+    owner_id = "owner@example.com"
+    project_id = "e" * 32
+    run = store.read_record(run_id).model_copy(update={"owner_id": owner_id, "project_id": project_id})
+    store.update(run)
+    projects = LocalProjectStore(tmp_path)
+    projects.prepare(ProjectRecord(
+        project_id=project_id,
+        owner_id=owner_id,
+        display_name="Route Observatory",
+        project_kind="godot",
+        latest_run_id=run_id,
+        latest_status=RunStatus.QUEUED,
+    ))
+
+    result = await execute_authorized_run(
+        run_id,
+        store=store,
+        team=FakeGodotTeam(),
+        registry=registry,
+        project_store=projects,
+    )
+
+    project = projects.read_owned(project_id, owner_id)
+    assert result.status == RunStatus.PASSED
+    assert project.latest_status == RunStatus.PASSED
+    assert project.latest_receipt_ids == result.completed_receipt_ids
+    assert project.latest_checkpoint_sha256 is not None
 
 
 async def test_godot_owner_cannot_change_the_approved_project_name(tmp_path: Path) -> None:

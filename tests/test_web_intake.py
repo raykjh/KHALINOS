@@ -15,6 +15,10 @@ def test_materials_precede_goal_and_sixsense() -> None:
     assert "/api/materials/inspect" in html
     assert "New project" in html
     assert "Improve an existing project" in html
+    assert "Godot topology prototype" in html
+    assert "Gameplay, arbitrary scripts, assets, and existing-project repair are not included." in html
+    assert 'id="chooseBrowserRuntime"' in html
+    assert 'id="chooseGodotRuntime"' in html
     assert "Load Judge Demo inputs" in html
     assert "Choose from Project Library" in html
     assert "External project ZIP" in html
@@ -50,7 +54,7 @@ def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
     assert "Deterministic gate" in html
     assert "Verified deliverable" in html
     assert "[hidden] { display:none!important; }" in html
-    assert "record.status==='passed'&&record.project_id" in html
+    assert "record.status==='passed'&&record.project_id&&!godot" in html
     assert "actual cost" not in html.lower()
 
 
@@ -61,6 +65,9 @@ def test_project_mode_can_switch_cleanly_before_goal_entry() -> None:
     assert "function clearWorkingMaterial()" in html
     assert "chooseWork('new')" in html
     assert "chooseWork('existing')" in html
+    assert "function chooseRuntime(kind)" in html
+    assert "requested_project_kind" in html
+    assert "requested_work_mode" in html
     assert "Outcome discovery · autonomous execution" not in html
     assert "SixSense resolves what matters" not in html
 

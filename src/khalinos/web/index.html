@@ -196,6 +196,13 @@
           <button class="entry" id="startNewProject"><strong>New project</strong><span>Create a product from a goal and optional reference material.</span></button>
           <button class="entry" id="improveExisting"><strong>Improve an existing project</strong><span>Repair or extend a KHALINOS checkpoint, repository, or ZIP.</span></button>
         </div>
+        <div class="mode-options" id="newRuntimeOptions" hidden>
+          <strong>Choose the approved runtime</strong>
+          <div class="entry-grid">
+            <button class="entry" id="chooseBrowserRuntime" type="button"><strong>Browser micro-app</strong><span>Build a polished, offline HTML/CSS/JavaScript product with a playable browser result.</span></button>
+            <button class="entry" id="chooseGodotRuntime" type="button"><strong>Godot topology prototype</strong><span>Generate and headlessly verify connected screens and overlays. Gameplay, arbitrary scripts, assets, and existing-project repair are not included.</span></button>
+          </div>
+        </div>
         <div class="mode-options" id="existingOptions" hidden>
           <div class="source-methods">
             <div class="source-method"><button class="disclosure" id="chooseProject" type="button" aria-expanded="false" aria-controls="projectLibrary"><strong>Choose from Project Library</strong><span>Load a project from your connected KHALINOS account.</span></button><div class="library method-panel" id="projectLibrary" hidden></div></div>
@@ -288,7 +295,7 @@
 </main>
 <script>
 const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='';
+let intake=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='', requestedProjectKind='';
 const AUTH_SESSION_KEY='khalinos_google_credential';
 const $=selector=>document.querySelector(selector);
 function show(name){
@@ -348,7 +355,7 @@ async function loadProjects(reveal=false){
   if(!authCredential)return;
   const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
   const projects=await response.json();projectLibraryRecords=projects;const library=$('#projectLibrary');if(reveal)library.hidden=false;
-  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'?`<button data-play-project="${item.project_id}">Play result</button>`:''}<button class="secondary" data-improve-project="${item.project_id}">Improve</button></div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
+  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'&&['browser','web'].includes(item.project_kind)?`<button data-play-project="${item.project_id}">Play result</button>`:''}${['browser','web'].includes(item.project_kind)?`<button class="secondary" data-improve-project="${item.project_id}">Improve</button>`:''}</div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
   library.querySelectorAll('[data-play-project]').forEach(button=>button.addEventListener('click',()=>playProject(button.dataset.playProject)));
   library.querySelectorAll('[data-improve-project]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.improveProject))));
 }
@@ -392,11 +399,16 @@ function clearWorkingMaterial(){
   ['chooseProject','toggleLocator','toggleZip'].forEach(id=>document.getElementById(id).setAttribute('aria-expanded','false'));['projectLibrary','locatorPanel','zipPanel'].forEach(id=>document.getElementById(id).hidden=true);
 }
 function chooseWork(mode){
-  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
+  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;requestedProjectKind='';clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#newRuntimeOptions').hidden=mode!=='new';$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=mode==='new';$('#inspectMaterials').hidden=mode==='new';$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
+}
+function chooseRuntime(kind){
+  requestedProjectKind=kind;$('#chooseBrowserRuntime').classList.toggle('selected',kind==='browser');$('#chooseGodotRuntime').classList.toggle('selected',kind==='godot');$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#goalContext').textContent=kind==='godot'?'A bounded Godot screen-topology prototype will be created. Describe the screens, overlays, and navigation you want verified.':'A browser micro-app will be created. Describe the result you want KHALINOS to build.';
 }
 $('#startNewProject').addEventListener('click',()=>chooseWork('new'));
 $('#improveExisting').addEventListener('click',()=>chooseWork('existing'));
-$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
+$('#chooseBrowserRuntime').addEventListener('click',()=>chooseRuntime('browser'));
+$('#chooseGodotRuntime').addEventListener('click',()=>chooseRuntime('godot'));
+$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';requestedProjectKind='browser';clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
 function toggleMethod(button,panel,open=panel.hidden){panel.hidden=!open;button.setAttribute('aria-expanded',String(open));}
 $('#chooseProject').addEventListener('click',async()=>{if(!requireSignIn())return;const open=$('#projectLibrary').hidden;toggleMethod($('#chooseProject'),$('#projectLibrary'),open);if(open)await loadProjects(true);});
 $('#toggleLocator').addEventListener('click',()=>toggleMethod($('#toggleLocator'),$('#locatorPanel')));
@@ -405,6 +417,7 @@ $('#inspectMaterials').addEventListener('click',async()=>{
   const button=$('#inspectMaterials');busy(button,true,'Inspecting without execution…');
   try{
     if(!requireSignIn())return;
+    if(workChoice==='new'&&!requestedProjectKind)throw new Error('Choose Browser micro-app or Godot topology prototype first.');
     if(workChoice==='existing'&&$('#externalZip').files.length)await uploadExternalZip();
     else materialDescriptors=[...$('#materials').files].map(descriptor);
     if(workChoice==='new'){$('#projectLocator').value='';selectedProjectId=null;externalUploadId=null;}
@@ -418,7 +431,8 @@ $('#beginSensing').addEventListener('click',async()=>{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
     const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
     const sources=await Promise.all(supported.map(filePayload));
-    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId})});
+    const requestedWorkMode=workChoice==='existing'?'existing_project_repair':'new_product_build';
+    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId,requested_project_kind:requestedWorkMode==='new_product_build'?requestedProjectKind:null,requested_work_mode:requestedWorkMode})});
     const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
@@ -473,11 +487,11 @@ function approvedEstimate(){
 }
 function renderRun(record){
   latestRunRecord=record;const activeRole=roleFor(record);const terminal=['passed','blocked','failed'].includes(record.status);
-  const workMode=record.work_mode||intake?.material_inspection?.recommended_work_mode||'';const existing=workMode==='existing_project_repair';const sequence=existing?['owner','repair','runtime','verifier','result']:['owner','visual','maker','runtime','verifier','result'];const activeIndex=sequence.indexOf(activeRole);const skipped=existing?new Set(['visual','maker']):new Set();
+  const workMode=record.work_mode||intake?.material_inspection?.recommended_work_mode||'';const existing=workMode==='existing_project_repair';const godot=record.toolpack_binding?.toolpack_id==='godot.topology';const sequence=existing?['owner','repair','runtime','verifier','result']:godot?['owner','maker','runtime','verifier','result']:['owner','visual','maker','runtime','verifier','result'];const activeIndex=sequence.indexOf(activeRole);const skipped=existing?new Set(['visual','maker']):godot?new Set(['visual','repair']):new Set();
   $('#runId').textContent=`Run ${record.run_id}`;$('#runStatus').textContent=record.status.toUpperCase();$('#modelCalls').textContent=record.model_calls;
   const total=intake?.preview?.estimate?.quest_count||Math.max(record.completed_receipt_ids.length,1);$('#questProgress').textContent=`${Math.min(record.completed_receipt_ids.length,total)} / ${total}`;
   $('#runElapsed').textContent=elapsed(record);$('#approvedEstimate').textContent=approvedEstimate();$('#campHeadline').textContent=terminal?`${record.status.toUpperCase()} ·`:`${activeRole.replaceAll('_',' ').toUpperCase()} ·`;$('#campMessage').textContent=record.message;
-  const playable=record.status==='passed'&&record.project_id;$('#resultActions').hidden=!playable;if(playable){$('#playResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}
+  const playable=record.status==='passed'&&record.project_id&&!godot;$('#resultActions').hidden=!playable;if(playable){$('#playResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}
   document.querySelectorAll('.station').forEach(station=>{
     const role=station.dataset.role;station.classList.remove('active','done','blocked','failed');const state=station.querySelector('.station-state');
     if(skipped.has(role)){state.textContent='Not required';return;}

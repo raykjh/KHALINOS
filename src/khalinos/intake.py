@@ -119,7 +119,7 @@ class SensingAgent(Protocol):
     async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision: ...
 
 
-def authorized_brief(preview: OutcomePreview):
+def authorized_brief(preview: OutcomePreview, *, include_preview_quality: bool = True):
     """Bind the confirmed SixSense outcome to the immutable execution contract."""
     source = preview.recommended_brief
     constraints = list(source.constraints[:6])
@@ -128,7 +128,7 @@ def authorized_brief(preview: OutcomePreview):
     constraints.extend(f"Operating context: {item}" for item in preview.operating_context[:2])
     criteria = list(dict.fromkeys([
         *source.acceptance_criteria,
-        *preview.completion_and_quality,
+        *(preview.completion_and_quality if include_preview_quality else []),
     ]))[:10]
     return source.model_copy(update={
         "goal": preview.final_result,
@@ -208,6 +208,8 @@ async def start_intake(
         owner_id=owner_id,
         selected_project_id=request.selected_project_id,
         source_snapshot=source_snapshot,
+        requested_project_kind=request.requested_project_kind,
+        requested_work_mode=request.requested_work_mode,
     )
     store.create(record, sources)
     decision = await agent.assess(
@@ -277,6 +279,8 @@ async def restart_intake(
         owner_id=previous.owner_id,
         selected_project_id=previous.selected_project_id,
         source_snapshot=previous.source_snapshot,
+        requested_project_kind=previous.requested_project_kind,
+        requested_work_mode=previous.requested_work_mode,
     )
     store.create(record, copied_sources)
     decision = await agent.assess(

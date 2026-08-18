@@ -11,7 +11,14 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-from khalinos.models import ALL_SENSE_DIMENSIONS, IntakeRecord, SenseDecision, SenseDimension
+from khalinos.models import (
+    ALL_SENSE_DIMENSIONS,
+    IntakeRecord,
+    OutcomePreview,
+    SenseAssessment,
+    SenseDecision,
+    SenseDimension,
+)
 
 
 SIXSENSE_INSTRUCTION = """
@@ -70,30 +77,25 @@ preference, choose the strongest suitable standard rather than removing useful f
 Keep subjective preferences distinct from those autonomous quality decisions, and describe
 the resulting professional defaults transparently in the Outcome Preview.
 
-When every dimension is sufficiently resolved, return a realistic Outcome Preview and a
-recommended fixed five-file browser-product brief. Translate discoveries into observable
-acceptance criteria; never claim an unavailable dependency exists. Cost and duration are
-bounded estimates for the autonomous run, not guarantees. Never expand authority beyond
-what the user supplied. Return only the required schema.
+This first stage decides only whether one real user question remains. When every dimension
+is sufficiently resolved, return status ready with all six resolved dimensions and no
+question. Do not generate an Outcome Preview in this stage. Return only SenseAssessment.
 
-The currently approved execution profile is deliberately narrow: exactly index.html,
-styles.css, app.js, journey.json, and README.md; HTML, CSS, inline SVG, Canvas, and vanilla
-JavaScript only; no CDN, external URL, package, network call, generated binary asset, data
-URL, server-side product dependency, or extra output file. It supports polished interactive
-browser micro-apps, not a production 3D engine project. Every recommendation must be
-feasible inside this profile. If the requested outcome materially needs a capability outside
-it, ask under required_enablers whether to choose an in-profile prototype or seek separate
-authorization for a future capability. Never recommend a forbidden dependency as a default.
-The current browser micro-app Cloud worker has a 30-minute per-execution safety slice and a
-$5 maximum run budget. The 30 minutes is not a user-project deadline; it bounds one runaway
-execution. This current profile is not yet resumable, so its approved outcome must fit one
-slice. Prefer the strongest complete, polished outcome that fits the slice. Include
+The approved_execution_profile payload is execution authority. Every recommendation and
+acceptance criterion must be feasible inside that exact profile. If the requested outcome
+materially needs a capability outside it, ask under required_enablers whether to choose the
+in-profile bounded outcome or stop for separate future authorization. Never describe the
+profile as a full engine, arbitrary-code, production game, or existing-project repair path
+unless those capabilities are explicitly present. Never recommend a forbidden dependency.
+The 30-minute limit is one runaway-execution safety slice, not a user-project deadline.
+The current profiles are not resumable, so the approved outcome must fit one slice. Prefer
+the strongest complete, polished outcome that fits the slice. Include
 recognizable standard modes, presets, and quality features when they make the requested
 product materially better and remain feasible; choose them autonomously rather than turning
 them into user questions. Avoid unrelated novelty and never trade away visual finish or
-reliability merely to increase feature count. Every authorized run includes a three-candidate visual competition before
-the Quest chain, adding five Gemini calls. Estimates must include that stage, stay inside the
-hard safety limits, and remain realistic rather than simply equal to the maximum.
+reliability merely to increase feature count. Apply visual competition only when the profile
+explicitly includes it. Estimates must include every declared stage, stay inside the hard
+safety limits, and remain realistic rather than simply equal to the maximum.
 
 For experience_visual_direction, inspect supplied reference images concretely: composition,
 hierarchy, density, typography, palette, material cues, interaction emphasis, strengths to
@@ -105,17 +107,51 @@ direction with explicit anti-goals, not a menu of fashionable styles.
 """.strip()
 
 
+SIXSENSE_PREVIEW_INSTRUCTION = """
+You are the KHALINOS Outcome Contract editor. The SixSense assessment has resolved all six
+dimensions. Produce one realistic OutcomePreview and recommended UserBrief from the supplied
+goal, sources, confirmed answers, material inspection, and approved_execution_profile.
+Do not ask a question. The execution profile is authority: every deliverable, technology,
+completion criterion, cost, duration, and file must fit it. Preserve explicit user choices,
+apply strong professional defaults where the user had no preference, and never invent an
+unavailable dependency or expand authority.
+
+For browser.product, return the exact five-file offline browser surface and include the
+declared visual competition in the estimate. For godot.topology.new-product, state plainly
+that the result is a bounded Godot screen-and-overlay topology prototype, not a finished
+game. Its completion criteria may only require the initial screen to open, declared
+screens/overlays/scenes to load or be reachable, and declared navigation/transitions to be
+connected under digest-bound headless verification. Do not promise gameplay, arbitrary
+scripts, input mechanics, physics, generated assets, existing-project repair, or production
+3D behavior. Put the zero-repair rule under authority or constraints, never under completion
+criteria. Set repairs per Quest to zero for this profile. Return only OutcomePreview.
+""".strip()
+
+
 class SixSenseAgent:
     def __init__(self) -> None:
         os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
         os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
         model = os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash")
-        self.agent = LlmAgent(
-            name="khalinos_sixsense",
+        self.assessment_agent = LlmAgent(
+            name="khalinos_sixsense_assessment",
             model=model,
             instruction=SIXSENSE_INSTRUCTION,
-            output_schema=SenseDecision,
-            output_key="khalinos_sixsense_output",
+            output_schema=SenseAssessment,
+            output_key="khalinos_sixsense_assessment_output",
+            include_contents="none",
+            generate_content_config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=8192,
+                thinking_config=types.ThinkingConfig(thinking_level="low"),
+            ),
+        )
+        self.preview_agent = LlmAgent(
+            name="khalinos_sixsense_preview",
+            model=model,
+            instruction=SIXSENSE_PREVIEW_INSTRUCTION,
+            output_schema=OutcomePreview,
+            output_key="khalinos_sixsense_preview_output",
             include_contents="none",
             generate_content_config=types.GenerateContentConfig(
                 temperature=0.1,
@@ -124,38 +160,13 @@ class SixSenseAgent:
             ),
         )
 
-    async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision:
+    async def _structured(self, agent: LlmAgent, payload: dict, source_payloads: list[tuple[str, str, bytes]]) -> str:
         session_service = InMemorySessionService()
         session_id = uuid4().hex
         user_id = "khalinos-intake"
-        app_name = "khalinos-sixsense"
+        app_name = agent.name
         await session_service.create_session(app_name=app_name, user_id=user_id, session_id=session_id)
-        runner = Runner(agent=self.agent, app_name=app_name, session_service=session_service)
-        payload = {
-            "project_name": record.project_name,
-            "goal": record.goal,
-            "project_locator": record.project_locator,
-            "material_inspection": record.material_inspection.model_dump(mode="json") if record.material_inspection else None,
-            "sources": [
-                {"filename": name, "media_type": media_type, "size_bytes": len(data)}
-                for name, media_type, data in source_payloads
-            ],
-            "confirmed_answers": record.answers,
-            "previous_questions": [item.model_dump(mode="json") for item in record.question_history],
-            "already_resolved_dimensions": [item.value for item in record.resolved_dimensions],
-            "allowed_dimensions": [item.value for item in ALL_SENSE_DIMENSIONS],
-            "approved_execution_profile": {
-                "files": ["index.html", "styles.css", "app.js", "journey.json", "README.md"],
-                "technologies": ["HTML", "CSS", "inline SVG", "Canvas", "vanilla JavaScript"],
-                "forbidden": ["CDN", "external URL", "package", "network call", "binary asset", "data URL", "server dependency"],
-                "quest_limit": "2 to 5",
-                "repair_limit_per_quest": "0 to 2",
-                "maximum_run_budget_usd": 5,
-                "maximum_duration_minutes": 30,
-                "scope_rule": "prefer the smallest complete polished outcome",
-                "visual_competition": "three candidates, rendered screenshots, independent multimodal selection",
-            },
-        }
+        runner = Runner(agent=agent, app_name=app_name, session_service=session_service)
         parts = [types.Part.from_text(text=json.dumps(payload, ensure_ascii=False, indent=2))]
         for name, media_type, data in source_payloads:
             if media_type.startswith("image/"):
@@ -173,8 +184,75 @@ class SixSenseAgent:
             if event.is_final_response() and event.content and event.content.parts:
                 final_text = "".join(part.text or "" for part in event.content.parts)
         if not final_text:
-            raise RuntimeError("SixSense returned no structured response")
-        decision = SenseDecision.model_validate(json.loads(final_text))
+            raise RuntimeError(f"{agent.name} returned no structured response")
+        return final_text
+
+    async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision:
+        if record.requested_project_kind == "godot":
+            execution_profile = {
+                "profile_id": "godot.topology.new-product",
+                "scope": "a bounded offline Godot 4.7.1 screen-and-overlay topology prototype",
+                "files": ["KHALINOS_TOPOLOGY.json", "project.godot", "scenes/*.tscn", "two trusted probe scripts"],
+                "technologies": ["Godot 4.7.1", "trusted generated scenes", "trusted GDScript probes"],
+                "supported_outcomes": ["connected screens", "overlays", "declared transitions", "headless scene loading"],
+                "forbidden": ["existing-project repair", "arbitrary scripts", "gameplay mechanics", "3D production assets", "network services", "external assets"],
+                "quest_limit": "2 to 5",
+                "repair_limit_per_quest": "0",
+                "maximum_run_budget_usd": 5,
+                "maximum_duration_minutes": 30,
+                "scope_rule": "state clearly that this is a topology prototype, and bind completion only to start/load/reach/connect evidence",
+                "visual_competition": "not authorized",
+            }
+        else:
+            execution_profile = {
+                "profile_id": "browser.product",
+                "scope": "a polished interactive offline browser micro-product",
+                "files": ["index.html", "styles.css", "app.js", "journey.json", "README.md"],
+                "technologies": ["HTML", "CSS", "inline SVG", "Canvas", "vanilla JavaScript"],
+                "forbidden": ["CDN", "external URL", "package", "network call", "binary asset", "data URL", "server dependency"],
+                "quest_limit": "2 to 5",
+                "repair_limit_per_quest": "0 to 2",
+                "maximum_run_budget_usd": 5,
+                "maximum_duration_minutes": 30,
+                "scope_rule": "prefer the smallest complete polished outcome",
+                "visual_competition": "three candidates, rendered screenshots, independent multimodal selection",
+            }
+        payload = {
+            "project_name": record.project_name,
+            "goal": record.goal,
+            "project_locator": record.project_locator,
+            "material_inspection": record.material_inspection.model_dump(mode="json") if record.material_inspection else None,
+            "sources": [
+                {"filename": name, "media_type": media_type, "size_bytes": len(data)}
+                for name, media_type, data in source_payloads
+            ],
+            "confirmed_answers": record.answers,
+            "previous_questions": [item.model_dump(mode="json") for item in record.question_history],
+            "already_resolved_dimensions": [item.value for item in record.resolved_dimensions],
+            "allowed_dimensions": [item.value for item in ALL_SENSE_DIMENSIONS],
+            "requested_project_kind": record.requested_project_kind or "browser",
+            "requested_work_mode": record.requested_work_mode,
+            "approved_execution_profile": execution_profile,
+        }
+        assessment = SenseAssessment.model_validate(json.loads(
+            await self._structured(self.assessment_agent, payload, source_payloads)
+        ))
+        if assessment.status == "question":
+            decision = SenseDecision(
+                status="question",
+                resolved_dimensions=assessment.resolved_dimensions,
+                next_question=assessment.next_question,
+            )
+        else:
+            payload["sixsense_assessment"] = assessment.model_dump(mode="json")
+            preview = OutcomePreview.model_validate(json.loads(
+                await self._structured(self.preview_agent, payload, source_payloads)
+            ))
+            decision = SenseDecision(
+                status="ready",
+                resolved_dimensions=assessment.resolved_dimensions,
+                preview=preview,
+            )
         validate_decision(record, decision)
         return decision
 

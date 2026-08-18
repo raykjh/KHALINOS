@@ -192,7 +192,7 @@ GODOT_IMPLEMENTATION_SOURCES = (
 
 GODOT_TOPOLOGY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.topology",
-    version="1.1.0",
+    version="1.2.0",
     display_name="Godot Topology ToolPack",
     description="Compiles bounded screen topology plans and proves every generated scene with a digest-bound Godot headless runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_IMPLEMENTATION_SOURCES),

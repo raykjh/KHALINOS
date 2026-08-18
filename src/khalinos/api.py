@@ -39,6 +39,25 @@ web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
 
 
+def validate_godot_topology_brief(brief: UserBrief) -> None:
+    """Keep the public Godot path inside evidence the approved adapter can actually prove."""
+    observable_terms = (
+        "screen", "overlay", "scene", "region", "topology", "navigation",
+        "transition", "open", "load", "reach", "start",
+    )
+    unsupported_terms = (
+        "gameplay", "combat", "enemy", "player movement", "keyboard input",
+        "physics", "animation", "save game", "score", "puzzle logic",
+        "3d model", "asset generation", "multiplayer", "audio playback",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot topology evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(f"Godot topology criteria must be screen/load/navigation observations: {criterion}")
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(web_root / "index.html")
@@ -71,18 +90,22 @@ def queue_run(
     owner_id: str,
     project_id: str,
     project_kind: str,
+    work_mode: str,
     source_snapshot=None,
 ) -> dict[str, object]:
-    work_mode = "existing_project_repair" if source_snapshot else "new_product_build"
     toolpack = APPROVED_TOOLPACKS.select(
         project_kind=project_kind,
         work_mode=work_mode,
     )
     binding = toolpack.binding()
-    brief = brief.model_copy(update={
+    brief_updates = {
         "toolpack_binding": binding,
         "authorized_output_files": list(toolpack.manifest.output.authorized_paths),
-    })
+    }
+    if toolpack.manifest.toolpack_id == "godot.topology":
+        validate_godot_topology_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    brief = brief.model_copy(update=brief_updates)
     run_id = uuid4().hex
     record = RunRecord(
         run_id=run_id,
@@ -202,6 +225,15 @@ async def create_intake(
     try:
         if request.selected_project_id and request.upload_id:
             raise ValueError("choose either a KHALINOS project or one external ZIP")
+        if request.requested_work_mode == "new_product_build":
+            if request.selected_project_id or request.upload_id:
+                raise ValueError("a new product cannot be bound to an existing project snapshot")
+            if request.requested_project_kind not in {"browser", "godot"}:
+                raise ValueError("choose an approved new-project runtime before SixSense")
+        elif not request.selected_project_id and not request.upload_id:
+            raise ValueError("existing-project repair requires a KHALINOS project or validated ZIP")
+        if request.requested_project_kind == "godot" and request.requested_work_mode != "new_product_build":
+            raise ValueError("the Godot ToolPack currently authorizes new topology projects only")
         source_snapshot = None
         if request.selected_project_id:
             project = CloudProjectStore().read_owned(request.selected_project_id, identity.owner_id)
@@ -317,16 +349,26 @@ def authorize_intake(
         created_at = previous.created_at
         origin = previous.origin
         project_kind = previous.project_kind
+        work_mode = "existing_project_repair"
     else:
         created_at = intake.created_at
         origin = "external" if intake.material_inspection and intake.material_inspection.source_available else "khalinos"
-        detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
-        project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
+        work_mode = intake.requested_work_mode
+        if work_mode == "new_product_build":
+            if intake.requested_project_kind not in {"browser", "godot"}:
+                raise HTTPException(status_code=409, detail="the intake has no approved new-project runtime")
+            project_kind = intake.requested_project_kind
+        else:
+            if intake.source_snapshot is None:
+                raise HTTPException(status_code=409, detail="existing-project repair requires a verified source snapshot")
+            detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
+            project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
     result = queue_run(
-        authorized_brief(intake.preview),
+        authorized_brief(intake.preview, include_preview_quality=project_kind != "godot"),
         owner_id=identity.owner_id,
         project_id=project_id,
         project_kind=project_kind,
+        work_mode=work_mode,
         source_snapshot=intake.source_snapshot,
     )
     run_id = result["record"]["run_id"]

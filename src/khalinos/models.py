@@ -173,6 +173,8 @@ class IntakeCreate(BaseModel):
     materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
     selected_project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     upload_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    requested_project_kind: Literal["browser", "godot"] | None = None
+    requested_work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
 
 
 ShortAnswerOption = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=48)]
@@ -240,6 +242,27 @@ class SenseDecision(BaseModel):
         return self
 
 
+class SenseAssessment(BaseModel):
+    """Small first-stage schema that never carries the large Outcome Preview."""
+
+    status: Literal["question", "ready"]
+    resolved_dimensions: list[SenseDimension] = Field(default_factory=list, max_length=6)
+    next_question: SenseQuestion | None = None
+
+    @model_validator(mode="after")
+    def valid_transition(self) -> "SenseAssessment":
+        if len(self.resolved_dimensions) != len(set(self.resolved_dimensions)):
+            raise ValueError("resolved dimensions must be unique")
+        if self.status == "question" and self.next_question is None:
+            raise ValueError("question assessments require one next question")
+        if self.status == "ready":
+            if self.next_question is not None:
+                raise ValueError("ready assessments cannot include a question")
+            if set(self.resolved_dimensions) != set(ALL_SENSE_DIMENSIONS):
+                raise ValueError("ready assessments must resolve all SixSense dimensions")
+        return self
+
+
 class IntakeAnswer(BaseModel):
     dimension: SenseDimension
     answer: str = Field(min_length=2, max_length=3000)
@@ -260,6 +283,8 @@ class IntakeRecord(BaseModel):
     owner_id: str = ""
     selected_project_id: str | None = None
     source_snapshot: ArchiveSnapshot | None = None
+    requested_project_kind: Literal["browser", "godot"] | None = None
+    requested_work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
     question_history: list[SenseQuestion] = Field(default_factory=list, max_length=6)

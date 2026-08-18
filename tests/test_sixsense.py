@@ -98,6 +98,7 @@ async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tm
     assert record.status == "sensing"
     assert record.current_question.dimension == SenseDimension.EXPERIENCE_VISUAL_DIRECTION
     assert record.question_history == [record.current_question]
+    assert record.requested_project_kind is None
 
     record = await answer_intake(
         record.intake_id,
@@ -152,6 +153,7 @@ async def test_revision_keeps_sources_and_restarts_discovery(tmp_path) -> None:
         sources=[SourceUpload(filename="facts.txt", media_type="text/plain", data_base64=base64.b64encode(b"facts").decode())],
         project_locator="https://github.com/example/project.git",
         materials=[MaterialDescriptor(filename="project.godot", relative_path="project.godot", size_bytes=400)],
+        requested_project_kind="godot",
     )
     first = await start_intake(request, store=store, agent=agent)
     first = await answer_intake(
@@ -170,8 +172,24 @@ async def test_revision_keeps_sources_and_restarts_discovery(tmp_path) -> None:
     assert revised.sources == first.sources
     assert revised.project_locator == first.project_locator
     assert revised.material_inspection == first.material_inspection
+    assert revised.requested_project_kind == "godot"
     assert "Requested revision" in revised.goal
     assert store.source_bytes(revised.intake_id, revised.sources[0]) == b"facts"
+
+
+async def test_new_godot_intake_preserves_explicit_runtime_authority(tmp_path) -> None:
+    record = await start_intake(
+        IntakeCreate(
+            project_name="Route Observatory",
+            goal="Create a bounded Godot screen topology with an arrival, workspace, and result screen.",
+            requested_project_kind="godot",
+            requested_work_mode="new_product_build",
+        ),
+        store=LocalIntakeStore(tmp_path),
+        agent=AdaptiveFake(),
+    )
+    assert record.requested_project_kind == "godot"
+    assert record.requested_work_mode == "new_product_build"
 
 
 def test_sixsense_cannot_repeat_a_resolved_dimension() -> None:
@@ -270,6 +288,17 @@ def test_authorization_binds_visual_direction_and_quality_to_execution_brief() -
     assert set(outcome.completion_and_quality).issubset(set(brief.acceptance_criteria))
     assert brief.max_quests == outcome.estimate.quest_count
     assert brief.goal == outcome.final_result
+
+
+def test_godot_authorization_uses_only_profile_bounded_brief_criteria() -> None:
+    outcome = preview().model_copy(update={
+        "completion_and_quality": [
+            "All declared screens load in headless verification.",
+            "Zero repairs allowed per Quest.",
+        ]
+    })
+    brief = authorized_brief(outcome, include_preview_quality=False)
+    assert brief.acceptance_criteria == outcome.recommended_brief.acceptance_criteria
 
 
 async def test_rejects_source_path_traversal(tmp_path) -> None:
