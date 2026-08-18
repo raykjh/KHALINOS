@@ -15,6 +15,7 @@ def test_artifact_agents_have_capacity_for_the_bounded_complete_bundle() -> None
     assert team.visual_director.generate_content_config.max_output_tokens == 8_192
     assert team.visual_maker.generate_content_config.max_output_tokens == 49_152
     assert team.visual_verifier.generate_content_config.max_output_tokens == 8_192
+    assert team.visual_asset_verifier.generate_content_config.max_output_tokens == 8_192
     assert team.godot_quest_owner.generate_content_config.max_output_tokens == 8_192
     assert team.godot_topology_owner.generate_content_config.max_output_tokens == 8_192
 

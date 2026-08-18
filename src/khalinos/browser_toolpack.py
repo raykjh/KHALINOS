@@ -15,16 +15,22 @@ from khalinos.toolpacks import (
     source_set_sha256,
 )
 from khalinos.verification import materialize, verify_bundle
+from khalinos.visual_assets import ASSET_PATH
 
 
 def _validate_browser_artifact(artifact: ArtifactBundle) -> None:
     manifest = BROWSER_PRODUCT_MANIFEST
     files = artifact.file_map()
-    if set(files) != set(manifest.output.authorized_paths):
+    paths = set(files).union(artifact.asset_map())
+    required = {"README.md", "app.js", "index.html", "journey.json", "styles.css"}
+    if not required.issubset(paths) or not paths.issubset(manifest.output.authorized_paths):
         raise PermissionError("browser artifact does not match the ToolPack output contract")
-    if len(files) > manifest.output.max_file_count:
+    if len(paths) > manifest.output.max_file_count:
         raise PermissionError("browser artifact exceeds the ToolPack file-count limit")
-    if sum(len(content.encode("utf-8")) for content in files.values()) > manifest.output.max_total_bytes:
+    total_bytes = sum(len(content.encode("utf-8")) for content in files.values()) + sum(
+        len(asset.bytes()) for asset in artifact.assets
+    )
+    if total_bytes > manifest.output.max_total_bytes:
         raise PermissionError("browser artifact exceeds the ToolPack size limit")
 
 
@@ -54,15 +60,20 @@ BROWSER_IMPLEMENTATION_SOURCES = (
     "agents.py",
     "browser_artifacts.py",
     "browser_toolpack.py",
+    "models.py",
     "sixsense.py",
+    "storage.py",
+    "toolpacks.py",
     "uploads.py",
     "verification.py",
+    "visual_assets.py",
+    "workflow.py",
 )
 
 
 BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
     toolpack_id="browser.product",
-    version="1.2.0",
+    version="1.3.0",
     display_name="Browser Product ToolPack",
     description="Builds, repairs, runs, and verifies bounded offline browser micro-products.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, BROWSER_IMPLEMENTATION_SOURCES),
@@ -80,6 +91,11 @@ BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
             operations=("execute", "observe"),
             scopes=("loopback:http", "runtime:headless"),
         ),
+        CapabilityDeclaration(
+            capability_id="browser.visual.asset",
+            operations=("generate", "observe"),
+            scopes=("artifact:write", "model:image"),
+        ),
     ),
     routing=RoutingContract(
         primary_project_kind="browser",
@@ -90,19 +106,19 @@ BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
         ),
         excluded_outcomes=(
             "external network services or package dependencies",
-            "native engine projects and binary assets",
+            "native engine projects and arbitrary binary assets",
         ),
         selection_guidance="Choose this route when the requested result must be directly interactive and playable in a modern browser.",
     ),
     output=OutputContract(
-        artifact_kind="browser.five-file-bundle",
-        authorized_paths=("README.md", "app.js", "index.html", "journey.json", "styles.css"),
-        max_file_count=5,
-        max_total_bytes=150_000,
+        artifact_kind="browser.visual-asset-bundle",
+        authorized_paths=("README.md", "app.js", ASSET_PATH, "index.html", "journey.json", "styles.css"),
+        max_file_count=6,
+        max_total_bytes=2_650_000,
     ),
     evidence=EvidenceContract(
         adapter_id=BrowserEvidenceAdapter.adapter_id,
-        evidence_types=("chromium.journey", "runtime.assertion", "runtime.screenshot"),
+        evidence_types=("chromium.journey", "runtime.assertion", "runtime.screenshot", "visual.asset.loaded"),
         network_isolated=True,
         independent_verifier_required=True,
     ),

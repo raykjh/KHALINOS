@@ -22,6 +22,7 @@ class RunStore(Protocol):
     def update(self, record: RunRecord) -> None: ...
     def put_json(self, run_id: str, relative: str, payload: dict | list) -> str: ...
     def put_file(self, run_id: str, relative: str, source: Path, content_type: str) -> str: ...
+    def put_bytes(self, run_id: str, relative: str, payload: bytes, content_type: str) -> str: ...
     def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot: ...
     def read_bundle_archive(self, snapshot: ArchiveSnapshot) -> ArtifactBundle: ...
 
@@ -64,12 +65,21 @@ class LocalRunStore:
         target.write_bytes(source.read_bytes())
         return str(target)
 
+    def put_bytes(self, run_id: str, relative: str, payload: bytes, content_type: str) -> str:
+        del content_type
+        target = self._run(run_id) / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+        return str(target)
+
     def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot:
         target = self._run(run_id) / "final" / "source.zip"
         target.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for item in bundle.files:
                 archive.writestr(item.path, item.content.encode("utf-8"))
+            for asset in bundle.assets:
+                archive.writestr(asset.path, asset.bytes())
         return inspect_browser_zip(target, bucket="local", object_name=str(target), generation=1)
 
     def read_bundle_archive(self, snapshot: ArchiveSnapshot) -> ArtifactBundle:
@@ -125,12 +135,19 @@ class CloudRunStore:
         blob.upload_from_filename(str(source), content_type=content_type)
         return f"gs://{self.bucket_name}/{blob.name}"
 
+    def put_bytes(self, run_id: str, relative: str, payload: bytes, content_type: str) -> str:
+        blob = self._blob(run_id, relative)
+        blob.upload_from_string(payload, content_type=content_type)
+        return f"gs://{self.bucket_name}/{blob.name}"
+
     def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot:
         with tempfile.TemporaryDirectory(prefix=f"khalinos-final-{run_id}-") as temporary:
             target = Path(temporary) / "source.zip"
             with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
                 for item in bundle.files:
                     archive.writestr(item.path, item.content.encode("utf-8"))
+                for asset in bundle.assets:
+                    archive.writestr(asset.path, asset.bytes())
             blob = self._blob(run_id, "final/source.zip")
             blob.upload_from_filename(str(target), content_type="application/zip")
             blob.reload()

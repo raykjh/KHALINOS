@@ -207,15 +207,15 @@ class SixSenseAgent:
             execution_profile = {
                 "profile_id": "browser.product",
                 "scope": "a polished interactive offline browser micro-product",
-                "files": ["index.html", "styles.css", "app.js", "journey.json", "README.md"],
-                "technologies": ["HTML", "CSS", "inline SVG", "Canvas", "vanilla JavaScript"],
-                "forbidden": ["CDN", "external URL", "package", "network call", "binary asset", "data URL", "server dependency"],
+                "files": ["index.html", "styles.css", "app.js", "journey.json", "README.md", "one trusted local PNG visual asset"],
+                "technologies": ["HTML", "CSS", "inline SVG", "Canvas", "vanilla JavaScript", "Nano Banana visual asset generation"],
+                "forbidden": ["CDN", "external URL", "package", "network call", "arbitrary binary asset", "data URL", "server dependency", "text baked into generated imagery"],
                 "quest_limit": "2 to 5",
                 "repair_limit_per_quest": "0 to 2",
                 "maximum_run_budget_usd": 5,
                 "maximum_duration_minutes": 30,
                 "scope_rule": "prefer the smallest complete polished outcome",
-                "visual_competition": "three candidates, rendered screenshots, independent multimodal selection",
+                "visual_competition": "three Nano Banana asset-assisted candidates, trusted PNG validation, rendered Chromium screenshots, independent multimodal selection",
             }
         payload = {
             "project_name": record.project_name,

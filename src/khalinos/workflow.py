@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from khalinos.models import (
     AgentVerification,
+    ArtifactAsset,
     ArtifactBundle,
     CriterionFinding,
     DeterministicEvidence,
@@ -20,6 +21,7 @@ from khalinos.models import (
     RunStatus,
     UserBrief,
     VisualConceptPlan,
+    VisualAssetGate,
     VisualSelection,
     VisualSelectionReceipt,
     canonical_sha256,
@@ -37,7 +39,38 @@ class Team(Protocol):
     async def repair(self, payload: dict) -> ArtifactBundle: ...
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan: ...
     async def make_visual(self, payload: dict) -> ArtifactBundle: ...
+    async def make_visual_asset(self, brief: UserBrief, concept) -> ArtifactAsset: ...
+    async def verify_visual_asset(self, candidate_id: str, asset: ArtifactAsset, concept) -> VisualAssetGate: ...
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection: ...
+
+
+def _agent_bundle_payload(bundle: ArtifactBundle | None) -> dict | None:
+    if bundle is None:
+        return None
+    return bundle.model_copy(update={"assets": []}).model_dump(mode="json")
+
+
+def _asset_manifest(bundle: ArtifactBundle | None) -> list[dict]:
+    if bundle is None:
+        return []
+    return [
+        {
+            "path": asset.path,
+            "media_type": asset.media_type,
+            "sha256": asset.sha256,
+            "width": asset.width,
+            "height": asset.height,
+        }
+        for asset in bundle.assets
+    ]
+
+
+def _with_assets(bundle: ArtifactBundle, assets: list[ArtifactAsset]) -> ArtifactBundle:
+    return ArtifactBundle(
+        revision_summary=bundle.revision_summary,
+        files=bundle.files,
+        assets=assets,
+    )
 
 
 def _blocked_verification(criteria: list[str], issues: list[str]) -> AgentVerification:
@@ -135,6 +168,7 @@ async def _select_visual_foundation(
     evidence_by_candidate: dict[str, dict] = {}
     screenshot_payloads: list[tuple[str, bytes]] = []
     screenshot_paths: dict[str, str] = {}
+    asset_sha256_by_candidate: dict[str, str] = {}
     for concept in visual_plan.candidates:
         record = record.model_copy(update={
             "status": RunStatus.VISUALIZING,
@@ -142,11 +176,47 @@ async def _select_visual_foundation(
             "model_calls": team.call_count,
         })
         store.update(record)
+        asset = await team.make_visual_asset(brief, concept)
+        asset_sha256_by_candidate[concept.candidate_id] = asset.sha256
+        store.put_bytes(
+            run_id,
+            f"visuals/{concept.candidate_id}/asset/{asset.path}",
+            asset.bytes(),
+            asset.media_type,
+        )
+        record = record.model_copy(update={
+            "status": RunStatus.VISUAL_SELECTING,
+            "message": f"Independent Visual Asset Gate is inspecting {concept.candidate_id}.",
+            "model_calls": team.call_count,
+        })
+        store.update(record)
+        asset_gate = await team.verify_visual_asset(concept.candidate_id, asset, concept)
+        store.put_json(
+            run_id,
+            f"visuals/{concept.candidate_id}/asset_gate.json",
+            asset_gate.model_dump(mode="json"),
+        )
+        if not asset_gate.approved:
+            evidence_by_candidate[concept.candidate_id] = {
+                "passed": False,
+                "checks": {"independent_visual_asset_gate": False},
+                "issues": asset_gate.issues,
+                "asset_gate": asset_gate.model_dump(mode="json"),
+            }
+            continue
         candidate = await team.make_visual({
             "approved_brief": brief.model_dump(mode="json"),
             "shared_visual_contract": visual_plan.shared_contract,
             "visual_concept": concept.model_dump(mode="json"),
+            "trusted_visual_asset": {
+                "path": asset.path,
+                "media_type": asset.media_type,
+                "sha256": asset.sha256,
+                "width": asset.width,
+                "height": asset.height,
+            },
         })
+        candidate = _with_assets(candidate, [asset])
         with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{concept.candidate_id}-") as temporary:
             root = Path(temporary) / "product"
             evidence_dir = Path(temporary) / "evidence"
@@ -160,6 +230,13 @@ async def _select_visual_foundation(
             )
             for file in candidate.files:
                 store.put_file(run_id, f"visuals/{concept.candidate_id}/product/{file.path}", root / file.path, "text/plain")
+            for candidate_asset in candidate.assets:
+                store.put_file(
+                    run_id,
+                    f"visuals/{concept.candidate_id}/product/{candidate_asset.path}",
+                    root / candidate_asset.path,
+                    candidate_asset.media_type,
+                )
             screenshots = sorted(evidence_dir.glob("*.png"))
             for index, screenshot in enumerate(screenshots, start=1):
                 path = store.put_file(
@@ -171,7 +248,10 @@ async def _select_visual_foundation(
                 if index == 1:
                     screenshot_paths[concept.candidate_id] = path
                     screenshot_payloads.append((concept.candidate_id, screenshot.read_bytes()))
-        evidence_by_candidate[concept.candidate_id] = deterministic.model_dump(mode="json")
+        evidence_by_candidate[concept.candidate_id] = {
+            **deterministic.model_dump(mode="json"),
+            "asset_gate": asset_gate.model_dump(mode="json"),
+        }
         store.put_json(
             run_id,
             f"visuals/{concept.candidate_id}/deterministic_evidence.json",
@@ -195,6 +275,9 @@ async def _select_visual_foundation(
             "visual_concept_plan": visual_plan.model_dump(mode="json"),
             "eligible_candidate_ids": list(eligible),
             "deterministic_evidence": evidence_by_candidate,
+            "trusted_asset_sha256_by_candidate": {
+                key: value for key, value in asset_sha256_by_candidate.items() if key in eligible
+            },
         },
         eligible_screenshots,
     )
@@ -211,6 +294,7 @@ async def _select_visual_foundation(
         selected_artifact_sha256=canonical_sha256(selected),
         eligible_candidate_ids=list(eligible),
         screenshot_paths={key: value for key, value in screenshot_paths.items() if key in eligible},
+        asset_sha256_by_candidate={key: value for key, value in asset_sha256_by_candidate.items() if key in eligible},
         selection=selection,
     )
     store.put_json(run_id, "visuals/selection_receipt.json", receipt.model_dump(mode="json"))
@@ -267,6 +351,7 @@ async def execute_run(
             )
             parent_receipt_id = visual_receipt.receipt_id
             receipt_ids = [visual_receipt.receipt_id]
+        completed_criteria: list[str] = []
         for quest in plan.quests:
             record = record.model_copy(update={
                 "status": RunStatus.EXECUTING,
@@ -282,13 +367,15 @@ async def execute_run(
             payload = {
                 "approved_brief": brief.model_dump(mode="json"),
                 "quest": quest.model_dump(mode="json"),
-                "previous_verified_bundle": current.model_dump(mode="json") if current else None,
+                "required_regression_criteria": list(completed_criteria),
+                "previous_verified_bundle": _agent_bundle_payload(current),
+                "trusted_visual_assets": _asset_manifest(current),
                 "parent_receipt_id": parent_receipt_id,
             }
             candidate = (
                 await team.repair({
                     **payload,
-                    "failed_bundle": current.model_dump(mode="json"),
+                    "failed_bundle": _agent_bundle_payload(current),
                     "deterministic_evidence": {"passed": True, "checks": {"source_admission": True}, "issues": []},
                     "independent_verification": {
                         "verdict": "REPAIR",
@@ -300,7 +387,9 @@ async def execute_run(
                 })
                 if existing_repair else await team.make(payload)
             )
+            candidate = _with_assets(candidate, list(current.assets) if current else [])
             repair_round = 0
+            runtime_criteria = [*completed_criteria, *quest.acceptance_criteria]
             while True:
                 record = record.model_copy(update={
                     "status": RunStatus.RUNTIME_CHECKING,
@@ -320,10 +409,17 @@ async def execute_run(
                         candidate,
                         root,
                         evidence_dir,
-                        quest.acceptance_criteria,
+                        runtime_criteria,
                     )
                     for file in candidate.files:
                         store.put_file(run_id, f"quests/{quest.quest_id}/r{repair_round}/product/{file.path}", root / file.path, "text/plain")
+                    for asset in candidate.assets:
+                        store.put_file(
+                            run_id,
+                            f"quests/{quest.quest_id}/r{repair_round}/product/{asset.path}",
+                            root / asset.path,
+                            asset.media_type,
+                        )
                     for screenshot in evidence_dir.glob("*.png"):
                         store.put_file(run_id, f"quests/{quest.quest_id}/r{repair_round}/evidence/{screenshot.name}", screenshot, "image/png")
                 record = record.model_copy(update={
@@ -336,9 +432,13 @@ async def execute_run(
                     await team.verify({
                         "approved_brief": brief.model_dump(mode="json"),
                         "quest": quest.model_dump(mode="json"),
-                        "artifact": candidate.model_dump(mode="json"),
+                        "artifact": _agent_bundle_payload(candidate),
+                        "trusted_visual_assets": _asset_manifest(candidate),
                         "deterministic_evidence": deterministic.model_dump(mode="json"),
-                        "criterion_evidence": deterministic.criterion_evidence,
+                        "criterion_evidence": {
+                            criterion: deterministic.criterion_evidence.get(criterion, [])
+                            for criterion in quest.acceptance_criteria
+                        },
                     })
                     if deterministic.passed
                     else _blocked_verification(quest.acceptance_criteria, deterministic.issues)
@@ -373,6 +473,7 @@ async def execute_run(
                         return record
                     parent_receipt_id = receipt.receipt_id
                     receipt_ids.append(receipt.receipt_id)
+                    completed_criteria.extend(quest.acceptance_criteria)
                     current = candidate
                     break
                 repair_round += 1
@@ -384,11 +485,12 @@ async def execute_run(
                 store.update(record)
                 candidate = await team.repair({
                     **payload,
-                    "failed_bundle": candidate.model_dump(mode="json"),
+                    "failed_bundle": _agent_bundle_payload(candidate),
                     "deterministic_evidence": deterministic.model_dump(mode="json"),
                     "independent_verification": verification.model_dump(mode="json"),
                     "repair_round": repair_round,
                 })
+                candidate = _with_assets(candidate, list(current.assets) if current else [])
         if current is None:
             raise RuntimeError("Project Owner produced no executable Quest")
         source_snapshot = store.put_bundle_archive(run_id, current)
@@ -396,6 +498,16 @@ async def execute_run(
             "artifact_sha256": canonical_sha256(current),
             "toolpack_binding": binding.model_dump(mode="json"),
             "files": [item.path for item in current.files],
+            "assets": [
+                {
+                    "path": asset.path,
+                    "media_type": asset.media_type,
+                    "sha256": asset.sha256,
+                    "width": asset.width,
+                    "height": asset.height,
+                }
+                for asset in current.assets
+            ],
             "receipt_ids": receipt_ids,
             "source_snapshot": source_snapshot.model_dump(mode="json"),
         })

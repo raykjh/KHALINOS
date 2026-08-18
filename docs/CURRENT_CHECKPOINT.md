@@ -5,11 +5,10 @@ This is the Git-side handoff for the active KHALINOS project. Google Drive remai
 ## Active baseline
 
 - Repository: `C:\memory R\KHALINOS`
-- Branch: `main`
-- Commit before this documentation update: `eb51a745b5efeab0a96cd1dd93dcfb029e5239eb`
-- Remote state before this documentation update: `origin/main` matched the local commit.
+- Branch: `agent/toolpack-restoration`
+- Baseline before the Browser visual integration: `9fd4211`.
 - User-owned `smoke-input/` is intentionally untracked and must not be staged.
-- Regression baseline: 52 passed; five third-party ADK/FastAPI deprecation warnings.
+- Regression baseline: 102 passed; five third-party ADK/FastAPI deprecation warnings.
 
 ## Product boundary
 
@@ -22,28 +21,36 @@ It does not promise universal project completion. The previous general-purpose p
 - One active acceptance criterion maps to one browser journey.
 - Every journey must include runtime assertion evidence for its criterion.
 - Supported evidence includes bounded waits, input actions, text/count/attribute/class/state assertions, and deterministic random seeds.
+- Criterion-bound text assertions require a CSS selector; unscoped page-wide text matches are rejected.
 - Source inspection alone cannot pass a criterion that requires execution evidence.
 - Project Owner criteria must exactly match the approved brief and cannot expand scope with verification artifacts or implementation conveniences.
 - Ordered Verifier findings are host-bound to the immutable criteria.
 
-## Deployed worker
+## Browser visual production path
+
+- Browser new-product builds create three distinct visual concepts.
+- Nano Banana `gemini-3.1-flash-lite-image` produces one bounded 16:9 PNG for each concept.
+- A raw multimodal Visual Asset Gate rejects readable text, interface elements, logos, and watermarks before the Maker receives even the asset metadata.
+- The trusted host owns the bytes and attaches exactly one validated `assets/visual-foundation.png`; model structured output remains text-only.
+- Network-isolated Chromium requires the asset to load visibly and produces screenshots. Only deterministically eligible candidates reach the independent Visual Verifier.
+- At least two eligible candidates are required. The selected receipt binds candidate, artifact, screenshot, and asset digests.
+- Transient image API 429/5xx errors receive at most two backoff retries; other failures stop.
+
+Qualification run `708ec62505e544ca85bbfa898343704b` passed with 16 model calls. V1 and V2 were eligible, V2 was selected, and the final Q2 receipt preserved both Q1 and Q2 selector-bound runtime evidence. Browser ToolPack manifest: `162bd5734bdc4dab9810ce1e127b9110ec0400d30b36c7d83ea5d381009f2f8a`.
+
+## Deployment target
 
 - Google Cloud project: `khalinos-agent-20260818`
 - Region: `asia-northeast3`
 - Cloud Run Job: `khalinos-worker`
-- Image: `asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/runtime:verifier-binding-eb51a74`
-- Digest: `sha256:73d933d307f4313fe44ef88c0902357e0fc52cf651dedae65f67a9627050a0c9`
-- Cloud Build: `bbcd74eb-51b3-42d1-9060-be2790ac90c3`
+- Service: `khalinos`
+- Cloud Run Job: `khalinos-worker`
 - Safety: zero retries, 1800-second task timeout.
 
-The final host-binding revision is deployed. No paid end-to-end holdout has run after that deployment, so final Cloud completion remains unverified.
-
-## Visual asset experiment
-
-The isolated paired experiment is stored at `E:\memory R data\KHALINOS-visual-ab\experiment-02`. CSS-only scored 8.8 and image-assisted scored 9.2. The benefit was real but visually small in the current layout, so no Production Visual Asset Agent is connected. Re-evaluate only after a future approved outcome has a dedicated visual asset slot.
+The qualified code is ready for exact commit, image build, and synchronized service/Worker deployment. Record the resulting commit, image digest, service revision, and Worker generation here after deployment.
 
 ## Next decision
 
-Choose a new evaluation project before running KHALINOS again. Minesweeper is excluded because a coding assistant can normally produce it in one pass. Prefer a serverless task that is materially harder than a one-shot build and exposes both objective runtime evidence and visible quality differences.
+After deployment, run a bounded Browser new-product smoke from the user UI and confirm that the selected PNG appears in **Play verified result**. Then choose a new evaluation project that is materially harder than a one-shot Minesweeper build and exposes both objective runtime evidence and visible quality differences.
 
 For a new project, follow this order: materials, goal, approved ToolPack Route recommendation and user confirmation, only necessary SixSense questions, Outcome Preview, explicit authorization, then autonomous Cloud execution. Route semantics may be model-assisted, but candidate IDs, compatibility, manifest digests, and authorization remain host-controlled. Existing-project repair continues from its verified source type. Do not implement the new product or spend on a new run before the outcome is approved.

@@ -40,12 +40,12 @@ def test_zip_rejects_path_traversal_and_extra_files(tmp_path: Path) -> None:
     values = valid_files()
     values["../secret.txt"] = "secret"
     write_zip(archive, values)
-    with pytest.raises(ValueError, match="exactly five"):
+    with pytest.raises(ValueError, match="unsafe path"):
         inspect_browser_zip(archive, bucket="bucket", object_name="uploads/a/source.zip", generation=1)
 
 
 def test_zip_rejects_non_browser_project_profile(tmp_path: Path) -> None:
     archive = tmp_path / "godot.zip"
     write_zip(archive, {"project.godot": "[application]"})
-    with pytest.raises(ValueError, match="exactly five"):
+    with pytest.raises(ValueError, match="five browser source files"):
         inspect_browser_zip(archive, bucket="bucket", object_name="uploads/a/source.zip", generation=1)

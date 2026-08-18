@@ -368,10 +368,13 @@ async function artifactBundle(projectId){
 async function playProject(projectId){
   const preview=window.open('about:blank','_blank');if(!preview){alert('Allow pop-ups for KHALINOS to open the verified result.');return;}preview.opener=null;preview.document.title='Loading verified result…';
   try{
-    const bundle=await artifactBundle(projectId);const files=Object.fromEntries(bundle.files.map(file=>[file.path,file.content]));const parser=new DOMParser();const documentCopy=parser.parseFromString(files['index.html'],'text/html');const assets=[];
-    documentCopy.querySelectorAll('link[rel="stylesheet"]').forEach(link=>{const url=URL.createObjectURL(new Blob([files['styles.css']],{type:'text/css'}));assets.push(url);link.href=url;});
-    documentCopy.querySelectorAll('script[src]').forEach(script=>{const url=URL.createObjectURL(new Blob([files['app.js']],{type:'text/javascript'}));assets.push(url);script.src=url;});
-    const htmlUrl=URL.createObjectURL(new Blob([`<!doctype html>${documentCopy.documentElement.outerHTML}`],{type:'text/html'}));assets.push(htmlUrl);preview.location.href=htmlUrl;setTimeout(()=>assets.forEach(url=>URL.revokeObjectURL(url)),300000);
+    const bundle=await artifactBundle(projectId);const files=Object.fromEntries(bundle.files.map(file=>[file.path,file.content]));const parser=new DOMParser();const documentCopy=parser.parseFromString(files['index.html'],'text/html');const objectUrls=[];const assetUrls={};
+    for(const asset of bundle.assets||[]){const binary=atob(asset.data_base64);const bytes=Uint8Array.from(binary,char=>char.charCodeAt(0));const url=URL.createObjectURL(new Blob([bytes],{type:asset.media_type}));objectUrls.push(url);assetUrls[asset.path]=url;}
+    documentCopy.querySelectorAll('[src]').forEach(element=>{const original=element.getAttribute('src');if(assetUrls[original])element.setAttribute('src',assetUrls[original]);});
+    let css=files['styles.css'];for(const [path,url] of Object.entries(assetUrls))css=css.split(path).join(url);
+    documentCopy.querySelectorAll('link[rel="stylesheet"]').forEach(link=>{const url=URL.createObjectURL(new Blob([css],{type:'text/css'}));objectUrls.push(url);link.href=url;});
+    documentCopy.querySelectorAll('script[src]').forEach(script=>{const url=URL.createObjectURL(new Blob([files['app.js']],{type:'text/javascript'}));objectUrls.push(url);script.src=url;});
+    const htmlUrl=URL.createObjectURL(new Blob([`<!doctype html>${documentCopy.documentElement.outerHTML}`],{type:'text/html'}));objectUrls.push(htmlUrl);preview.location.href=htmlUrl;setTimeout(()=>objectUrls.forEach(url=>URL.revokeObjectURL(url)),300000);
   }catch(error){preview.close();alert(`Verified result could not be opened: ${error.message}`);}
 }
 async function selectProject(project){

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import time
 from typing import TypeVar
 from uuid import uuid4
 
@@ -17,11 +19,16 @@ from khalinos.browser_artifacts import BrowserArtifactBundle
 from khalinos.godot_topology import GodotProjectPlan, GodotTopologyPlan
 from khalinos.models import (
     AgentVerification,
+    ArtifactAsset,
     ArtifactBundle,
     QuestPlan,
+    UserBrief,
+    VisualConcept,
+    VisualAssetGate,
     VisualConceptPlan,
     VisualSelection,
 )
+from khalinos.visual_assets import generate_visual_asset
 
 
 MODEL = os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash")
@@ -50,22 +57,28 @@ eval, dynamic code loading, analytics, or placeholder TODOs. The UI must be in E
 responsive, keyboard accessible, visually coherent, and actually interactive.
 
 journey.json must contain {"journeys":[...]} with at least one journey. Each journey has
-a name, a criterion field containing one exact active-Quest acceptance-criterion string that
-it proves, an optional random_seed integer, and ordered steps. Use separate journeys when
-a Quest has multiple criteria. Supported typed steps are
+a name, a criterion field containing one exact active-Quest acceptance-criterion string or
+one exact required_regression_criteria string that it proves, an optional random_seed integer,
+and ordered steps. Every active and regression criterion must have direct runtime evidence;
+preserve previously verified journeys and add separate journeys when needed. Supported typed steps are
 {"click":"CSS selector"}, {"right_click":"CSS selector"}, {"press":"Keyboard key"},
-{"wait_ms":1..12000}, {"assert_text":"visible text"},
+{"wait_ms":1..12000},
+{"assert_text":{"selector":"CSS selector","operator":"eq|contains","value":"visible text"}},
 {"assert_count":{"selector":"CSS selector","operator":"eq|gt|gte|lt|lte","value":integer}},
 {"assert_attribute":{"selector":"CSS selector","name":"attribute","operator":"eq|contains|not_equals","value":"text"}},
 {"assert_class":{"selector":"CSS selector","includes":["class"],"excludes":["class"]}},
 or {"assert_state":{"selector":"CSS selector","state":"visible|hidden|enabled|disabled|checked|unchecked"}}.
 Do not emit arbitrary JavaScript. Every active criterion must be named by exactly one or more journeys
-and backed by a typed assertion that observes its runtime result; clicks, waits, screenshots,
+and backed by a selector-targeted typed assertion that observes its runtime result; never use
+unscoped {"assert_text":"text"} in a criterion-bound journey. Clicks, waits, screenshots,
 source code, and README claims alone are not proof. Selectors must point to real controls in
 index.html and the journey must prove the active Quest behavior. Preserve
 working behavior from the previous verified bundle and make only changes needed for the
 current Quest. When the previous bundle is an approved visual foundation, preserve its
 composition, typography, palette, material language, and anti-goals while adding behavior.
+If the previous bundle contains the trusted assets/visual-foundation.png image, preserve its
+exact relative reference and data-khalinos-asset="visual-foundation" element. The host, not
+the Maker, owns and reattaches its verified bytes.
 Keep revision_summary concise and under 500 characters. Return only the required schema.
 """.strip()
 
@@ -87,8 +100,12 @@ existing_project_entry, the validated supplied bundle is the authoritative start
 make only the bounded change required by the active Quest and preserve everything else.
 Preserve all previously verified behavior. Do not change the Quest, criteria, authorized files,
 or invent a different journey schema.
+If the failed bundle contains the trusted assets/visual-foundation.png image, preserve its exact
+relative reference and data-khalinos-asset="visual-foundation" element. Never synthesize,
+encode, replace, or remove the host-owned image bytes.
 If the incoming artifact uses a legacy or incomplete journey, migrate it to the current typed
-journey contract, bind every exact active criterion to direct runtime assertions, and do not
+journey contract, bind every exact active and required regression criterion to direct runtime
+assertions, and do not
 weaken the criterion while doing so.
 Keep revision_summary concise and under 500 characters. Return the complete five-file bundle
 and only the required schema.
@@ -110,8 +127,12 @@ complete five-file browser artifact: index.html, styles.css, app.js, journey.jso
 README.md. Create a presentation-ready representative state with enough real interaction to
 prove hierarchy, controls, responsive composition, and visual identity in Chromium. Follow
 the concept precisely and honor all anti-goals. Use HTML, CSS, inline SVG, Canvas, and vanilla
-JavaScript only. No external URL, package, network call, data URL, placeholder, or unfinished
-control. Every form control must have an explicit label or aria-label, and icon-only buttons
+JavaScript only. One trusted local PNG is supplied at assets/visual-foundation.png. Render it
+exactly once as <img src="assets/visual-foundation.png"
+data-khalinos-asset="visual-foundation" alt=""> in a supporting environmental layer. Keep all
+UI, labels, icons, and state in accessible HTML/CSS; the page must remain understandable if the
+image fails to load. No other external URL, package, network call, data URL, placeholder, or
+unfinished control. Every form control must have an explicit label or aria-label, and icon-only buttons
 must have aria-labels.
 
 journey.json must contain exactly the wrapper {"journeys":[...]} with at least one journey.
@@ -134,6 +155,17 @@ action, or divergence from explicit anti-goals. Judge visible evidence rather th
 maker claims. Assess only candidates identified as eligible and shown in screenshots, ordered
 by candidate ID. Select the candidate with the highest rubric average; ties may be resolved
 by stronger contract alignment, then distinctiveness. Return only the required schema.
+""".strip()
+
+VISUAL_ASSET_VERIFIER_INSTRUCTION = """
+You are the independent KHALINOS Visual Asset Gate. You did not generate the supplied PNG
+and cannot modify it. Inspect the raw image itself, not a rendered browser screenshot. Reject
+it if any readable text, letter, number, word-like glyph sequence, logo, watermark, signature,
+button, panel, HUD, label, chart annotation, or other interface element is visible. Decorative
+abstract environmental carvings or isolated non-linguistic symbols are allowed when they do
+not form readable or word-like content. Approve only a pure supporting
+environmental image that can sit behind accessible HTML UI. Return only the required schema,
+using the supplied candidate_id exactly.
 """.strip()
 
 GODOT_QUEST_OWNER_INSTRUCTION = """
@@ -234,6 +266,12 @@ class AgentTeam:
             VisualSelection,
             temperature=0.0,
         )
+        self.visual_asset_verifier = _agent(
+            "khalinos_visual_asset_verifier",
+            VISUAL_ASSET_VERIFIER_INSTRUCTION,
+            VisualAssetGate,
+            temperature=0.0,
+        )
         self.godot_quest_owner = _agent(
             "khalinos_godot_quest_owner",
             GODOT_QUEST_OWNER_INSTRUCTION,
@@ -253,6 +291,8 @@ class AgentTeam:
             temperature=0.0,
         )
         self.call_count = 0
+        self._image_lock = asyncio.Lock()
+        self._last_image_call_started = 0.0
 
     async def _run(
         self,
@@ -293,7 +333,8 @@ class AgentTeam:
         return GodotProjectPlan(quest_plan=quest_plan, topology=topology)
 
     async def make(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.maker, payload, BrowserArtifactBundle)
+        result = await self._run(self.maker, payload, BrowserArtifactBundle)
+        return result.to_artifact_bundle()
 
     async def verify(self, payload: dict) -> AgentVerification:
         return await self._run(self.verifier, payload, AgentVerification)
@@ -302,13 +343,48 @@ class AgentTeam:
         return await self._run(self.godot_verifier, payload, AgentVerification)
 
     async def repair(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.repairer, payload, BrowserArtifactBundle)
+        result = await self._run(self.repairer, payload, BrowserArtifactBundle)
+        return result.to_artifact_bundle()
 
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan:
         return await self._run(self.visual_director, payload, VisualConceptPlan)
 
     async def make_visual(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.visual_maker, payload, BrowserArtifactBundle)
+        result = await self._run(self.visual_maker, payload, BrowserArtifactBundle)
+        return result.to_artifact_bundle()
+
+    async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept) -> ArtifactAsset:
+        minimum_interval = float(os.environ.get("KHALINOS_IMAGE_MIN_INTERVAL_SECONDS", "35"))
+        async with self._image_lock:
+            elapsed = time.monotonic() - self._last_image_call_started
+            if self._last_image_call_started and elapsed < minimum_interval:
+                await asyncio.sleep(minimum_interval - elapsed)
+            self._last_image_call_started = time.monotonic()
+            asset = await asyncio.to_thread(generate_visual_asset, brief, concept)
+            self.call_count += 1
+            return asset
+
+    async def verify_visual_asset(
+        self,
+        candidate_id: str,
+        asset: ArtifactAsset,
+        concept: VisualConcept,
+    ) -> VisualAssetGate:
+        return await self._run(
+            self.visual_asset_verifier,
+            {
+                "candidate_id": candidate_id,
+                "approved_visual_concept": concept.model_dump(mode="json"),
+                "asset_manifest": {
+                    "path": asset.path,
+                    "sha256": asset.sha256,
+                    "width": asset.width,
+                    "height": asset.height,
+                },
+            },
+            VisualAssetGate,
+            extra_parts=[types.Part.from_bytes(data=asset.bytes(), mime_type=asset.media_type)],
+        )
 
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection:
         parts: list[types.Part] = []

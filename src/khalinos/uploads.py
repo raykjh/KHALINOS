@@ -14,6 +14,7 @@ from google.cloud.firestore_v1.base_query import FieldFilter
 
 from khalinos.models import (
     ArchiveSnapshot,
+    ArtifactAsset,
     ArtifactBundle,
     ArtifactFile,
     MaterialDescriptor,
@@ -21,6 +22,7 @@ from khalinos.models import (
     UploadRecord,
     utc_now,
 )
+from khalinos.visual_assets import ASSET_PATH, trusted_png_asset
 
 
 REQUIRED_BROWSER_FILES = ("index.html", "styles.css", "app.js", "journey.json", "README.md")
@@ -40,7 +42,7 @@ def _safe_zip_name(name: str) -> PurePosixPath:
 
 
 def inspect_browser_zip(path: Path, *, bucket: str, object_name: str, generation: int) -> ArchiveSnapshot:
-    """Admit only the bounded five-file browser profile; never extract during admission."""
+    """Admit the bounded browser profile plus its one optional trusted PNG asset."""
     digest = hashlib.sha256()
     size = 0
     with path.open("rb") as stream:
@@ -56,8 +58,8 @@ def inspect_browser_zip(path: Path, *, bucket: str, object_name: str, generation
         raise ValueError("uploaded object is not a valid ZIP archive") from exc
     with archive:
         members = [item for item in archive.infolist() if not item.is_dir()]
-        if len(members) != 5:
-            raise ValueError("existing-project repair currently accepts exactly five browser source files")
+        if len(members) not in {5, 6}:
+            raise ValueError("existing-project repair accepts five browser source files and one optional visual asset")
         normalized: list[tuple[zipfile.ZipInfo, PurePosixPath]] = []
         uncompressed = 0
         for member in members:
@@ -67,8 +69,10 @@ def inspect_browser_zip(path: Path, *, bucket: str, object_name: str, generation
             unix_mode = (member.external_attr >> 16) & 0o170000
             if unix_mode == 0o120000:
                 raise ValueError("symbolic links are not accepted in project ZIPs")
-            if member.file_size <= 0 or member.file_size > 50_000:
-                raise ValueError(f"source file is outside the 1 byte to 50 KB bound: {entry.name}")
+            is_asset = entry.as_posix().endswith(ASSET_PATH)
+            limit = 2_500_000 if is_asset else 50_000
+            if member.file_size <= 0 or member.file_size > limit:
+                raise ValueError(f"source file is outside its approved size bound: {entry.name}")
             compressed = max(member.compress_size, 1)
             if member.file_size / compressed > MAX_COMPRESSION_RATIO:
                 raise ValueError("ZIP compression ratio exceeds the approved safety bound")
@@ -77,25 +81,32 @@ def inspect_browser_zip(path: Path, *, bucket: str, object_name: str, generation
         if uncompressed > MAX_UNCOMPRESSED_BYTES:
             raise ValueError("ZIP uncompressed size exceeds the approved safety bound")
 
-        parent_sets = {entry.parts[:-1] for _, entry in normalized}
+        text_entries = [(member, entry) for member, entry in normalized if entry.name in REQUIRED_BROWSER_FILES]
+        if len(text_entries) != 5:
+            raise ValueError("ZIP must contain index.html, styles.css, app.js, journey.json, and README.md")
+        parent_sets = {entry.parts[:-1] for _, entry in text_entries}
         if len(parent_sets) != 1:
             raise ValueError("the five browser files must share one archive directory")
         parent = next(iter(parent_sets))
-        names = {entry.name for _, entry in normalized}
+        names = {entry.name for _, entry in text_entries}
         if names != set(REQUIRED_BROWSER_FILES):
             raise ValueError("ZIP must contain index.html, styles.css, app.js, journey.json, and README.md")
+        asset_entries = [(member, entry) for member, entry in normalized if entry.name not in REQUIRED_BROWSER_FILES]
+        expected_asset = (*parent, "assets", "visual-foundation.png")
+        if asset_entries and (len(asset_entries) != 1 or asset_entries[0][1].parts != expected_asset):
+            raise ValueError("the only optional binary path is assets/visual-foundation.png")
         root_prefix = "/".join(parent)
         materials = [
             MaterialDescriptor(
                 filename=entry.name,
                 relative_path=entry.as_posix(),
-                media_type={
+                media_type=("image/png" if entry.name == "visual-foundation.png" else {
                     ".html": "text/html",
                     ".css": "text/css",
                     ".js": "text/javascript",
                     ".json": "application/json",
                     ".md": "text/markdown",
-                }[Path(entry.name).suffix.lower()],
+                }[Path(entry.name).suffix.lower()]),
                 size_bytes=member.file_size,
             )
             for member, entry in sorted(normalized, key=lambda pair: pair[1].name)
@@ -116,6 +127,7 @@ def inspect_browser_zip(path: Path, *, bucket: str, object_name: str, generation
 def bundle_from_browser_zip(path: Path, snapshot: ArchiveSnapshot) -> ArtifactBundle:
     expected_prefix = f"{snapshot.root_prefix}/" if snapshot.root_prefix else ""
     files: list[ArtifactFile] = []
+    assets: list[ArtifactAsset] = []
     with zipfile.ZipFile(path) as archive:
         for name in REQUIRED_BROWSER_FILES:
             member_name = expected_prefix + name
@@ -128,7 +140,14 @@ def bundle_from_browser_zip(path: Path, snapshot: ArchiveSnapshot) -> ArtifactBu
             except UnicodeDecodeError as exc:
                 raise ValueError(f"browser source must be UTF-8 text: {name}") from exc
             files.append(ArtifactFile(path=name, content=content))
-    return ArtifactBundle(revision_summary="Validated existing-project source snapshot", files=files)
+        asset_member = expected_prefix + ASSET_PATH
+        if asset_member in archive.namelist():
+            assets.append(trusted_png_asset(archive.read(asset_member)))
+    return ArtifactBundle(
+        revision_summary="Validated existing-project source snapshot",
+        files=files,
+        assets=assets,
+    )
 
 
 class CloudUploadStore:

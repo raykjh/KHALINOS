@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import base64
+import struct
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -144,7 +146,7 @@ class ArchiveSnapshot(BaseModel):
     root_prefix: str = Field(default="", max_length=500)
     entry_count: int = Field(ge=5, le=1000)
     uncompressed_size_bytes: int = Field(ge=1, le=25_000_000)
-    materials: list[MaterialDescriptor] = Field(min_length=5, max_length=5)
+    materials: list[MaterialDescriptor] = Field(min_length=5, max_length=6)
 
 
 class UploadCreate(BaseModel):
@@ -379,19 +381,59 @@ class ArtifactFile(BaseModel):
         return self
 
 
+class ArtifactAsset(BaseModel):
+    path: str = Field(pattern=r"^assets/[a-z0-9][a-z0-9._-]{0,79}\.png$")
+    media_type: Literal["image/png"] = "image/png"
+    data_base64: str = Field(min_length=12, max_length=4_000_000)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    width: int = Field(ge=256, le=2048)
+    height: int = Field(ge=256, le=2048)
+
+    @model_validator(mode="after")
+    def digest_matches_payload(self) -> "ArtifactAsset":
+        try:
+            payload = base64.b64decode(self.data_base64, validate=True)
+        except ValueError as exc:
+            raise ValueError("artifact asset must contain valid base64") from exc
+        if hashlib.sha256(payload).hexdigest() != self.sha256:
+            raise ValueError("artifact asset digest does not match its payload")
+        if not 1_024 <= len(payload) <= 2_500_000:
+            raise ValueError("artifact asset size is outside the approved bound")
+        if len(payload) < 24 or not payload.startswith(b"\x89PNG\r\n\x1a\n") or payload[12:16] != b"IHDR":
+            raise ValueError("artifact asset must contain a PNG IHDR header")
+        actual_width, actual_height = struct.unpack(">II", payload[16:24])
+        if (actual_width, actual_height) != (self.width, self.height):
+            raise ValueError("artifact asset dimensions do not match its PNG payload")
+        if actual_width * actual_height > 4_000_000:
+            raise ValueError("artifact asset pixel count exceeds the approved bound")
+        return self
+
+    def bytes(self) -> bytes:
+        return base64.b64decode(self.data_base64, validate=True)
+
+
 class ArtifactBundle(BaseModel):
     revision_summary: str = Field(min_length=10, max_length=2000)
     files: list[ArtifactFile] = Field(min_length=1, max_length=256)
+    assets: list[ArtifactAsset] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
     def unique_file_set(self) -> "ArtifactBundle":
         paths = [item.path for item in self.files]
         if len(paths) != len(set(paths)):
             raise ValueError("artifact paths must be unique")
+        asset_paths = [item.path for item in self.assets]
+        if len(asset_paths) != len(set(asset_paths)):
+            raise ValueError("artifact asset paths must be unique")
+        if set(paths).intersection(asset_paths):
+            raise ValueError("artifact text and binary paths must be unique")
         return self
 
     def file_map(self) -> dict[str, str]:
         return {item.path: item.content for item in self.files}
+
+    def asset_map(self) -> dict[str, ArtifactAsset]:
+        return {item.path: item for item in self.assets}
 
 
 class VisualConcept(BaseModel):
@@ -415,6 +457,25 @@ class VisualConceptPlan(BaseModel):
             raise ValueError("visual candidates must be ordered V1, V2, V3")
         if len({item.name.casefold() for item in self.candidates}) != 3:
             raise ValueError("visual candidates must have distinct names")
+        return self
+
+
+class VisualAssetGate(BaseModel):
+    candidate_id: str = Field(pattern=r"^V[1-3]$")
+    approved: bool
+    contains_text_or_glyphs: bool
+    contains_interface_elements: bool
+    contains_logo_or_watermark: bool
+    issues: list[str] = Field(default_factory=list, max_length=6)
+    rationale: str = Field(min_length=20, max_length=600)
+
+    @model_validator(mode="after")
+    def forbidden_content_cannot_be_approved(self) -> "VisualAssetGate":
+        forbidden = self.contains_text_or_glyphs or self.contains_interface_elements or self.contains_logo_or_watermark
+        if self.approved == forbidden:
+            raise ValueError("visual asset approval must reject every forbidden-content signal")
+        if forbidden and not self.issues:
+            raise ValueError("rejected visual assets require a concrete issue")
         return self
 
 
@@ -464,8 +525,17 @@ class VisualSelectionReceipt(BaseModel):
     selected_artifact_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     eligible_candidate_ids: list[str] = Field(min_length=2, max_length=3)
     screenshot_paths: dict[str, str]
+    asset_sha256_by_candidate: dict[str, str] = Field(default_factory=dict)
     selection: VisualSelection
     created_at: str = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def assets_match_eligible_candidates(self) -> "VisualSelectionReceipt":
+        if set(self.asset_sha256_by_candidate) != set(self.eligible_candidate_ids):
+            raise ValueError("visual asset receipts must match the eligible candidates exactly")
+        if any(not re.fullmatch(r"[a-f0-9]{64}", digest) for digest in self.asset_sha256_by_candidate.values()):
+            raise ValueError("visual asset receipt digests must be SHA-256 values")
+        return self
 
 
 class CriterionFinding(BaseModel):

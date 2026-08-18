@@ -79,7 +79,12 @@ def materialize(bundle: ArtifactBundle, root: Path) -> None:
     root.mkdir(parents=True, exist_ok=False)
     for item in bundle.files:
         target = root / item.path
+        target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(item.content.replace("\r\n", "\n"), encoding="utf-8", newline="\n")
+    for asset in bundle.assets:
+        target = root / asset.path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(asset.bytes())
 
 
 def _compare_count(actual: int, operator: str, expected: int) -> bool:
@@ -97,12 +102,31 @@ def _compare_count(actual: int, operator: str, expected: int) -> bool:
 
 def _assertion_summary(page, action: str, value: object) -> str:
     if action == "assert_text":
-        if not isinstance(value, str) or not value.strip():
-            raise ValueError("assert_text requires visible text")
-        locator = page.get_by_text(value, exact=False).first
+        if isinstance(value, str):
+            if not value.strip():
+                raise ValueError("assert_text requires visible text")
+            locator = page.get_by_text(value, exact=False).first
+            locator.wait_for(state="visible")
+            observed = (locator.text_content() or "").strip()
+            return f"assert_text expected={value!r} observed={observed!r}"
+        if not isinstance(value, dict) or set(value) != {"selector", "operator", "value"}:
+            raise ValueError("assert_text requires text or selector, operator, and value")
+        selector = value["selector"]
+        operator = value["operator"]
+        expected = value["value"]
+        if not isinstance(selector, str) or not selector.strip() or len(selector) > 500:
+            raise ValueError("assert_text requires a bounded CSS selector")
+        if operator not in {"eq", "contains"}:
+            raise ValueError("assert_text operator must be eq or contains")
+        if not isinstance(expected, str) or not expected.strip() or len(expected) > 500:
+            raise ValueError("assert_text value must be bounded visible text")
+        locator = page.locator(selector).first
         locator.wait_for(state="visible")
         observed = (locator.text_content() or "").strip()
-        return f"assert_text expected={value!r} observed={observed!r}"
+        passed = observed == expected if operator == "eq" else expected in observed
+        if not passed:
+            raise AssertionError(f"text {observed!r} does not satisfy {operator} {expected!r} for {selector}")
+        return f"assert_text selector={selector!r} observed={observed!r} {operator} {expected!r}"
     if not isinstance(value, dict):
         raise ValueError(f"{action} requires an object")
     selector = value.get("selector")
@@ -188,9 +212,14 @@ def verify_bundle(
     required_criteria: list[str] | None = None,
 ) -> DeterministicEvidence:
     files = bundle.file_map()
+    assets = bundle.asset_map()
+    required_text_paths = {"index.html", "styles.css", "app.js", "journey.json", "README.md"}
     checks: dict[str, bool] = {
-        "exact_authorized_files": set(files) == {"index.html", "styles.css", "app.js", "journey.json", "README.md"},
-        "bounded_size": sum(len(value.encode("utf-8")) for value in files.values()) <= 150_000,
+        "exact_authorized_files": set(files) == required_text_paths and set(assets).issubset({"assets/visual-foundation.png"}),
+        "bounded_size": (
+            sum(len(value.encode("utf-8")) for value in files.values())
+            + sum(len(asset.bytes()) for asset in assets.values())
+        ) <= 2_650_000,
         "no_external_network_or_dynamic_code": not any(pattern.search(value) for value in files.values() for pattern in FORBIDDEN),
         "html_document": "<!doctype html" in files["index.html"].casefold(),
         "local_assets_linked": bool(re.search(r"href=[\"']styles\.css[\"']", files["index.html"], re.IGNORECASE))
@@ -198,8 +227,10 @@ def verify_bundle(
         "accessible_controls": "<button" in files["index.html"].casefold() and ("aria-" in files["index.html"].casefold() or "<label" in files["index.html"].casefold()),
         "responsive_layout": False,
         "no_placeholders": not re.search(r"\b(TODO|FIXME|lorem ipsum)\b", "\n".join(files.values()), re.IGNORECASE),
+        "trusted_visual_assets_loaded": not assets,
     }
-    issues = [name for name, passed in checks.items() if not passed and name != "responsive_layout"]
+    deferred_checks = {"responsive_layout", "trusted_visual_assets_loaded"}
+    issues = [name for name, passed in checks.items() if not passed and name not in deferred_checks]
     screenshot_names: list[str] = []
     required = list(required_criteria or [])
     criterion_evidence: dict[str, list[str]] = {criterion: [] for criterion in required}
@@ -251,6 +282,26 @@ def verify_bundle(
                         f"let __khalinosState={seed}>>>0; Math.random=()=>{{__khalinosState=(1664525*__khalinosState+1013904223)>>>0; return __khalinosState/4294967296;}};"
                     )
                 page.goto(url, wait_until="networkidle")
+                if assets:
+                    asset_nodes = page.locator('[data-khalinos-asset="visual-foundation"]')
+                    if asset_nodes.count() != 1:
+                        raise ValueError("exactly one trusted visual asset element must be rendered")
+                    expected_path = next(iter(assets))
+                    loaded = asset_nodes.first.evaluate(
+                        """(element, expectedPath) => {
+                            const rect = element.getBoundingClientRect();
+                            const style = getComputedStyle(element);
+                            return element instanceof HTMLImageElement
+                              && element.getAttribute('src') === expectedPath
+                              && element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
+                              && style.display !== 'none' && style.visibility !== 'hidden'
+                              && Number(style.opacity || '1') > 0 && rect.width > 0 && rect.height > 0;
+                        }""",
+                        expected_path,
+                    )
+                    if not loaded:
+                        raise ValueError("trusted visual asset is not visibly loaded in the rendered product")
+                    checks["trusted_visual_assets_loaded"] = True
                 assertion_summaries: list[str] = []
                 for step in steps:
                     if not isinstance(step, dict) or len(step) != 1:
@@ -276,6 +327,10 @@ def verify_bundle(
                             raise ValueError(f"journeys may wait at most {MAX_TOTAL_WAIT_MS} ms in total")
                         page.wait_for_timeout(value)
                     elif action in ASSERTION_ACTIONS:
+                        if action == "assert_text" and claimed is not None and isinstance(value, str):
+                            raise ValueError(
+                                "criterion-bound assert_text requires selector-targeted text evidence"
+                            )
                         assertion_summaries.append(_assertion_summary(page, action, value))
                     else:
                         raise ValueError(f"unsupported journey step: {step}")
@@ -322,6 +377,8 @@ def verify_bundle(
         if required:
             checks["criterion_runtime_coverage"] = False
         issues.append(f"browser_journeys: {type(exc).__name__}: {exc}"[:1000])
+    if assets and not checks["trusted_visual_assets_loaded"]:
+        issues.append("trusted_visual_assets_loaded: the approved PNG was not visibly rendered")
     return DeterministicEvidence(
         passed=all(checks.values()),
         checks=checks,

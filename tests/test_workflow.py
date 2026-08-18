@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import struct
 import threading
+import zlib
 from pathlib import Path
 
 from khalinos.browser_toolpack import BROWSER_PRODUCT_MANIFEST, BROWSER_PRODUCT_TOOLPACK
@@ -18,6 +20,7 @@ from khalinos.models import (
     RunStatus,
     UserBrief,
     VisualAssessment,
+    VisualAssetGate,
     VisualConcept,
     VisualConceptPlan,
     VisualSelection,
@@ -27,6 +30,18 @@ from khalinos.storage import LocalRunStore
 from khalinos.toolpacks import RegisteredToolPack, ToolPackBinding, ToolPackRegistry
 from khalinos.projects import LocalProjectStore
 from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority, execute_run
+from khalinos.visual_assets import trusted_png_asset
+
+
+def valid_png(width: int = 256, height: int = 256) -> bytes:
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
+
+    rows = b"".join(
+        b"\x00" + bytes(value for x in range(width) for value in (x, y, (x * 31 + y * 17) % 256, 255))
+        for y in range(height)
+    )
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
 
 
 def runtime_criterion_evidence(args: tuple[object, ...]) -> dict[str, list[str]]:
@@ -120,6 +135,21 @@ class FakeTeam:
     async def make_visual(self, payload: dict) -> ArtifactBundle:
         self.call_count += 1
         return bundle(f"Visual foundation {payload['visual_concept']['candidate_id']}")
+
+    async def make_visual_asset(self, brief, concept):
+        self.call_count += 1
+        return trusted_png_asset(valid_png())
+
+    async def verify_visual_asset(self, candidate_id, asset, concept):
+        self.call_count += 1
+        return VisualAssetGate(
+            candidate_id=candidate_id,
+            approved=True,
+            contains_text_or_glyphs=False,
+            contains_interface_elements=False,
+            contains_logo_or_watermark=False,
+            rationale="The raw PNG contains only a bounded environmental layer without forbidden content.",
+        )
 
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection:
         self.call_count += 1
@@ -290,6 +320,9 @@ async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tm
     assert plan["toolpack_binding"] == expected_binding
     assert receipt["toolpack_binding"] == expected_binding
     assert final_manifest["toolpack_binding"] == expected_binding
+    assert final_manifest["assets"][0]["path"] == "assets/visual-foundation.png"
+    visual_receipt = json.loads((tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
+    assert visual_receipt["asset_sha256_by_candidate"][visual_receipt["selected_candidate_id"]]
 
 
 async def test_run_stops_before_planning_when_toolpack_binding_is_tampered(tmp_path: Path) -> None:
@@ -394,6 +427,38 @@ async def test_deterministic_browser_verification_runs_off_event_loop_thread(mon
     assert all(thread_id != event_loop_thread for thread_id in verifier_threads)
 
 
+async def test_each_later_quest_rechecks_all_previously_verified_criteria(tmp_path: Path) -> None:
+    runtime_contracts: list[list[str]] = []
+
+    def evidence(*args, **kwargs):
+        criteria = list(args[3])
+        if criteria:
+            runtime_contracts.append(criteria)
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(
+            passed=True,
+            checks={"runtime": True},
+            issues=[],
+            screenshot_names=["journey-01.png"],
+            criterion_evidence=runtime_criterion_evidence(args),
+        )
+
+    store, run_id = setup_run(tmp_path)
+    result = await execute_run(
+        run_id,
+        store=store,
+        team=FakeTeam(),
+        registry=ToolPackRegistry([toolpack_with_evidence(evidence)]),
+    )
+    assert result.status == RunStatus.PASSED
+    assert runtime_contracts == [
+        ["The primary action works."],
+        ["The primary action works.", "The interface is responsive."],
+    ]
+
+
 async def test_visual_competition_continues_with_two_renderable_candidates(monkeypatch, tmp_path: Path) -> None:
     calls = {"count": 0}
 
@@ -420,6 +485,53 @@ async def test_visual_competition_continues_with_two_renderable_candidates(monke
     receipt = json.loads((tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
     assert receipt["eligible_candidate_ids"] == ["V1", "V3"]
     assert list(receipt["selection"]["assessments"][index]["candidate_id"] for index in range(2)) == ["V1", "V3"]
+
+
+async def test_visual_asset_gate_rejects_forbidden_raw_image_before_browser_maker(tmp_path: Path) -> None:
+    def evidence(*args, **kwargs):
+        evidence_dir = args[2]
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(
+            passed=True,
+            checks={"runtime": True},
+            issues=[],
+            screenshot_names=["journey-01.png"],
+            criterion_evidence=runtime_criterion_evidence(args),
+        )
+
+    team = FakeTeam()
+    original_gate = team.verify_visual_asset
+
+    async def gate(candidate_id, asset, concept):
+        if candidate_id == "V2":
+            team.call_count += 1
+            return VisualAssetGate(
+                candidate_id="V2",
+                approved=False,
+                contains_text_or_glyphs=True,
+                contains_interface_elements=False,
+                contains_logo_or_watermark=False,
+                issues=["Readable title detected in the raw PNG."],
+                rationale="The raw PNG contains a readable title and cannot be used as a trusted background.",
+            )
+        return await original_gate(candidate_id, asset, concept)
+
+    team.verify_visual_asset = gate
+    store, run_id = setup_run(tmp_path)
+    result = await execute_run(
+        run_id,
+        store=store,
+        team=team,
+        registry=ToolPackRegistry([toolpack_with_evidence(evidence)]),
+    )
+    assert result.status == RunStatus.PASSED
+    run_root = tmp_path / "runs" / run_id
+    rejected = json.loads((run_root / "visuals" / "V2" / "asset_gate.json").read_text(encoding="utf-8"))
+    assert not rejected["approved"]
+    assert not (run_root / "visuals" / "V2" / "product").exists()
+    selection = json.loads((run_root / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
+    assert selection["eligible_candidate_ids"] == ["V1", "V3"]
 
 
 async def test_deterministic_failure_routes_to_bounded_technical_repair(monkeypatch, tmp_path: Path) -> None:

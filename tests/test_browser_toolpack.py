@@ -35,7 +35,7 @@ def test_browser_output_surface_is_owned_by_the_manifest(tmp_path: Path) -> None
 
     BROWSER_PRODUCT_TOOLPACK.execution_adapter.materialize(artifact, root)
 
-    assert sorted(path.name for path in root.iterdir()) == list(BROWSER_PRODUCT_MANIFEST.output.authorized_paths)
+    assert sorted(path.name for path in root.iterdir()) == ["README.md", "app.js", "index.html", "journey.json", "styles.css"]
 
 
 def test_browser_manifest_binds_the_actual_adapter_implementation() -> None:
@@ -65,3 +65,20 @@ def test_gemini_browser_schema_remains_strict_while_kernel_bundle_is_generic() -
     assert generic.files[0].path == "artifact.txt"
     with pytest.raises(ValueError):
         BrowserArtifactBundle.model_validate(generic.model_dump(mode="json"))
+    assert "assets" not in BrowserArtifactBundle.model_json_schema()["properties"]
+
+
+def test_trusted_promotion_removes_external_css_import_without_touching_product_css() -> None:
+    values = browser_bundle().file_map()
+    values["styles.css"] = (
+        "@import url('https://fonts.googleapis.com/css2?family=Forum');\n"
+        "button{font-family:Forum,serif;color:white}@media(max-width:600px){button{width:100%}}"
+    )
+    model_output = BrowserArtifactBundle.model_validate({
+        "revision_summary": "A model browser output with a prohibited remote font import",
+        "files": [{"path": path, "content": content} for path, content in values.items()],
+    })
+    promoted = model_output.to_artifact_bundle()
+    assert "https://" not in promoted.file_map()["styles.css"]
+    assert "button{font-family:Forum,serif" in promoted.file_map()["styles.css"]
+    assert "Trusted host removed prohibited external CSS imports" in promoted.revision_summary
