@@ -49,4 +49,3 @@ def test_zip_rejects_non_browser_project_profile(tmp_path: Path) -> None:
     write_zip(archive, {"project.godot": "[application]"})
     with pytest.raises(ValueError, match="exactly five"):
         inspect_browser_zip(archive, bucket="bucket", object_name="uploads/a/source.zip", generation=1)
-
