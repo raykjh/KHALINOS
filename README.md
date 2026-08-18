@@ -87,6 +87,14 @@ flowchart LR
 - A failed Quest receives at most two Technical Repair rounds and then stops as `blocked`.
 - No previous PASS receipt is rewritten or silently weakened.
 
+## Runtime evidence contract
+
+Every active acceptance criterion must be exercised by its own browser journey and backed by at least one runtime assertion. The trusted verifier supports bounded waits, click/right-click/key input, deterministic random seeds, and assertions over text, element count, attributes, classes, and browser state. A criterion that requires execution evidence cannot pass from source inspection alone.
+
+The Project Owner must preserve the exact acceptance-criterion set from the approved brief. It cannot promote verification files, logs, or implementation conveniences into new product requirements. Independent Verifier findings are host-bound back to the immutable ordered criteria, so model wording drift cannot lose or broaden the user's contract.
+
+The current worker baseline is commit `eb51a745b5efeab0a96cd1dd93dcfb029e5239eb`. Its regression suite passes 52 tests. The worker image is `verifier-binding-eb51a74` with digest `sha256:73d933d307f4313fe44ef88c0902357e0fc52cf651dedae65f67a9627050a0c9`. This final host-binding revision has been deployed, but a new paid end-to-end holdout has not yet been run after that deployment; the repository does not claim that final Cloud proof yet.
+
 ## Local setup
 
 Requirements: Python 3.12+, a local Chromium or Chrome executable, and Google Cloud Application Default Credentials with Vertex AI access.
