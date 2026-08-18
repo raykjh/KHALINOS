@@ -138,6 +138,20 @@ def list_projects(identity: Annotated[Identity, Depends(require_identity)]) -> l
     return [item.model_dump(mode="json") for item in CloudProjectStore().list_owned(identity.owner_id)]
 
 
+@app.get("/api/projects/{project_id}/artifact")
+def get_project_artifact(
+    project_id: str,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    try:
+        project = CloudProjectStore().read_owned(project_id, identity.owner_id)
+    except (FileNotFoundError, PermissionError) as exc:
+        raise HTTPException(status_code=404, detail="project not found") from exc
+    if project.latest_status != RunStatus.PASSED or project.source_snapshot is None:
+        raise HTTPException(status_code=409, detail="project has no verified playable result")
+    return CloudRunStore().read_bundle_archive(project.source_snapshot).model_dump(mode="json")
+
+
 @app.post("/api/uploads", status_code=201)
 def create_upload(
     request: UploadCreate,

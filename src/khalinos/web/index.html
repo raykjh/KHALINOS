@@ -60,6 +60,11 @@
     .entry span { color:var(--muted); font-weight:500; font-size:13px; margin-top:5px; }
     .library { display:grid; gap:9px; margin-top:14px; }
     .library button { text-align:left; background:#10232e; color:var(--ink); border:1px solid #36505d; }
+    .project-row { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:13px 14px; border:1px solid #a2aa8b; border-radius:12px; background:rgba(255,252,237,.76); color:#34442c; }
+    .project-row span { color:#68715f; font-size:12px; }
+    .project-row .actions { margin:0; }
+    .project-row button { background:#c99b4b; color:#26301f; border:0; }
+    .project-row button.secondary { background:transparent; color:#37442e; border:1px solid #899477; }
     .identity { color:var(--teal); font-size:13px; margin-top:10px; }
     .auth-panel { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:20px 0; padding:14px 16px; border:1px solid rgba(81,101,59,.32); border-radius:14px; background:rgba(255,252,232,.72); }
     .auth-panel.attention { border-color:#b7673c; box-shadow:0 0 0 3px rgba(183,103,60,.14); }
@@ -260,6 +265,7 @@
             </div>
             <div class="camp-caption"><strong id="campHeadline">Cloud run queued.</strong> <span id="campMessage">The approved Outcome Brief is immutable.</span></div>
           </div>
+          <div class="actions" id="resultActions" hidden><button id="playResult">Play verified result</button><button class="secondary" id="improveResult">Improve this project</button></div>
         </div>
       </div>
     </section>
@@ -267,7 +273,7 @@
 </main>
 <script>
 const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='';
+let intake=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='';
 const AUTH_SESSION_KEY='khalinos_google_credential';
 const $=selector=>document.querySelector(selector);
 function show(name){
@@ -325,9 +331,22 @@ $('#signOut').addEventListener('click',()=>{authCredential='';currentUser=null;s
 async function loadProjects(){
   if(!authCredential)return;
   const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
-  const projects=await response.json();const library=$('#projectLibrary');library.hidden=false;
-  library.innerHTML=projects.length?projects.map(item=>`<button data-project-id="${item.project_id}"><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></button>`).join(''):'<p>No KHALINOS projects yet.</p>';
-  library.querySelectorAll('[data-project-id]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.projectId))));
+  const projects=await response.json();projectLibraryRecords=projects;const library=$('#projectLibrary');library.hidden=false;
+  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'?`<button data-play-project="${item.project_id}">Play result</button>`:''}<button class="secondary" data-improve-project="${item.project_id}">Improve</button></div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
+  library.querySelectorAll('[data-play-project]').forEach(button=>button.addEventListener('click',()=>playProject(button.dataset.playProject)));
+  library.querySelectorAll('[data-improve-project]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.improveProject))));
+}
+async function artifactBundle(projectId){
+  const response=await fetch(`/api/projects/${projectId}/artifact`,{headers:authHeaders()});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));return JSON.parse(text);
+}
+async function playProject(projectId){
+  const preview=window.open('about:blank','_blank');if(!preview){alert('Allow pop-ups for KHALINOS to open the verified result.');return;}preview.opener=null;preview.document.title='Loading verified result…';
+  try{
+    const bundle=await artifactBundle(projectId);const files=Object.fromEntries(bundle.files.map(file=>[file.path,file.content]));const parser=new DOMParser();const documentCopy=parser.parseFromString(files['index.html'],'text/html');const assets=[];
+    documentCopy.querySelectorAll('link[rel="stylesheet"]').forEach(link=>{const url=URL.createObjectURL(new Blob([files['styles.css']],{type:'text/css'}));assets.push(url);link.href=url;});
+    documentCopy.querySelectorAll('script[src]').forEach(script=>{const url=URL.createObjectURL(new Blob([files['app.js']],{type:'text/javascript'}));assets.push(url);script.src=url;});
+    const htmlUrl=URL.createObjectURL(new Blob([`<!doctype html>${documentCopy.documentElement.outerHTML}`],{type:'text/html'}));assets.push(htmlUrl);preview.location.href=htmlUrl;setTimeout(()=>assets.forEach(url=>URL.revokeObjectURL(url)),300000);
+  }catch(error){preview.close();alert(`Verified result could not be opened: ${error.message}`);}
 }
 async function selectProject(project){
   selectedProjectId=project.project_id;externalUploadId=null;$('#projectName').value=project.display_name;$('#projectLocator').value=`khalinos://projects/${project.project_id}`;
@@ -438,6 +457,7 @@ function renderRun(record){
   $('#runId').textContent=`Run ${record.run_id}`;$('#runStatus').textContent=record.status.toUpperCase();$('#modelCalls').textContent=record.model_calls;
   const total=intake?.preview?.estimate?.quest_count||Math.max(record.completed_receipt_ids.length,1);$('#questProgress').textContent=`${Math.min(record.completed_receipt_ids.length,total)} / ${total}`;
   $('#runElapsed').textContent=elapsed(record);$('#approvedEstimate').textContent=approvedEstimate();$('#campHeadline').textContent=terminal?`${record.status.toUpperCase()} ·`:`${activeRole.replaceAll('_',' ').toUpperCase()} ·`;$('#campMessage').textContent=record.message;
+  const playable=record.status==='passed'&&record.project_id;$('#resultActions').hidden=!playable;if(playable){$('#playResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}
   document.querySelectorAll('.station').forEach(station=>{
     const role=station.dataset.role;station.classList.remove('active','done','blocked','failed');const state=station.querySelector('.station-state');
     if(skipped.has(role)){state.textContent='Not required';return;}
@@ -448,6 +468,8 @@ function renderRun(record){
   $('#handoffHorse').dataset.role=activeRole;
   clearInterval(elapsedTimer);if(!terminal)elapsedTimer=setInterval(()=>{if(latestRunRecord)$('#runElapsed').textContent=elapsed(latestRunRecord);},1000);
 }
+$('#playResult').addEventListener('click',event=>playProject(event.currentTarget.dataset.projectId));
+$('#improveResult').addEventListener('click',async event=>{const projectId=event.currentTarget.dataset.projectId;show('materials');chooseWork('existing');await loadProjects();const project=projectLibraryRecords.find(item=>item.project_id===projectId);if(project)await selectProject(project);});
 async function poll(runId){
   try{const response=await fetch(`/api/runs/${runId}`,{headers:authHeaders()});const record=await response.json();renderRun(record);if(['passed','blocked','failed'].includes(record.status)){await loadProjects();return;}pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#campHeadline').textContent='Status check failed ·';$('#campMessage').textContent=error.message;}
 }

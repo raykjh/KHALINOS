@@ -80,3 +80,12 @@ def test_execution_camp_shows_branching_verification_and_repair_loop() -> None:
     assert "EXISTING PROJECT" in html
     assert "REPAIR" in html
     assert "runtime_checking:'runtime'" in html
+
+
+def test_passed_project_can_be_opened_from_result_and_library() -> None:
+    html = WEB.read_text(encoding="utf-8")
+    assert "Play verified result" in html
+    assert "Play result" in html
+    assert "/artifact`" in html
+    assert "function playProject(projectId)" in html
+    assert "DOMParser" in html

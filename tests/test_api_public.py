@@ -23,6 +23,13 @@ def test_private_project_library_fails_closed_without_oauth_configuration(monkey
     assert response.json()["detail"] == "Google sign-in is not configured"
 
 
+def test_private_playable_artifact_fails_closed_without_identity(monkeypatch) -> None:
+    monkeypatch.delenv("KHALINOS_GOOGLE_CLIENT_ID", raising=False)
+    response = client.get(f"/api/projects/{'a' * 32}/artifact")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Google sign-in is not configured"
+
+
 def test_public_config_exposes_only_the_oauth_client_identifier(monkeypatch) -> None:
     monkeypatch.setenv("KHALINOS_GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
     payload = client.get("/api/config").json()
