@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from khalinos.browser_artifacts import BrowserArtifactBundle
 from khalinos.browser_toolpack import (
     BROWSER_IMPLEMENTATION_SOURCES,
     BROWSER_PRODUCT_MANIFEST,
@@ -54,3 +55,13 @@ def test_browser_adapter_rejects_a_generic_but_unauthorized_artifact(tmp_path: P
     with pytest.raises(PermissionError, match="output contract"):
         BROWSER_PRODUCT_TOOLPACK.execution_adapter.materialize(artifact, tmp_path / "product")
     assert not (tmp_path / "product").exists()
+
+
+def test_gemini_browser_schema_remains_strict_while_kernel_bundle_is_generic() -> None:
+    generic = ArtifactBundle(
+        revision_summary="A generic artifact accepted by the Kernel",
+        files=[ArtifactFile(path="artifact.txt", content="safe text")],
+    )
+    assert generic.files[0].path == "artifact.txt"
+    with pytest.raises(ValueError):
+        BrowserArtifactBundle.model_validate(generic.model_dump(mode="json"))

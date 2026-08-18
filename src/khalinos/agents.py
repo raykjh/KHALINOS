@@ -13,6 +13,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel
 
+from khalinos.browser_artifacts import BrowserArtifactBundle
 from khalinos.models import (
     AgentVerification,
     ArtifactBundle,
@@ -168,7 +169,7 @@ class AgentTeam:
         self.maker = _agent(
             "khalinos_accountable_maker",
             MAKER_INSTRUCTION,
-            ArtifactBundle,
+            BrowserArtifactBundle,
             temperature=0.25,
             max_output_tokens=49_152,
         )
@@ -176,7 +177,7 @@ class AgentTeam:
         self.repairer = _agent(
             "khalinos_technical_repair",
             REPAIR_INSTRUCTION,
-            ArtifactBundle,
+            BrowserArtifactBundle,
             temperature=0.1,
             max_output_tokens=49_152,
         )
@@ -189,7 +190,7 @@ class AgentTeam:
         self.visual_maker = _agent(
             "khalinos_visual_candidate_maker",
             VISUAL_MAKER_INSTRUCTION,
-            ArtifactBundle,
+            BrowserArtifactBundle,
             temperature=0.4,
             max_output_tokens=49_152,
         )
@@ -231,19 +232,19 @@ class AgentTeam:
         return await self._run(self.owner, payload, QuestPlan)
 
     async def make(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.maker, payload, ArtifactBundle)
+        return await self._run(self.maker, payload, BrowserArtifactBundle)
 
     async def verify(self, payload: dict) -> AgentVerification:
         return await self._run(self.verifier, payload, AgentVerification)
 
     async def repair(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.repairer, payload, ArtifactBundle)
+        return await self._run(self.repairer, payload, BrowserArtifactBundle)
 
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan:
         return await self._run(self.visual_director, payload, VisualConceptPlan)
 
     async def make_visual(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.visual_maker, payload, ArtifactBundle)
+        return await self._run(self.visual_maker, payload, BrowserArtifactBundle)
 
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection:
         parts: list[types.Part] = []

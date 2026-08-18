@@ -51,6 +51,7 @@ class BrowserEvidenceAdapter:
 
 BROWSER_IMPLEMENTATION_SOURCES = (
     "agents.py",
+    "browser_artifacts.py",
     "browser_toolpack.py",
     "sixsense.py",
     "uploads.py",
