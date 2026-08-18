@@ -15,10 +15,22 @@ from khalinos.toolpacks import (
 from khalinos.verification import materialize, verify_bundle
 
 
+def _validate_browser_artifact(artifact: ArtifactBundle) -> None:
+    manifest = BROWSER_PRODUCT_MANIFEST
+    files = artifact.file_map()
+    if set(files) != set(manifest.output.authorized_paths):
+        raise PermissionError("browser artifact does not match the ToolPack output contract")
+    if len(files) > manifest.output.max_file_count:
+        raise PermissionError("browser artifact exceeds the ToolPack file-count limit")
+    if sum(len(content.encode("utf-8")) for content in files.values()) > manifest.output.max_total_bytes:
+        raise PermissionError("browser artifact exceeds the ToolPack size limit")
+
+
 class BrowserExecutionAdapter:
     adapter_id = "browser.static.execution.v1"
 
     def materialize(self, artifact: ArtifactBundle, root: Path) -> None:
+        _validate_browser_artifact(artifact)
         materialize(artifact, root)
 
 
@@ -32,6 +44,7 @@ class BrowserEvidenceAdapter:
         evidence_dir: Path,
         acceptance_criteria: list[str],
     ) -> DeterministicEvidence:
+        _validate_browser_artifact(artifact)
         return verify_bundle(artifact, root, evidence_dir, acceptance_criteria)
 
 

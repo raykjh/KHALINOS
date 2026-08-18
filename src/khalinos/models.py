@@ -47,19 +47,22 @@ class UserBrief(BaseModel):
     max_quests: int = Field(default=4, ge=2, le=5)
     max_repairs_per_quest: int = Field(default=2, ge=0, le=2)
     toolpack_binding: ToolPackBinding | None = None
-    authorized_output_files: list[str] = Field(
-        default_factory=lambda: [
-            "index.html", "styles.css", "app.js", "journey.json", "README.md"
-        ],
-        min_length=5,
-        max_length=5,
-    )
+    authorized_output_files: list[str] = Field(min_length=1, max_length=256)
 
     @model_validator(mode="after")
-    def fixed_safe_surface(self) -> "UserBrief":
-        expected = {"index.html", "styles.css", "app.js", "journey.json", "README.md"}
-        if set(self.authorized_output_files) != expected:
-            raise ValueError("the autonomous micro-app profile has one fixed output surface")
+    def safe_output_surface(self) -> "UserBrief":
+        if len(set(self.authorized_output_files)) != len(self.authorized_output_files):
+            raise ValueError("authorized output paths must be unique")
+        for path in self.authorized_output_files:
+            normalized = path.replace("\\", "/")
+            parts = normalized.split("/")
+            if (
+                not path
+                or normalized.startswith("/")
+                or ":" in parts[0]
+                or any(part in {"", ".", ".."} for part in parts)
+            ):
+                raise ValueError("authorized output paths must stay relative to the artifact root")
         return self
 
 
@@ -294,22 +297,31 @@ class QuestPlan(BaseModel):
 
 
 class ArtifactFile(BaseModel):
-    path: str = Field(pattern=r"^(index\.html|styles\.css|app\.js|journey\.json|README\.md)$")
-    content: str = Field(min_length=1, max_length=50_000)
+    path: str = Field(min_length=1, max_length=1000)
+    content: str = Field(min_length=1, max_length=2_000_000)
+
+    @model_validator(mode="after")
+    def safe_relative_path(self) -> "ArtifactFile":
+        normalized = self.path.replace("\\", "/")
+        parts = normalized.split("/")
+        if (
+            normalized.startswith("/")
+            or ":" in parts[0]
+            or any(part in {"", ".", ".."} for part in parts)
+        ):
+            raise ValueError("artifact path must stay relative to the artifact root")
+        return self
 
 
 class ArtifactBundle(BaseModel):
     revision_summary: str = Field(min_length=10, max_length=2000)
-    files: list[ArtifactFile] = Field(min_length=5, max_length=5)
+    files: list[ArtifactFile] = Field(min_length=1, max_length=256)
 
     @model_validator(mode="after")
-    def exact_file_set(self) -> "ArtifactBundle":
+    def unique_file_set(self) -> "ArtifactBundle":
         paths = [item.path for item in self.files]
         if len(paths) != len(set(paths)):
             raise ValueError("artifact paths must be unique")
-        expected = {"index.html", "styles.css", "app.js", "journey.json", "README.md"}
-        if set(paths) != expected:
-            raise ValueError("artifact bundle must contain the complete authorized file set")
         return self
 
     def file_map(self) -> dict[str, str]:

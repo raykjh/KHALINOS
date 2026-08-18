@@ -45,6 +45,7 @@ def preview() -> OutcomePreview:
             goal="Create a polished browser decision product with one complete user journey.",
             constraints=["No external network calls."],
             acceptance_criteria=["The primary journey works.", "The approved visual direction is visible."],
+            authorized_output_files=["README.md", "app.js", "index.html", "journey.json", "styles.css"],
         ),
     )
 

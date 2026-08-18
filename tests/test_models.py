@@ -18,14 +18,15 @@ def brief() -> UserBrief:
         project_name="Test product",
         goal="Create a small interactive product that demonstrates one complete user workflow.",
         acceptance_criteria=["The primary action works.", "The interface is responsive."],
+        authorized_output_files=["artifact.txt"],
     )
 
 
-def test_brief_has_fixed_safe_output_surface() -> None:
-    assert len(brief().authorized_output_files) == 5
+def test_brief_accepts_toolpack_owned_safe_output_surface() -> None:
+    assert brief().authorized_output_files == ["artifact.txt"]
     with pytest.raises(ValueError):
-        brief().model_copy(update={"authorized_output_files": ["unsafe.py"]}).model_validate(
-            {**brief().model_dump(), "authorized_output_files": ["unsafe.py"]}
+        brief().model_copy(update={"authorized_output_files": ["../unsafe.py"]}).model_validate(
+            {**brief().model_dump(), "authorized_output_files": ["../unsafe.py"]}
         )
 
 

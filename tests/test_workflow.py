@@ -150,6 +150,7 @@ def setup_run(tmp_path: Path) -> tuple[LocalRunStore, str]:
         goal="Create a small interactive decision product with one complete browser workflow.",
         acceptance_criteria=["The primary action works.", "The interface is responsive."],
         toolpack_binding=BROWSER_PRODUCT_TOOLPACK.binding(),
+        authorized_output_files=list(BROWSER_PRODUCT_MANIFEST.output.authorized_paths),
     )
     run_id = "a" * 32
     store.create(RunRecord(
@@ -202,6 +203,7 @@ def test_project_owner_cannot_promote_evidence_mechanics_to_product_criteria() -
         project_name="Counter",
         goal="Repair a compact counter so increment and reset behavior work in the browser.",
         acceptance_criteria=["Increase changes the count.", "Reset restores zero."],
+        authorized_output_files=list(BROWSER_PRODUCT_MANIFEST.output.authorized_paths),
     )
     widened = QuestPlan(
         product_summary="A bounded browser counter with a verified increment and reset interaction.",

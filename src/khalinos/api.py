@@ -73,7 +73,11 @@ def queue_run(
     source_snapshot=None,
 ) -> dict[str, object]:
     binding = APPROVED_TOOLPACKS.binding_for(DEFAULT_TOOLPACK_ID)
-    brief = brief.model_copy(update={"toolpack_binding": binding})
+    toolpack = APPROVED_TOOLPACKS.resolve(binding)
+    brief = brief.model_copy(update={
+        "toolpack_binding": binding,
+        "authorized_output_files": list(toolpack.manifest.output.authorized_paths),
+    })
     run_id = uuid4().hex
     record = RunRecord(
         run_id=run_id,
