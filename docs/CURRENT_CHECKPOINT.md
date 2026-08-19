@@ -6,7 +6,7 @@ This is the Git-side handoff for the active KHALINOS project. Google Drive remai
 
 - Repository: `C:\memory R\KHALINOS`
 - Branch: `agent/toolpack-restoration`
-- Active deployed code: `b72c14f`.
+- Active deployed code: `c22f755`.
 - User-owned `smoke-input/` is intentionally untracked and must not be staged.
 - User-authored `docs/test-projects/` inputs are intentionally untracked and must not be staged with ToolPack code.
 - Regression baseline: 115 passed; five third-party ADK/FastAPI deprecation warnings.
@@ -47,7 +47,7 @@ Qualification run `708ec62505e544ca85bbfa898343704b` passed with 16 model calls.
 - PASS requires actual movement, enemy spawning, automatic ability execution, shared health initialization, deterministic level choice, approved runtime digest, asset import, and real rendered frames.
 - 3D, multiplayer, networking, arbitrary plugins/scripts, existing-project repair, platform distribution, and unrestricted full-game claims remain excluded.
 
-Cloud qualification execution `khalinos-godot-toolpack-staging-tr8nw` passed all 18 checks in 17.21 seconds with zero issues. The approved ToolPack manifest SHA-256 is `c3117d61e6045580218fe7af9a8025448409c70e5da5093ae98c3466100c9c44`.
+Cloud qualification execution `khalinos-godot-toolpack-staging-b6gww` passed the gameplay smoke after automatic route and intake-role changes. The approved ToolPack manifest SHA-256 is `c3117d61e6045580218fe7af9a8025448409c70e5da5093ae98c3466100c9c44`.
 
 ## Deployment target
 
@@ -56,12 +56,12 @@ Cloud qualification execution `khalinos-godot-toolpack-staging-tr8nw` passed all
 - Cloud Run Job: `khalinos-worker`
 - Service: `khalinos`
 - Cloud Run Job: `khalinos-worker`
-- Code commit deployed: `b72c14f`.
-- Image: `asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/runtime:gameplay-b72c14f`.
-- Digest: `sha256:73c0fee550ae82bd2b0f25faa80b16dbd3eeddd404b67725c0da4e9c7f66f27a`.
-- Cloud Build: `8a1b604e-35be-4718-883e-0c2522c5e50a`.
-- Service revision: `khalinos-00024-b2z`, serving 100 percent of traffic.
-- Worker generation: `22`.
+- Code commit deployed: `c22f755`.
+- Image: `asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/runtime:auto-route-c22f755`.
+- Digest: `sha256:493aa3fbc96f473950838b7c829a1037724e25128de2f49937fba9b5523455a2`.
+- Cloud Build: `5775c2c8-9a88-4c86-8a90-ff51d8c6b154`.
+- Service revision: `khalinos-00025-ksn`, serving 100 percent of traffic.
+- Worker generation: `23`.
 - Safety: zero retries, 1800-second task timeout.
 
 The qualified code is deployed to the service and Worker with the same image digest. The public `/health` endpoint returned `ok: true` after deployment.
