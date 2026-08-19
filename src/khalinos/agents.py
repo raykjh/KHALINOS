@@ -16,6 +16,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from khalinos.browser_artifacts import BrowserArtifactBundle
+from khalinos.godot_gameplay import GodotGameplayPlan, GodotGameplayProjectPlan
 from khalinos.godot_topology import GodotProjectPlan, GodotTopologyPlan
 from khalinos.models import (
     AgentVerification,
@@ -170,13 +171,13 @@ using the supplied candidate_id exactly.
 
 GODOT_QUEST_OWNER_INSTRUCTION = """
 You are the KHALINOS Godot Project Owner issuing the Quest chain for one immutable
-approved brief. You do not write topology regions, GDScript, scenes, commands, files,
+approved brief. You do not write gameplay plans, topology regions, GDScript, scenes, commands, files,
 tests, executable paths, or verification code. The trusted Godot ToolPack owns those.
 Issue two to five linear Quests without inventing features, network services, assets, or
 mechanics outside the brief. Quest acceptance_criteria may use only verbatim strings from
 the approved brief, every approved criterion must appear exactly once across the chain,
-and no criterion may be omitted or added. Put topology compilation, scene loading,
-headless execution, file inspection, and receipt requirements only in evidence_required.
+and no criterion may be omitted or added. Put trusted compilation, runtime execution,
+file inspection, rendered capture, and receipt requirements only in evidence_required.
 The model must not set or alter the ToolPack binding. Return only the required QuestPlan.
 """.strip()
 
@@ -191,10 +192,22 @@ QuestPlan. Do not invent product features, network services, assets, or mechanic
 Return only the required GodotTopologyPlan schema.
 """.strip()
 
+GODOT_GAMEPLAY_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Gameplay Planner. Convert the immutable approved brief and
+already-issued QuestPlan into one bounded data-driven 2D top-down gameplay plan. You do
+not write GDScript, scenes, commands, files, tests, executable paths, or verification
+code. The trusted compiler owns implementation. Use the approved project_name exactly.
+Model only heroes, enemy archetypes, scheduled automatic abilities, shared party stats,
+session duration, and deterministic level-choice cadence supported by the supplied
+ToolPack manifest. Preserve requested roles and session length when feasible. Do not
+invent networking, 3D, plugins, backend services, save systems, arbitrary mechanics, or
+production scope. Return only the required GodotGameplayPlan schema.
+""".strip()
+
 GODOT_VERIFIER_INSTRUCTION = """
 You are the independent KHALINOS Godot Verifier. You did not plan or materialize the
 artifact and cannot modify it. Judge each active Quest acceptance criterion only from
-the immutable brief, structured topology plan, compiled artifact digests, and supplied
+the immutable brief, structured approved Godot plan, compiled artifact digests, and supplied
 digest-bound Godot headless and display-render evidence. Return findings in the exact supplied criterion
 order. PASS only when each criterion has direct deterministic evidence; a plan, source
 file, README claim, or Project Owner assertion alone is not runtime proof. Never weaken
@@ -284,6 +297,12 @@ class AgentTeam:
             GodotTopologyPlan,
             temperature=0.1,
         )
+        self.godot_gameplay_owner = _agent(
+            "khalinos_godot_gameplay_owner",
+            GODOT_GAMEPLAY_OWNER_INSTRUCTION,
+            GodotGameplayPlan,
+            temperature=0.1,
+        )
         self.godot_verifier = _agent(
             "khalinos_godot_independent_verifier",
             GODOT_VERIFIER_INSTRUCTION,
@@ -331,6 +350,15 @@ class AgentTeam:
             GodotTopologyPlan,
         )
         return GodotProjectPlan(quest_plan=quest_plan, topology=topology)
+
+    async def plan_godot_gameplay(self, payload: dict) -> GodotGameplayProjectPlan:
+        quest_plan = await self._run(self.godot_quest_owner, payload, QuestPlan)
+        gameplay = await self._run(
+            self.godot_gameplay_owner,
+            {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")},
+            GodotGameplayPlan,
+        )
+        return GodotGameplayProjectPlan(quest_plan=quest_plan, gameplay=gameplay)
 
     async def make(self, payload: dict) -> ArtifactBundle:
         result = await self._run(self.maker, payload, BrowserArtifactBundle)

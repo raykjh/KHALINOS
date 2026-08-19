@@ -188,7 +188,22 @@ class SixSenseAgent:
         return final_text
 
     async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision:
-        if record.requested_toolpack_id == "godot.visual-prototype":
+        if record.requested_toolpack_id == "godot.gameplay":
+            execution_profile = {
+                "profile_id": "godot.gameplay.new-product",
+                "scope": "a bounded playable offline Godot 4.7.1 2D top-down gameplay vertical slice",
+                "files": ["data-driven gameplay manifest", "trusted Godot scene and script", "one trusted PNG visual foundation", "runtime and render evidence"],
+                "technologies": ["Godot 4.7.1", "Nano Banana", "trusted gameplay compiler", "headless mechanics probe", "real display-backed PNG capture"],
+                "supported_outcomes": ["formation movement", "enemy survival loop", "automatic abilities", "shared health", "level choices", "victory and defeat", "rendered gameplay evidence"],
+                "forbidden": ["3D", "multiplayer", "network services", "arbitrary plugins or scripts", "existing-project repair", "production-ready full game claim"],
+                "quest_limit": "2 to 5",
+                "repair_limit_per_quest": "0",
+                "maximum_run_budget_usd": 5,
+                "maximum_duration_minutes": 30,
+                "scope_rule": "bind completion only to mechanics executed by the deterministic gameplay probe and visible real Godot render",
+                "visual_competition": "three Nano Banana candidates, raw asset gate, real gameplay renders, independent multimodal selection",
+            }
+        elif record.requested_toolpack_id == "godot.visual-prototype":
             execution_profile = {
                 "profile_id": "godot.visual-prototype.new-product",
                 "scope": "a presentation-ready offline Godot 4.7.1 visual and screen-flow prototype",

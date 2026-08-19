@@ -27,6 +27,7 @@ def test_route_validation_accepts_only_approved_candidates_and_prefers_exact() -
         recommended_toolpack_id="browser.product",
         candidates=[
             assessment("browser.product", "exact"),
+            assessment("godot.gameplay", "bounded_alternative"),
             assessment("godot.topology", "bounded_alternative"),
             assessment("godot.visual-prototype", "bounded_alternative"),
         ],
@@ -50,6 +51,7 @@ def test_route_validation_cannot_prefer_bounded_over_exact() -> None:
         recommended_toolpack_id="godot.topology",
         candidates=[
             assessment("browser.product", "exact"),
+            assessment("godot.gameplay", "bounded_alternative"),
             assessment("godot.topology", "bounded_alternative"),
             assessment("godot.visual-prototype", "bounded_alternative"),
         ],
@@ -63,6 +65,7 @@ def test_route_validation_allows_truthful_unsupported_result() -> None:
         status="unsupported",
         candidates=[
             assessment("browser.product", "incompatible"),
+            assessment("godot.gameplay", "incompatible"),
             assessment("godot.topology", "incompatible"),
             assessment("godot.visual-prototype", "incompatible"),
         ],

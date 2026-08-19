@@ -81,6 +81,28 @@ def validate_godot_visual_brief(brief: UserBrief) -> None:
             )
 
 
+def validate_godot_gameplay_brief(brief: UserBrief) -> None:
+    """Bind the gameplay route to the mechanics its deterministic adapter can prove."""
+    observable_terms = (
+        "game", "play", "movement", "move", "formation", "hero", "enemy", "spawn",
+        "attack", "combat", "ability", "skill", "health", "damage", "heal", "shield",
+        "record", "experience", "level", "choice", "survival", "victory", "defeat",
+        "session", "visual", "render", "screen",
+    )
+    unsupported_terms = (
+        "3d", "multiplayer", "network", "server", "backend", "plugin", "storefront",
+        "steam", "console export", "procedural world", "open world", "save game",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot gameplay evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(
+                f"Godot gameplay criteria must be observable 2D mechanics or rendered-state outcomes: {criterion}"
+            )
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(web_root / "index.html")
@@ -136,6 +158,9 @@ def queue_run(
         brief_updates["max_repairs_per_quest"] = 0
     elif toolpack.manifest.toolpack_id == "godot.visual-prototype":
         validate_godot_visual_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    elif toolpack.manifest.toolpack_id == "godot.gameplay":
+        validate_godot_gameplay_brief(brief)
         brief_updates["max_repairs_per_quest"] = 0
     brief = brief.model_copy(update=brief_updates)
     run_id = uuid4().hex
@@ -453,7 +478,9 @@ def authorize_intake(
         authorized_brief(
             intake.preview,
             include_preview_quality=(
-                project_kind != "godot" or requested_toolpack_id == "godot.visual-prototype"
+                project_kind != "godot" or requested_toolpack_id in {
+                    "godot.visual-prototype", "godot.gameplay",
+                }
             ),
         ),
         owner_id=identity.owner_id,

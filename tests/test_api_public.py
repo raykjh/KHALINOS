@@ -110,6 +110,23 @@ def test_public_godot_route_rejects_unprovable_gameplay_criteria() -> None:
         api.validate_godot_topology_brief(brief)
 
 
+def test_public_gameplay_route_accepts_only_bounded_observable_mechanics() -> None:
+    brief = UserBrief(
+        project_name="Trinity Survivors",
+        goal="Create a bounded 2D top-down survival vertical slice in Godot.",
+        acceptance_criteria=[
+            "The three-hero formation moves while enemies spawn and attack.",
+            "Automatic abilities, shared health, and level choices work during the session.",
+            "Victory and defeat states are visible in the rendered game.",
+        ],
+        authorized_output_files=["placeholder.txt"],
+    )
+    api.validate_godot_gameplay_brief(brief)
+    unsafe = brief.model_copy(update={"acceptance_criteria": ["A multiplayer server synchronizes every player."]})
+    with pytest.raises(ValueError, match="cannot verify"):
+        api.validate_godot_gameplay_brief(unsafe)
+
+
 def test_queue_run_rejects_route_binding_drift_before_dispatch() -> None:
     brief = UserBrief(
         project_name="Route Observatory",
@@ -171,7 +188,7 @@ async def test_route_recommendation_exposes_only_registry_candidates(monkeypatch
     )
     assert result["recommendation"]["recommended_toolpack_id"] == "browser.product"
     assert {item["toolpack"]["toolpack_id"] for item in result["options"]} == {
-        "browser.product", "godot.topology", "godot.visual-prototype"
+        "browser.product", "godot.gameplay", "godot.topology", "godot.visual-prototype"
     }
     assert all(len(item["toolpack"]["manifest_sha256"]) == 64 for item in result["options"])
 
