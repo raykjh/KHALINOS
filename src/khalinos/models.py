@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from khalinos.toolpacks import ToolPackBinding
 
@@ -476,6 +476,75 @@ class VisualAssetGate(BaseModel):
             raise ValueError("visual asset approval must reject every forbidden-content signal")
         if forbidden and not self.issues:
             raise ValueError("rejected visual assets require a concrete issue")
+        return self
+
+
+class SpriteSlotVisualFinding(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    sprite_id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,31}$")
+    complete_full_body: bool
+    required_equipment_preserved: bool
+    background_residue_absent: bool
+    role_is_readable: bool
+    issue: str | None = Field(default=None, min_length=3, max_length=300)
+
+    @model_validator(mode="after")
+    def issue_matches_signals(self) -> "SpriteSlotVisualFinding":
+        safe = all((
+            self.complete_full_body,
+            self.required_equipment_preserved,
+            self.background_residue_absent,
+            self.role_is_readable,
+        ))
+        if safe == (self.issue is not None):
+            raise ValueError("sprite slot issue must be present exactly when a completeness signal fails")
+        return self
+
+
+class SpriteAtlasGate(BaseModel):
+    """Independent semantic gate for one normalized gameplay sprite atlas."""
+
+    approved: bool
+    slot_count_matches: bool
+    roles_are_distinguishable: bool
+    style_is_consistent: bool
+    contains_text_or_glyphs: bool
+    contains_interface_elements: bool
+    contains_logo_or_watermark: bool
+    has_clipped_or_overlapping_sprites: bool
+    all_characters_complete: bool
+    all_required_equipment_preserved: bool
+    background_residue_absent: bool
+    slot_findings: list[SpriteSlotVisualFinding] = Field(min_length=1, max_length=12)
+    issues: list[str] = Field(default_factory=list, max_length=8)
+    rationale: str = Field(min_length=20, max_length=800)
+
+    @model_validator(mode="after")
+    def approval_matches_signals(self) -> "SpriteAtlasGate":
+        safe = (
+            self.slot_count_matches
+            and self.roles_are_distinguishable
+            and self.style_is_consistent
+            and not self.contains_text_or_glyphs
+            and not self.contains_interface_elements
+            and not self.contains_logo_or_watermark
+            and not self.has_clipped_or_overlapping_sprites
+            and self.all_characters_complete
+            and self.all_required_equipment_preserved
+            and self.background_residue_absent
+            and all(
+                item.complete_full_body
+                and item.required_equipment_preserved
+                and item.background_residue_absent
+                and item.role_is_readable
+                for item in self.slot_findings
+            )
+        )
+        if self.approved != safe:
+            raise ValueError("sprite atlas approval must match every semantic safety signal")
+        if not safe and not self.issues:
+            raise ValueError("rejected sprite atlases require a concrete issue")
         return self
 
 

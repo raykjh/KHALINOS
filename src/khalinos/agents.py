@@ -26,10 +26,12 @@ from khalinos.models import (
     UserBrief,
     VisualConcept,
     VisualAssetGate,
+    SpriteAtlasGate,
     VisualConceptPlan,
     VisualSelection,
 )
 from khalinos.visual_assets import generate_visual_asset
+from khalinos.sprite_assets import SpriteAtlasPlan, generate_sprite_atlas
 
 
 MODEL = os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash")
@@ -169,6 +171,20 @@ environmental image that can sit behind trusted accessible UI. Return only the r
 using the supplied candidate_id exactly.
 """.strip()
 
+SPRITE_ATLAS_VERIFIER_INSTRUCTION = """
+You are the independent KHALINOS Sprite Atlas Gate. You did not generate the supplied
+normalized PNG and cannot modify it. Compare the image with the exact supplied slot plan.
+Approve only when every assigned cell contains exactly one complete, centered character;
+the count and order match; heroes and enemies are readily distinguishable; and all sprites
+share one coherent scale, lighting, outline, and rendering style. Reject text, glyphs, UI,
+logos, watermarks, extra characters, clipped bodies or weapons, overlapping cells, scenery,
+animation frames, checkerboards, halos, or other background residue. Inspect every slot
+individually. A head, torso, hand, foot, weapon, shield, bow, staff, cape, horn, or other
+role-defining equipment that is missing or materially erased is a completeness failure even
+when the remaining pixels occupy a valid bounding box. Return one slot_finding in exact plan
+order and use each supplied sprite_id exactly. Return only the required schema.
+""".strip()
+
 GODOT_QUEST_OWNER_INSTRUCTION = """
 You are the KHALINOS Godot Project Owner issuing the Quest chain for one immutable
 approved brief. You do not write gameplay plans, topology regions, GDScript, scenes, commands, files,
@@ -283,6 +299,12 @@ class AgentTeam:
             "khalinos_visual_asset_verifier",
             VISUAL_ASSET_VERIFIER_INSTRUCTION,
             VisualAssetGate,
+            temperature=0.0,
+        )
+        self.sprite_atlas_verifier = _agent(
+            "khalinos_sprite_atlas_verifier",
+            SPRITE_ATLAS_VERIFIER_INSTRUCTION,
+            SpriteAtlasGate,
             temperature=0.0,
         )
         self.godot_quest_owner = _agent(
@@ -413,6 +435,58 @@ class AgentTeam:
             VisualAssetGate,
             extra_parts=[types.Part.from_bytes(data=asset.bytes(), mime_type=asset.media_type)],
         )
+
+    async def make_sprite_atlas(
+        self,
+        brief: UserBrief,
+        concept: VisualConcept,
+        plan: SpriteAtlasPlan,
+        feedback: tuple[str, ...] = (),
+    ) -> ArtifactAsset:
+        minimum_interval = float(os.environ.get("KHALINOS_IMAGE_MIN_INTERVAL_SECONDS", "35"))
+        async with self._image_lock:
+            def before_model_call() -> None:
+                elapsed = time.monotonic() - self._last_image_call_started
+                if self._last_image_call_started and elapsed < minimum_interval:
+                    time.sleep(minimum_interval - elapsed)
+                self._last_image_call_started = time.monotonic()
+                self.call_count += 1
+
+            return await asyncio.to_thread(
+                generate_sprite_atlas,
+                brief,
+                concept,
+                plan,
+                feedback,
+                before_model_call,
+            )
+
+    async def verify_sprite_atlas(
+        self,
+        plan: SpriteAtlasPlan,
+        asset: ArtifactAsset,
+        concept: VisualConcept,
+    ) -> SpriteAtlasGate:
+        gate = await self._run(
+            self.sprite_atlas_verifier,
+            {
+                "approved_visual_concept": concept.model_dump(mode="json"),
+                "sprite_atlas_plan": plan.model_dump(mode="json"),
+                "asset_manifest": {
+                    "path": asset.path,
+                    "sha256": asset.sha256,
+                    "width": asset.width,
+                    "height": asset.height,
+                },
+            },
+            SpriteAtlasGate,
+            extra_parts=[types.Part.from_bytes(data=asset.bytes(), mime_type=asset.media_type)],
+        )
+        expected_ids = [slot.sprite_id for slot in plan.slots]
+        actual_ids = [finding.sprite_id for finding in gate.slot_findings]
+        if actual_ids != expected_ids:
+            raise RuntimeError("sprite atlas verifier findings do not exactly match the approved slot plan")
+        return gate
 
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection:
         parts: list[types.Part] = []

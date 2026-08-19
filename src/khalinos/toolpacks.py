@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic, Iterable, Protocol, TypeVar
+from typing import Generic, Iterable, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -113,6 +113,20 @@ class RoutingContract(BaseModel):
         return self
 
 
+class ExternalDependency(BaseModel):
+    """One exact non-source dependency admitted into a ToolPack boundary."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    dependency_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    kind: Literal["executable", "model", "package"]
+    version: str = Field(min_length=1, max_length=80)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    byte_size: int = Field(ge=1, le=5_000_000_000)
+    source_url: str = Field(pattern=r"^https://", max_length=500)
+    license_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.+-]{1,63}$")
+
+
 class ToolPackManifest(BaseModel):
     """Immutable description of one statically approved set of hands and senses."""
 
@@ -127,6 +141,7 @@ class ToolPackManifest(BaseModel):
     project_kinds: tuple[str, ...] = Field(min_length=1, max_length=32)
     work_modes: tuple[str, ...] = Field(min_length=1, max_length=32)
     capabilities: tuple[CapabilityDeclaration, ...] = Field(min_length=1, max_length=32)
+    external_dependencies: tuple[ExternalDependency, ...] = Field(default=(), max_length=32)
     routing: RoutingContract
     output: OutputContract
     evidence: EvidenceContract
@@ -142,6 +157,9 @@ class ToolPackManifest(BaseModel):
         capability_ids = tuple(item.capability_id for item in self.capabilities)
         if tuple(sorted(set(capability_ids))) != capability_ids:
             raise ValueError("ToolPack capabilities must be unique and sorted by capability_id")
+        dependency_ids = tuple(item.dependency_id for item in self.external_dependencies)
+        if tuple(sorted(set(dependency_ids))) != dependency_ids:
+            raise ValueError("ToolPack dependencies must be unique and sorted by dependency_id")
         if self.routing.primary_project_kind not in self.project_kinds:
             raise ValueError("routing primary_project_kind must be declared by the ToolPack")
         return self

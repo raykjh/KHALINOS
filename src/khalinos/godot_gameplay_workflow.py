@@ -9,15 +9,20 @@ from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
-from khalinos.godot_gameplay import GodotGameplayProjectPlan, compile_godot_gameplay
+from khalinos.godot_gameplay import (
+    GodotGameplayProjectPlan,
+    compile_godot_gameplay,
+    derive_sprite_atlas_plan,
+)
 from khalinos.models import (
     AgentVerification, ArtifactAsset, CriterionFinding, QuestReceipt, RunRecord, RunStatus,
-    UserBrief, VisualAssetGate, VisualConcept, VisualConceptPlan, VisualSelection,
+    SpriteAtlasGate, UserBrief, VisualAssetGate, VisualConcept, VisualConceptPlan, VisualSelection,
     VisualSelectionReceipt, canonical_sha256,
 )
 from khalinos.projects import ProjectStore
 from khalinos.storage import RunStore
 from khalinos.toolpacks import ToolPackRegistry
+from khalinos.sprite_assets import SPRITE_SEGMENTATION_CONTRACT, SpriteAtlasPlan
 from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority
 
 
@@ -27,6 +32,8 @@ class GodotGameplayTeam(Protocol):
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan: ...
     async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept) -> ArtifactAsset: ...
     async def verify_visual_asset(self, candidate_id: str, asset: ArtifactAsset, concept: VisualConcept) -> VisualAssetGate: ...
+    async def make_sprite_atlas(self, brief: UserBrief, concept: VisualConcept, plan: SpriteAtlasPlan, feedback: tuple[str, ...] = ()) -> ArtifactAsset: ...
+    async def verify_sprite_atlas(self, plan: SpriteAtlasPlan, asset: ArtifactAsset, concept: VisualConcept) -> SpriteAtlasGate: ...
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection: ...
     async def verify_godot(self, payload: dict) -> AgentVerification: ...
 
@@ -63,6 +70,23 @@ async def execute_godot_gameplay_run(
             raise PermissionError("approved output files do not match the Godot gameplay ToolPack manifest")
         if record.work_mode != "new_product_build" or record.source_snapshot is not None:
             raise PermissionError("Godot Gameplay ToolPack authorizes new products only")
+        segmentation_dependencies = [
+            item for item in toolpack.manifest.external_dependencies
+            if item.dependency_id == "isnet-anime.onnx"
+        ]
+        if len(segmentation_dependencies) != 1:
+            raise PermissionError("Godot Gameplay ToolPack is missing one exact sprite segmentation dependency")
+        dependency = segmentation_dependencies[0]
+        if (
+            dependency.sha256 != SPRITE_SEGMENTATION_CONTRACT.model_sha256
+            or dependency.byte_size != SPRITE_SEGMENTATION_CONTRACT.model_bytes
+            or dependency.version != SPRITE_SEGMENTATION_CONTRACT.model_version
+        ):
+            raise PermissionError("sprite segmentation dependency does not match the approved local contract")
+        store.put_json(run_id, "sprites/segmentation_contract.json", {
+            **SPRITE_SEGMENTATION_CONTRACT.model_dump(mode="json"),
+            "contract_sha256": SPRITE_SEGMENTATION_CONTRACT.sha256(),
+        })
 
         record = record.model_copy(update={
             "status": RunStatus.PLANNING,
@@ -178,6 +202,65 @@ async def execute_godot_gameplay_run(
         )
         store.put_json(run_id, "visuals/selection_receipt.json", visual_receipt.model_dump(mode="json"))
 
+        sprite_plan = derive_sprite_atlas_plan(decision.gameplay)
+        store.put_json(run_id, "sprites/plan.json", sprite_plan.model_dump(mode="json"))
+        record = record.model_copy(update={
+            "status": RunStatus.VISUALIZING,
+            "message": "Nano Banana is generating isolated character sources for trusted atlas composition.",
+            "model_calls": team.call_count,
+        })
+        store.update(record)
+        try:
+            sprite_atlas = await team.make_sprite_atlas(brief, artifact.concept, sprite_plan)
+        except Exception as exc:
+            store.put_json(run_id, "sprites/generation_failure.json", {
+                "issues": [f"{type(exc).__name__}: {exc}"],
+            })
+            raise RuntimeError("an isolated sprite source failed its bounded normalization") from exc
+        store.put_bytes(run_id, f"sprites/composed/{sprite_atlas.path}", sprite_atlas.bytes(), sprite_atlas.media_type)
+        sprite_gate = await team.verify_sprite_atlas(sprite_plan, sprite_atlas, artifact.concept)
+        store.put_json(run_id, "sprites/composed/gate.json", sprite_gate.model_dump(mode="json"))
+        if not sprite_gate.approved:
+            raise RuntimeError("the deterministically composed sprite atlas failed its independent semantic gate")
+
+        artifact = compile_godot_gameplay(
+            decision.gameplay,
+            artifact.concept,
+            artifact.asset,
+            sprite_plan,
+            sprite_atlas,
+            require_sprite_atlas=True,
+        )
+        with tempfile.TemporaryDirectory(prefix=f"khalinos-gameplay-final-proof-{run_id}-") as temporary:
+            root = Path(temporary) / "product"
+            evidence_dir = Path(temporary) / "evidence"
+            toolpack.execution_adapter.materialize(artifact, root)
+            deterministic = await asyncio.to_thread(
+                toolpack.evidence_adapter.verify,
+                artifact,
+                root,
+                evidence_dir,
+                brief.acceptance_criteria,
+            )
+            store.put_json(run_id, "sprites/final/deterministic_evidence.json", deterministic.model_dump(mode="json"))
+            for evidence_file in sorted(evidence_dir.iterdir()):
+                if evidence_file.is_file() and evidence_file.suffix in {".json", ".png"}:
+                    media_type = "image/png" if evidence_file.suffix == ".png" else "application/json"
+                    store.put_file(run_id, f"sprites/final/evidence/{evidence_file.name}", evidence_file, media_type)
+        if not deterministic.passed:
+            raise RuntimeError(f"final sprite-bound Godot runtime failed: {'; '.join(deterministic.issues)}")
+        sprite_observation = (
+            f"Independent Sprite Atlas Gate approved {len(sprite_plan.slots)} bound slots; "
+            "the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+        )
+        deterministic = deterministic.model_copy(update={
+            "criterion_evidence": {
+                criterion: [*deterministic.criterion_evidence.get(criterion, []), sprite_observation]
+                for criterion in brief.acceptance_criteria
+            }
+        })
+        store.put_json(run_id, "sprites/final/deterministic_evidence.json", deterministic.model_dump(mode="json"))
+
         parent_receipt_id: str | None = visual_receipt.receipt_id
         receipt_ids = [visual_receipt.receipt_id]
         for quest in plan.quests:
@@ -199,6 +282,9 @@ async def execute_godot_gameplay_run(
                     "bundle_sha256": artifact.bundle_sha256,
                     "files": sorted(artifact.files),
                     "asset_sha256": artifact.asset.sha256,
+                    "sprite_atlas_sha256": artifact.sprite_atlas.sha256 if artifact.sprite_atlas else None,
+                    "sprite_atlas_plan": sprite_plan.model_dump(mode="json"),
+                    "sprite_atlas_gate": sprite_gate.model_dump(mode="json"),
                 },
                 "deterministic_evidence": deterministic.model_dump(mode="json"),
             }) if deterministic.passed else _blocked(quest.acceptance_criteria, deterministic.issues)
@@ -236,14 +322,19 @@ async def execute_godot_gameplay_run(
                 for raw_path, content in sorted(artifact.files.items()):
                     output.writestr(raw_path, content.encode("utf-8"))
                 output.writestr(artifact.asset.path, artifact.asset.bytes())
+                if artifact.sprite_atlas is not None:
+                    output.writestr(artifact.sprite_atlas.path, artifact.sprite_atlas.bytes())
             archive_uri = store.put_file(run_id, "final/source.zip", archive, "application/zip")
         store.put_json(run_id, "final/artifact_manifest.json", {
             "artifact_sha256": canonical_sha256(artifact),
             "plan_sha256": artifact.plan_sha256,
             "bundle_sha256": artifact.bundle_sha256,
             "asset_sha256": artifact.asset.sha256,
+            "sprite_atlas_sha256": artifact.sprite_atlas.sha256 if artifact.sprite_atlas else None,
+            "sprite_atlas_gate_sha256": canonical_sha256(sprite_gate),
+            "sprite_segmentation_contract_sha256": artifact.sprite_segmentation_contract_sha256,
             "toolpack_binding": binding.model_dump(mode="json"),
-            "files": sorted([*artifact.files, artifact.asset.path]),
+            "files": sorted([*artifact.files, artifact.asset.path, *([artifact.sprite_atlas.path] if artifact.sprite_atlas else [])]),
             "receipt_ids": receipt_ids,
             "source_archive": archive_uri,
         })

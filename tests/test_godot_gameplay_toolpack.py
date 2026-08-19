@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 import struct
 import zlib
+import io
 
 import pytest
+from PIL import Image, ImageDraw
 
 from khalinos.godot_gameplay import (
     CompiledGodotGameplay,
@@ -14,18 +16,31 @@ from khalinos.godot_gameplay import (
     GodotGameplayPlan,
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
+    derive_sprite_atlas_plan,
 )
 from khalinos.godot_gameplay_toolpack import GODOT_GAMEPLAY_MANIFEST, GODOT_GAMEPLAY_TOOLPACK
 from khalinos.godot_gameplay_workflow import execute_godot_gameplay_run
 from khalinos.models import (
     AgentVerification, CriterionFinding, DeterministicEvidence, QuestPlan, QuestSpec,
-    RunRecord, RunStatus, UserBrief, VisualAssessment, VisualAssetGate, VisualConcept,
+    RunRecord, RunStatus, SpriteAtlasGate, SpriteSlotVisualFinding, UserBrief, VisualAssessment, VisualAssetGate, VisualConcept,
     VisualConceptPlan, VisualSelection, canonical_sha256,
 )
 from khalinos.registry import APPROVED_TOOLPACKS
+from khalinos.sprite_assets import SPRITE_SEGMENTATION_CONTRACT
 from khalinos.storage import LocalRunStore
 from khalinos.toolpacks import RegisteredToolPack, ToolPackRegistry
+
+
+def test_gameplay_toolpack_binds_the_exact_sprite_segmentation_weight() -> None:
+    dependencies = {
+        item.dependency_id: item for item in GODOT_GAMEPLAY_MANIFEST.external_dependencies
+    }
+    dependency = dependencies["isnet-anime.onnx"]
+    assert dependency.sha256 == SPRITE_SEGMENTATION_CONTRACT.model_sha256
+    assert dependency.byte_size == SPRITE_SEGMENTATION_CONTRACT.model_bytes
+    assert dependency.version == SPRITE_SEGMENTATION_CONTRACT.model_version
 from khalinos.visual_assets import trusted_png_asset
+from khalinos.sprite_assets import normalize_sprite_atlas
 
 
 def png(width: int = 256, height: int = 256) -> bytes:
@@ -64,6 +79,20 @@ def gameplay_plan() -> GodotGameplayPlan:
     )
 
 
+def sprite_asset(plan=None):
+    plan = plan or derive_sprite_atlas_plan(gameplay_plan())
+    image = Image.new("RGBA", (1024, 768), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    colors = ["#d9a441", "#74b86a", "#8ab4d8", "#79a94b", "#a36e44"]
+    for slot, color in zip(plan.slots, colors, strict=True):
+        left, top, width, height = slot.region()
+        draw.ellipse((left + 72, top + 48, left + width - 72, top + height - 48), fill=color, outline="#2b271f", width=6)
+        draw.rectangle((left + 104, top + 96, left + 152, top + 205), fill=color)
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return normalize_sprite_atlas(output.getvalue(), plan)
+
+
 def artifact() -> CompiledGodotGameplay:
     concept = VisualConcept(
         candidate_id="V1",
@@ -75,13 +104,18 @@ def artifact() -> CompiledGodotGameplay:
         interaction_emphasis="Formation, health, and level choice remain the strongest signals.",
         anti_goals=["generic dashboard cards", "text baked into imagery"],
     )
-    return compile_godot_gameplay(gameplay_plan(), concept, trusted_png_asset(png()))
+    plan = gameplay_plan()
+    sprite_plan = derive_sprite_atlas_plan(plan)
+    return compile_godot_gameplay(
+        plan, concept, trusted_png_asset(png()), sprite_plan, sprite_asset(sprite_plan),
+        require_sprite_atlas=True,
+    )
 
 
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.0.0"
+    assert binding.version == "1.2.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
@@ -91,7 +125,7 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     destination = tmp_path / "product"
     GODOT_GAMEPLAY_TOOLPACK.execution_adapter.materialize(first, destination)
     assert {path.as_posix() for path in destination.rglob("*") if path.is_file()} == {
-        (destination / path).as_posix() for path in [*first.files, first.asset.path]
+        (destination / path).as_posix() for path in [*first.files, first.asset.path, first.sprite_atlas.path]
     }
     assert hashlib.sha256((destination / first.asset.path).read_bytes()).hexdigest() == first.asset.sha256
 
@@ -207,6 +241,37 @@ class StubGameplayTeam:
         self.call_count += 1
         return VisualAssetGate(candidate_id=candidate_id, approved=True, contains_text_or_glyphs=False, contains_interface_elements=False, contains_logo_or_watermark=False, rationale="The image is a clean environmental foundation without text or interface elements.")
 
+    async def make_sprite_atlas(self, brief, concept, plan, feedback=()):
+        self.call_count += 1
+        return sprite_asset(plan)
+
+    async def verify_sprite_atlas(self, plan, asset, concept):
+        self.call_count += 1
+        return SpriteAtlasGate(
+            approved=True,
+            slot_count_matches=True,
+            roles_are_distinguishable=True,
+            style_is_consistent=True,
+            contains_text_or_glyphs=False,
+            contains_interface_elements=False,
+            contains_logo_or_watermark=False,
+            has_clipped_or_overlapping_sprites=False,
+            all_characters_complete=True,
+            all_required_equipment_preserved=True,
+            background_residue_absent=True,
+            slot_findings=[
+                SpriteSlotVisualFinding(
+                    sprite_id=slot.sprite_id,
+                    complete_full_body=True,
+                    required_equipment_preserved=True,
+                    background_residue_absent=True,
+                    role_is_readable=True,
+                )
+                for slot in plan.slots
+            ],
+            rationale="Every planned character occupies one distinct and coherent sprite slot without forbidden content.",
+        )
+
     async def select_visual(self, payload, screenshots):
         self.call_count += 1
         assessments = [
@@ -248,3 +313,4 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     assert len(result.completed_receipt_ids) == 3
     assert (tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").is_file()
     assert (tmp_path / "runs" / run_id / "final" / "source.zip").is_file()
+    assert (tmp_path / "runs" / run_id / "sprites" / "final" / "deterministic_evidence.json").is_file()

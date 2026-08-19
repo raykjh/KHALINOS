@@ -14,12 +14,14 @@ dependencies = [
   "google-cloud-run==0.10.19",
   "google-cloud-storage==3.3.1",
   "playwright==1.54.0",
+  "Pillow>=11.3,<13",
   "pydantic>=2.12,<3",
   "uvicorn[standard]>=0.35,<1",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.4,<9", "pytest-asyncio>=1.1,<2", "httpx>=0.28,<1"]
+godot = ["rembg[cpu]==2.0.81"]
 
 [project.scripts]
 khalinos = "khalinos.cli:main"

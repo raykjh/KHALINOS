@@ -14,9 +14,15 @@ from khalinos.godot_gameplay import CompiledGodotGameplay
 from khalinos.godot_toolpack import APPROVED_GODOT_RUNTIMES
 from khalinos.godot_visual_toolpack import _start_xvfb
 from khalinos.models import DeterministicEvidence
+from khalinos.sprite_assets import (
+    SPRITE_ATLAS_MANIFEST_PATH,
+    SPRITE_ATLAS_PATH,
+    SPRITE_SEGMENTATION_CONTRACT,
+)
 from khalinos.toolpacks import (
     CapabilityDeclaration,
     EvidenceContract,
+    ExternalDependency,
     OutputContract,
     RegisteredToolPack,
     RoutingContract,
@@ -31,6 +37,7 @@ CORE_PATHS = {
     "scenes/gameplay.tscn", "scripts/khalinos_gameplay.gd",
     "scripts/khalinos_gameplay_probe.gd",
 }
+SPRITE_PATHS = {SPRITE_ATLAS_MANIFEST_PATH}
 
 
 def _file_sha256(path: Path) -> str:
@@ -49,16 +56,35 @@ def _canonical_sha256(value: object) -> str:
 
 
 def _validate_artifact(artifact: CompiledGodotGameplay) -> None:
-    if set(artifact.files) != CORE_PATHS:
+    expected_paths = CORE_PATHS | (SPRITE_PATHS if artifact.sprite_atlas is not None else set())
+    if set(artifact.files) != expected_paths:
         raise PermissionError("Godot gameplay artifact exceeds its declared output surface")
     if artifact.asset.path != ASSET_PATH or artifact.asset.media_type != "image/png":
         raise PermissionError("Godot gameplay artifact contains an unapproved binary asset")
     if hashlib.sha256(artifact.asset.bytes()).hexdigest() != artifact.asset.sha256:
         raise PermissionError("Godot gameplay visual asset digest changed after approval")
+    if (artifact.sprite_plan is None) != (artifact.sprite_atlas is None):
+        raise PermissionError("Godot gameplay sprite plan and atlas are not atomic")
+    if artifact.sprite_contract_required and artifact.sprite_atlas is None:
+        raise PermissionError("final Godot gameplay artifact is missing its required sprite atlas")
+    if artifact.sprite_atlas is not None:
+        if artifact.sprite_segmentation_contract_sha256 != SPRITE_SEGMENTATION_CONTRACT.sha256():
+            raise PermissionError("Godot gameplay sprite segmentation contract changed after approval")
+        if artifact.sprite_atlas.path != SPRITE_ATLAS_PATH or artifact.sprite_atlas.media_type != "image/png":
+            raise PermissionError("Godot gameplay artifact contains an unapproved sprite atlas")
+        if hashlib.sha256(artifact.sprite_atlas.bytes()).hexdigest() != artifact.sprite_atlas.sha256:
+            raise PermissionError("Godot gameplay sprite atlas digest changed after approval")
+        expected_manifest = json.dumps(artifact.sprite_plan.manifest(), ensure_ascii=False, indent=2) + "\n"
+        if artifact.files.get(SPRITE_ATLAS_MANIFEST_PATH) != expected_manifest:
+            raise PermissionError("Godot gameplay sprite manifest changed after approval")
     plan_sha = _canonical_sha256({
         "gameplay": artifact.gameplay.model_dump(mode="json"),
         "concept": artifact.concept.model_dump(mode="json"),
         "asset_sha256": artifact.asset.sha256,
+        "sprite_plan": artifact.sprite_plan.model_dump(mode="json") if artifact.sprite_plan else None,
+        "sprite_atlas_sha256": artifact.sprite_atlas.sha256 if artifact.sprite_atlas else None,
+        "sprite_contract_required": artifact.sprite_contract_required,
+        "sprite_segmentation_contract_sha256": artifact.sprite_segmentation_contract_sha256,
     })
     if artifact.plan_sha256 != plan_sha:
         raise PermissionError("Godot gameplay plan digest changed after compilation")
@@ -66,11 +92,15 @@ def _validate_artifact(artifact: CompiledGodotGameplay) -> None:
         "plan_sha256": plan_sha,
         "files": artifact.files,
         "asset_sha256": artifact.asset.sha256,
+        "sprite_atlas_sha256": artifact.sprite_atlas.sha256 if artifact.sprite_atlas else None,
+        "sprite_contract_required": artifact.sprite_contract_required,
+        "sprite_segmentation_contract_sha256": artifact.sprite_segmentation_contract_sha256,
     })
     if artifact.bundle_sha256 != expected_bundle:
         raise PermissionError("Godot gameplay bundle digest changed after compilation")
-    total = sum(len(item.encode("utf-8")) for item in artifact.files.values()) + len(artifact.asset.bytes())
-    if len(artifact.files) + 1 > GODOT_GAMEPLAY_MANIFEST.output.max_file_count:
+    binaries = [artifact.asset, *([artifact.sprite_atlas] if artifact.sprite_atlas else [])]
+    total = sum(len(item.encode("utf-8")) for item in artifact.files.values()) + sum(len(item.bytes()) for item in binaries)
+    if len(artifact.files) + len(binaries) > GODOT_GAMEPLAY_MANIFEST.output.max_file_count:
         raise PermissionError("Godot gameplay artifact exceeds its file-count limit")
     if total > GODOT_GAMEPLAY_MANIFEST.output.max_total_bytes:
         raise PermissionError("Godot gameplay artifact exceeds its byte limit")
@@ -87,6 +117,10 @@ def _validate_materialized(artifact: CompiledGodotGameplay, root: Path) -> None:
     asset = (destination / Path(*PurePosixPath(artifact.asset.path).parts)).resolve()
     if not asset.is_file() or _file_sha256(asset) != artifact.asset.sha256:
         raise PermissionError("materialized Godot gameplay visual asset changed after approval")
+    if artifact.sprite_atlas is not None:
+        sprite = (destination / SPRITE_ATLAS_PATH).resolve()
+        if not sprite.is_file() or _file_sha256(sprite) != artifact.sprite_atlas.sha256:
+            raise PermissionError("materialized Godot gameplay sprite atlas changed after approval")
 
 
 class GodotGameplayExecutionAdapter:
@@ -102,6 +136,8 @@ class GodotGameplayExecutionAdapter:
             **{path: content.encode("utf-8") for path, content in artifact.files.items()},
             artifact.asset.path: artifact.asset.bytes(),
         }
+        if artifact.sprite_atlas is not None:
+            payloads[artifact.sprite_atlas.path] = artifact.sprite_atlas.bytes()
         try:
             for raw_path, payload in payloads.items():
                 relative = PurePosixPath(raw_path)
@@ -195,6 +231,17 @@ class GodotGameplayEvidenceAdapter:
             "deterministic_seed_bound": receipt.get("seed") == artifact.gameplay.deterministic_seed,
             "probe_passed": receipt.get("passed") is True,
             "trusted_asset_materialized": _file_sha256(root / ASSET_PATH) == artifact.asset.sha256,
+            "sprite_contract_present": not artifact.sprite_contract_required or artifact.sprite_atlas is not None,
+            "sprite_atlas_loaded": not artifact.sprite_contract_required or receipt.get("sprite_atlas_loaded") is True,
+            "sprite_slot_count_bound": (
+                not artifact.sprite_contract_required
+                or (artifact.sprite_plan is not None and receipt.get("sprite_slot_count") == len(artifact.sprite_plan.slots))
+            ),
+            "all_sprite_ids_mapped": not artifact.sprite_contract_required or receipt.get("all_sprite_ids_mapped") is True,
+            "trusted_sprite_atlas_materialized": (
+                not artifact.sprite_contract_required
+                or (artifact.sprite_atlas is not None and _file_sha256(root / SPRITE_ATLAS_PATH) == artifact.sprite_atlas.sha256)
+            ),
             "display_render_process": rendered.returncode == 0,
             "display_render_frames": len(frames) == 3,
             "display_render_dimensions": dimensions == (artifact.gameplay.viewport_width, artifact.gameplay.viewport_height),
@@ -217,12 +264,12 @@ class GodotGameplayEvidenceAdapter:
 
 GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
     "agents.py", "godot_gameplay.py", "godot_gameplay_toolpack.py",
-    "godot_gameplay_workflow.py", "run_router.py", "visual_assets.py",
+    "godot_gameplay_workflow.py", "run_router.py", "sprite_assets.py", "visual_assets.py",
 )
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="1.0.0",
+    version="1.2.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),
@@ -233,6 +280,18 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
         CapabilityDeclaration(capability_id="godot.gameplay.asset", operations=("generate", "observe"), scopes=("artifact:write", "model:image")),
         CapabilityDeclaration(capability_id="godot.gameplay.control", operations=("build",), scopes=("artifact:write", "godot:scene", "godot:script")),
         CapabilityDeclaration(capability_id="godot.gameplay.evidence", operations=("execute", "observe"), scopes=("runtime:display", "runtime:headless")),
+        CapabilityDeclaration(capability_id="godot.sprite.asset", operations=("generate", "normalize", "observe"), scopes=("artifact:write", "model:image")),
+    ),
+    external_dependencies=(
+        ExternalDependency(
+            dependency_id="isnet-anime.onnx",
+            kind="model",
+            version=SPRITE_SEGMENTATION_CONTRACT.model_version,
+            sha256=SPRITE_SEGMENTATION_CONTRACT.model_sha256,
+            byte_size=SPRITE_SEGMENTATION_CONTRACT.model_bytes,
+            source_url=SPRITE_SEGMENTATION_CONTRACT.model_url,
+            license_id=SPRITE_SEGMENTATION_CONTRACT.license_id,
+        ),
     ),
     routing=RoutingContract(
         primary_project_kind="godot",
@@ -250,13 +309,13 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     ),
     output=OutputContract(
         artifact_kind="godot.gameplay-vertical-slice",
-        authorized_paths=("KHALINOS_GAMEPLAY.json", "README.md", "assets/visual-foundation.png", "project.godot", "scenes/gameplay.tscn", "scripts/khalinos_gameplay.gd", "scripts/khalinos_gameplay_probe.gd"),
+        authorized_paths=("KHALINOS_GAMEPLAY.json", "KHALINOS_SPRITE_ATLAS.json", "README.md", "assets/sprite-atlas.png", "assets/visual-foundation.png", "project.godot", "scenes/gameplay.tscn", "scripts/khalinos_gameplay.gd", "scripts/khalinos_gameplay_probe.gd"),
         max_file_count=12,
-        max_total_bytes=3_000_000,
+        max_total_bytes=5_500_000,
     ),
     evidence=EvidenceContract(
         adapter_id=GodotGameplayEvidenceAdapter.adapter_id,
-        evidence_types=("godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "visual.asset.loaded"),
+        evidence_types=("godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
         network_isolated=False,
         independent_verifier_required=True,
     ),

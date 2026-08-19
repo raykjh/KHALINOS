@@ -7,6 +7,7 @@ import pytest
 from khalinos.toolpacks import (
     CapabilityDeclaration,
     EvidenceContract,
+    ExternalDependency,
     OutputContract,
     RegisteredToolPack,
     RoutingContract,
@@ -92,6 +93,23 @@ def test_manifest_digest_is_canonical_and_binding_is_exact() -> None:
     second = registered()
     assert first.manifest.sha256() == second.manifest.sha256()
     assert first.binding() == second.binding()
+
+
+def test_external_model_digest_is_part_of_the_toolpack_binding() -> None:
+    dependency = ExternalDependency(
+        dependency_id="fixture.model",
+        kind="model",
+        version="1",
+        sha256="2" * 64,
+        byte_size=128,
+        source_url="https://example.com/fixture.onnx",
+        license_id="Apache-2.0",
+    )
+    original = manifest().model_copy(update={"external_dependencies": (dependency,)})
+    changed = original.model_copy(update={
+        "external_dependencies": (dependency.model_copy(update={"sha256": "3" * 64}),),
+    })
+    assert original.sha256() != changed.sha256()
 
 
 def test_registry_resolves_only_the_exact_approved_binding() -> None:

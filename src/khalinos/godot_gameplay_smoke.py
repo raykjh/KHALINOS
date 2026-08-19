@@ -3,18 +3,27 @@
 from __future__ import annotations
 
 import json
+import io
 import struct
 import tempfile
 import zlib
 from pathlib import Path
+from PIL import Image, ImageDraw
 
 from khalinos.godot_gameplay import (
     GameplayAbility, GameplayEnemy, GameplayHero, GodotGameplayPlan,
     compile_godot_gameplay,
+    derive_sprite_atlas_plan,
 )
 from khalinos.registry import APPROVED_TOOLPACKS
 from khalinos.models import VisualConcept
 from khalinos.visual_assets import trusted_png_asset
+from khalinos.sprite_assets import (
+    SPRITE_SEGMENTATION_CONTRACT,
+    ApprovedSpriteSegmenter,
+    normalize_sprite_atlas,
+    verify_sprite_segmentation_model,
+)
 
 
 def _png(width: int = 256, height: int = 256) -> bytes:
@@ -56,7 +65,27 @@ def main() -> None:
         interaction_emphasis="Movement, threats, health, and progression remain legible.",
         anti_goals=["generic dashboard cards", "text baked into imagery"],
     )
-    artifact = compile_godot_gameplay(plan, concept, trusted_png_asset(_png()))
+    sprite_plan = derive_sprite_atlas_plan(plan)
+    image = Image.new("RGBA", (1024, 768), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.ellipse((72, 48, 184, 208), fill="#d9a441", outline="#2b271f", width=6)
+    draw.ellipse((328, 48, 440, 208), fill="#79a94b", outline="#2b271f", width=6)
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    sprite_atlas = normalize_sprite_atlas(output.getvalue(), sprite_plan)
+    model_path = verify_sprite_segmentation_model()
+    segmented_probe = ApprovedSpriteSegmenter(model_path)(output.getvalue())
+    segmented_probe_image = Image.open(io.BytesIO(segmented_probe)).convert("RGBA")
+    if segmented_probe_image.size != (1024, 768):
+        raise RuntimeError("approved sprite segmentation runtime changed the probe dimensions")
+    artifact = compile_godot_gameplay(
+        plan,
+        concept,
+        trusted_png_asset(_png()),
+        sprite_plan,
+        sprite_atlas,
+        require_sprite_atlas=True,
+    )
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     toolpack = APPROVED_TOOLPACKS.resolve(binding)
     with tempfile.TemporaryDirectory(prefix="khalinos-gameplay-cloud-") as temporary:
@@ -76,6 +105,9 @@ def main() -> None:
             "screenshots": receipt.screenshot_names,
             "toolpack_binding": binding.model_dump(mode="json"),
             "artifact_sha256": artifact.bundle_sha256,
+            "sprite_segmentation_contract_sha256": SPRITE_SEGMENTATION_CONTRACT.sha256(),
+            "sprite_segmentation_model_sha256": SPRITE_SEGMENTATION_CONTRACT.model_sha256,
+            "sprite_segmentation_inference": True,
         }
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         if not receipt.passed:

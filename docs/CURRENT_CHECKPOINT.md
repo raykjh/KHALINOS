@@ -71,3 +71,11 @@ The qualified code is deployed to the service and Worker with the same image dig
 Run the prepared Trinity Survivors input through the user UI. Confirm the Route Advisor recommends `godot.gameplay`, review the bounded SixSense preview, and only then authorize the first paid end-to-end gameplay run. Do not reinterpret the gameplay vertical slice as a full production game.
 
 For a new project, follow this order: materials, goal, approved ToolPack Route recommendation and user confirmation, only necessary SixSense questions, Outcome Preview, explicit authorization, then autonomous Cloud execution. Route semantics may be model-assisted, but candidate IDs, compatibility, manifest digests, and authorization remain host-controlled. Existing-project repair continues from its verified source type. Do not implement the new product or spend on a new run before the outcome is approved.
+
+## Sprite Asset qualification after the Drive checkpoint
+
+The Godot Gameplay ToolPack now carries an exact `isnet-anime.onnx` external dependency and a digest-bound segmentation contract. Each character is generated as one isolated source, segmented locally by the approved model, normalized into a fixed slot, composed deterministically, and inspected by an independent multimodal Sprite Atlas Gate for full-body completeness, role-defining equipment, residue, clipping, overlap, text, UI, and style consistency.
+
+Local regression is 132 passed. Cloud execution `khalinos-godot-toolpack-staging-5lqm8` then qualified the complete live path with zero retries: two real Nano Banana character generations, one independent Sprite Gate call, approved IS-Net Anime inference, deterministic atlas composition, and 23 passing Godot runtime/render checks. The qualified image digest is `sha256:e56694534228eae0b5b3615a5bba1682e695c061c3929de2cebafa9cf4e9ee92`; the ToolPack binding is `godot.gameplay` `1.2.0` with manifest `3d8972e2f0b651e59ce80d1d58bbc7ff1c7bcb211f41076c2b6b90c141dbd06a`. Production service and Worker were not changed.
+
+The exact evidence is stored in `docs/evidence/toolpack-restoration/sprite-isnet-cloud-qualification.json`. The staging preflight failure is preserved there; it occurred before any model call and was caused by an invalid qualification fixture plus malformed environment-variable quoting. The contract and visual thresholds were not weakened.

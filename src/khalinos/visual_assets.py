@@ -71,7 +71,7 @@ approved goal and concept. Return one PNG image.
 """.strip()
 
 
-def _generate_with_transient_retry(client, prompt: str, *, sleep=time.sleep):
+def _generate_with_transient_retry(client, prompt: str, *, sleep=time.sleep, aspect_ratio: str = "16:9"):
     for attempt in range(TRANSIENT_MAX_RETRIES + 1):
         try:
             return client.models.generate_content(
@@ -80,7 +80,7 @@ def _generate_with_transient_retry(client, prompt: str, *, sleep=time.sleep):
                 config=types.GenerateContentConfig(
                     response_modalities=["IMAGE", "TEXT"],
                     image_config=types.ImageConfig(
-                        aspect_ratio="16:9",
+                        aspect_ratio=aspect_ratio,
                         image_size="1K",
                         output_mime_type="image/png",
                     ),

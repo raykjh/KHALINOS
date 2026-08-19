@@ -11,6 +11,13 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
+from khalinos.sprite_assets import (
+    SPRITE_ATLAS_MANIFEST_PATH,
+    SPRITE_ATLAS_PATH,
+    SPRITE_SEGMENTATION_CONTRACT,
+    SpriteAtlasPlan,
+    SpriteSlot,
+)
 from khalinos.visual_assets import ASSET_PATH
 
 
@@ -116,9 +123,36 @@ class CompiledGodotGameplay(BaseModel):
     gameplay: GodotGameplayPlan
     concept: VisualConcept
     asset: ArtifactAsset
+    sprite_plan: SpriteAtlasPlan | None = None
+    sprite_atlas: ArtifactAsset | None = None
+    sprite_contract_required: bool = False
+    sprite_segmentation_contract_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     files: dict[str, str] = Field(min_length=6, max_length=12)
+
+
+def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
+    """Bind every rendered gameplay archetype to one fixed atlas slot."""
+
+    slots: list[SpriteSlot] = []
+    for hero in plan.heroes:
+        slots.append(SpriteSlot(
+            sprite_id=hero.hero_id,
+            kind="hero",
+            label=hero.label,
+            visual_role=f"{hero.role} hero; readable top-down party silhouette",
+            slot_index=len(slots),
+        ))
+    for enemy in plan.enemies:
+        slots.append(SpriteSlot(
+            sprite_id=enemy.enemy_id,
+            kind="enemy",
+            label=enemy.label,
+            visual_role="hostile enemy archetype; visually distinct from every hero",
+            slot_index=len(slots),
+        ))
+    return SpriteAtlasPlan(slots=tuple(slots))
 
 
 GAMEPLAY_SCRIPT = r'''extends Node2D
@@ -138,6 +172,8 @@ var choice_open := false
 var ended := false
 var victory := false
 var rng := RandomNumberGenerator.new()
+var sprite_manifest: Dictionary = {}
+var sprite_texture: Texture2D
 
 func _ready() -> void:
     config = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_GAMEPLAY.json"))
@@ -148,7 +184,28 @@ func _ready() -> void:
     for ability in config.abilities:
         ability_clocks[ability.ability_id] = 0.0
     rng.seed = int(config.deterministic_seed)
+    if FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json"):
+        sprite_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_SPRITE_ATLAS.json"))
+        sprite_texture = load("res://assets/sprite-atlas.png")
     queue_redraw()
+
+func _sprite_region(sprite_id: String) -> Rect2:
+    for slot in sprite_manifest.get("slots", []):
+        if slot.get("sprite_id", "") == sprite_id:
+            var region: Array = slot.region
+            return Rect2(float(region[0]), float(region[1]), float(region[2]), float(region[3]))
+    return Rect2()
+
+func _all_sprite_ids_mapped() -> bool:
+    if sprite_texture == null:
+        return false
+    for hero in config.heroes:
+        if _sprite_region(hero.hero_id).size == Vector2.ZERO:
+            return false
+    for enemy in config.enemies:
+        if _sprite_region(enemy.enemy_id).size == Vector2.ZERO:
+            return false
+    return true
 
 func _process(delta: float) -> void:
     if ended or choice_open:
@@ -285,6 +342,9 @@ func verification_scenario() -> Dictionary:
         "shared_health_initialized": shared_health_max > 0.0,
         "level_choice_offered": offered,
         "level_choice_applied": upgraded,
+        "sprite_atlas_loaded": sprite_texture != null,
+        "sprite_slot_count": sprite_manifest.get("slots", []).size(),
+        "all_sprite_ids_mapped": _all_sprite_ids_mapped(),
         "seed": config.deterministic_seed,
     }
 
@@ -298,11 +358,19 @@ func _draw() -> void:
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
         var position: Vector2 = center + Vector2.from_angle(angle) * 30.0
-        draw_circle(position, 16.0, Color(hero.color_hex))
-        draw_circle(position, 18.0, Color("f3e6bd"), false, 3.0)
+        var hero_region := _sprite_region(hero.hero_id)
+        if sprite_texture != null and hero_region.size != Vector2.ZERO:
+            draw_texture_rect_region(sprite_texture, Rect2(position - Vector2(28, 28), Vector2(56, 56)), hero_region)
+        else:
+            draw_circle(position, 16.0, Color(hero.color_hex))
+            draw_circle(position, 18.0, Color("f3e6bd"), false, 3.0)
         hero_index += 1
     for enemy in enemies:
-        draw_circle(enemy.position, 12.0, Color(enemy.color_hex))
+        var enemy_region := _sprite_region(enemy.enemy_id)
+        if sprite_texture != null and enemy_region.size != Vector2.ZERO:
+            draw_texture_rect_region(sprite_texture, Rect2(enemy.position - Vector2(22, 22), Vector2(44, 44)), enemy_region)
+        else:
+            draw_circle(enemy.position, 12.0, Color(enemy.color_hex))
     draw_rect(Rect2(28, 24, 360, 22), Color(0.08, 0.09, 0.08, 0.9))
     draw_rect(Rect2(31, 27, 354.0 * clamp(shared_health / max(1.0, shared_health_max), 0.0, 1.0), 16), Color("b84a3a"))
     if choice_open:
@@ -337,6 +405,10 @@ func _probe() -> void:
         and receipt.get("shared_health_initialized", false)
         and receipt.get("level_choice_offered", false)
         and receipt.get("level_choice_applied", false)
+        and (
+            not FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json")
+            or (receipt.get("sprite_atlas_loaded", false) and receipt.get("all_sprite_ids_mapped", false))
+        )
     )
     var target := FileAccess.open(output, FileAccess.WRITE)
     target.store_string(JSON.stringify(receipt))
@@ -355,12 +427,35 @@ def compile_godot_gameplay(
     plan: GodotGameplayPlan,
     concept: VisualConcept,
     asset: ArtifactAsset,
+    sprite_plan: SpriteAtlasPlan | None = None,
+    sprite_atlas: ArtifactAsset | None = None,
+    *,
+    require_sprite_atlas: bool = False,
 ) -> CompiledGodotGameplay:
     if asset.path != ASSET_PATH or asset.media_type != "image/png":
         raise ValueError("Godot gameplay requires the trusted visual foundation PNG")
+    if (sprite_plan is None) != (sprite_atlas is None):
+        raise ValueError("sprite plan and sprite atlas must be supplied as one atomic bundle")
+    if require_sprite_atlas and sprite_atlas is None:
+        raise ValueError("final Godot gameplay compilation requires a verified sprite atlas")
+    segmentation_contract_sha256 = SPRITE_SEGMENTATION_CONTRACT.sha256() if sprite_atlas is not None else None
+    if sprite_atlas is not None and sprite_atlas.path != SPRITE_ATLAS_PATH:
+        raise ValueError("Godot gameplay sprite atlas uses an unapproved path")
+    if sprite_plan is not None:
+        expected_ids = [item.hero_id for item in plan.heroes] + [item.enemy_id for item in plan.enemies]
+        if [item.sprite_id for item in sprite_plan.slots] != expected_ids:
+            raise ValueError("sprite atlas slots do not exactly cover the gameplay archetypes")
     safe_name = re.sub(r"[^A-Za-z0-9 _.-]", "", plan.project_name).strip() or "KHALINOS Game"
     manifest = plan.model_dump(mode="json")
-    plan_sha = _sha256({"gameplay": manifest, "concept": concept.model_dump(mode="json"), "asset_sha256": asset.sha256})
+    plan_sha = _sha256({
+        "gameplay": manifest,
+        "concept": concept.model_dump(mode="json"),
+        "asset_sha256": asset.sha256,
+        "sprite_plan": sprite_plan.model_dump(mode="json") if sprite_plan else None,
+        "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
+        "sprite_contract_required": require_sprite_atlas,
+        "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
+    })
     files = {
         "project.godot": f'''[application]\nconfig/name={json.dumps(safe_name)}\nrun/main_scene="res://scenes/gameplay.tscn"\n\n[display]\nwindow/size/viewport_width={plan.viewport_width}\nwindow/size/viewport_height={plan.viewport_height}\nwindow/size/window_width_override={plan.viewport_width}\nwindow/size/window_height_override={plan.viewport_height}\n\n[input]\nmove_left={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":65), Object(InputEventKey,"physical_keycode":4194311)]}}\nmove_right={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":68), Object(InputEventKey,"physical_keycode":4194313)]}}\nmove_up={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":87), Object(InputEventKey,"physical_keycode":4194320)]}}\nmove_down={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":83), Object(InputEventKey,"physical_keycode":4194322)]}}\n\n[rendering]\nrenderer/rendering_method="gl_compatibility"\nrenderer/rendering_method.mobile="gl_compatibility"\n''',
         "scenes/gameplay.tscn": _scene(plan.viewport_width, plan.viewport_height),
@@ -369,12 +464,25 @@ def compile_godot_gameplay(
         "KHALINOS_GAMEPLAY.json": json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         "README.md": f"# {safe_name}\n\nA bounded Godot 2D gameplay vertical slice generated by the KHALINOS Godot Gameplay ToolPack.\n\nMove with WASD or arrow keys. Choose level upgrades with number keys. Press R after victory or defeat to restart.\n",
     }
+    if sprite_plan is not None:
+        files[SPRITE_ATLAS_MANIFEST_PATH] = json.dumps(sprite_plan.manifest(), ensure_ascii=False, indent=2) + "\n"
     files = {path: content.replace("\r\n", "\n").replace("\r", "\n") for path, content in files.items()}
     return CompiledGodotGameplay(
         gameplay=plan,
         concept=concept,
         asset=asset,
+        sprite_plan=sprite_plan,
+        sprite_atlas=sprite_atlas,
+        sprite_contract_required=require_sprite_atlas,
+        sprite_segmentation_contract_sha256=segmentation_contract_sha256,
         plan_sha256=plan_sha,
-        bundle_sha256=_sha256({"plan_sha256": plan_sha, "files": files, "asset_sha256": asset.sha256}),
+        bundle_sha256=_sha256({
+            "plan_sha256": plan_sha,
+            "files": files,
+            "asset_sha256": asset.sha256,
+            "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
+            "sprite_contract_required": require_sprite_atlas,
+            "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
+        }),
         files=files,
     )
