@@ -6,13 +6,14 @@ This is the Git-side handoff for the active KHALINOS project. Google Drive remai
 
 - Repository: `C:\memory R\KHALINOS`
 - Branch: `agent/toolpack-restoration`
-- Baseline before the Browser visual integration: `9fd4211`.
+- Active deployed code: `b72c14f`.
 - User-owned `smoke-input/` is intentionally untracked and must not be staged.
-- Regression baseline: 102 passed; five third-party ADK/FastAPI deprecation warnings.
+- User-authored `docs/test-projects/` inputs are intentionally untracked and must not be staged with ToolPack code.
+- Regression baseline: 115 passed; five third-party ADK/FastAPI deprecation warnings.
 
 ## Product boundary
 
-KHALINOS is a specialized autonomous builder and repairer for bounded browser micro-products. The user supplies material and a goal, answers only material SixSense questions, reviews one Outcome Preview, and authorizes an immutable brief. Project Owner, visual selection when required, Maker, deterministic Runtime Check, Independent Verifier, and bounded Technical Repair then run in Google Cloud without step-by-step coding-assistant intervention.
+KHALINOS is a specialized autonomous builder for bounded browser micro-products and bounded Godot prototypes. The Godot routes are separate: screen topology, visual prototype, and a data-driven 2D top-down gameplay vertical slice. The user supplies material and a goal, answers only material SixSense questions, reviews one Outcome Preview, and authorizes an immutable brief. Project Owner, visual selection when required, trusted compiler, deterministic Runtime Check, Independent Verifier, and bounded Technical Repair then run in Google Cloud without step-by-step coding-assistant intervention.
 
 It does not promise universal project completion. The previous general-purpose prototype is historical context, not the active project identity or scope.
 
@@ -38,6 +39,16 @@ It does not promise universal project completion. The previous general-purpose p
 
 Qualification run `708ec62505e544ca85bbfa898343704b` passed with 16 model calls. V1 and V2 were eligible, V2 was selected, and the final Q2 receipt preserved both Q1 and Q2 selector-bound runtime evidence. Browser ToolPack manifest: `162bd5734bdc4dab9810ce1e127b9110ec0400d30b36c7d83ea5d381009f2f8a`.
 
+## Godot gameplay production path
+
+- `godot.gameplay` accepts only bounded offline 2D top-down action or survival vertical slices.
+- Gemini authors a strict data plan for heroes, enemy archetypes, automatic abilities, shared party stats, session length, and deterministic level-choice cadence; it never writes GDScript.
+- The trusted compiler owns `project.godot`, the scene, gameplay script, probe, manifest, README, and one gated Nano Banana environmental PNG.
+- PASS requires actual movement, enemy spawning, automatic ability execution, shared health initialization, deterministic level choice, approved runtime digest, asset import, and real rendered frames.
+- 3D, multiplayer, networking, arbitrary plugins/scripts, existing-project repair, platform distribution, and unrestricted full-game claims remain excluded.
+
+Cloud qualification execution `khalinos-godot-toolpack-staging-tr8nw` passed all 18 checks in 17.21 seconds with zero issues. The approved ToolPack manifest SHA-256 is `c3117d61e6045580218fe7af9a8025448409c70e5da5093ae98c3466100c9c44`.
+
 ## Deployment target
 
 - Google Cloud project: `khalinos-agent-20260818`
@@ -45,18 +56,18 @@ Qualification run `708ec62505e544ca85bbfa898343704b` passed with 16 model calls.
 - Cloud Run Job: `khalinos-worker`
 - Service: `khalinos`
 - Cloud Run Job: `khalinos-worker`
-- Code commit deployed: `aff16fbdeeb6104b0b064ca38e04f609a099ecfd`.
-- Image: `asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/runtime:visual-assets-aff16fb`.
-- Digest: `sha256:30cd4669fa6430fa7414f1145abf48dbea5889a126f1d4ca7a4035440ed7768e`.
-- Cloud Build: `c04f577b-2a34-4586-8f58-2e3c9a29544b`.
-- Service revision: `khalinos-00022-2wj`, serving 100 percent of traffic.
-- Worker generation: `19`.
+- Code commit deployed: `b72c14f`.
+- Image: `asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/runtime:gameplay-b72c14f`.
+- Digest: `sha256:73c0fee550ae82bd2b0f25faa80b16dbd3eeddd404b67725c0da4e9c7f66f27a`.
+- Cloud Build: `8a1b604e-35be-4718-883e-0c2522c5e50a`.
+- Service revision: `khalinos-00024-b2z`, serving 100 percent of traffic.
+- Worker generation: `22`.
 - Safety: zero retries, 1800-second task timeout.
 
 The qualified code is deployed to the service and Worker with the same image digest. The public `/health` endpoint returned `ok: true` after deployment.
 
 ## Next decision
 
-After deployment, run a bounded Browser new-product smoke from the user UI and confirm that the selected PNG appears in **Play verified result**. Then choose a new evaluation project that is materially harder than a one-shot Minesweeper build and exposes both objective runtime evidence and visible quality differences.
+Run the prepared Trinity Survivors input through the user UI. Confirm the Route Advisor recommends `godot.gameplay`, review the bounded SixSense preview, and only then authorize the first paid end-to-end gameplay run. Do not reinterpret the gameplay vertical slice as a full production game.
 
 For a new project, follow this order: materials, goal, approved ToolPack Route recommendation and user confirmation, only necessary SixSense questions, Outcome Preview, explicit authorization, then autonomous Cloud execution. Route semantics may be model-assisted, but candidate IDs, compatibility, manifest digests, and authorization remain host-controlled. Existing-project repair continues from its verified source type. Do not implement the new product or spend on a new run before the outcome is approved.
