@@ -19,6 +19,9 @@ def test_materials_precede_goal_and_sixsense() -> None:
     assert "/api/routes/recommend" in html
     assert "approved ToolPacks" in html
     assert 'id="routeOptions"' in html
+    assert 'data-phase="route" hidden' in html
+    assert "exact.length===1" in html
+    assert "requestedToolpackId=exact[0].toolpack.toolpack_id;await startSixSense()" in html
     assert "Load Judge Demo inputs" in html
     assert "Choose from Project Library" in html
     assert "External project ZIP" in html

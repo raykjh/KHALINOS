@@ -182,7 +182,7 @@
     <aside class="rail" aria-label="Progress">
       <div class="phase active" data-phase="materials">Materials</div>
       <div class="phase" data-phase="goal">Goal</div>
-      <div class="phase" data-phase="route">Route</div>
+      <div class="phase" data-phase="route" hidden>Compatibility</div>
       <div class="phase" data-phase="senses">SixSense</div>
       <div class="phase" data-phase="preview">Preview</div>
       <div class="phase" data-phase="execute">Execute</div>
@@ -431,7 +431,12 @@ $('#beginSensing').addEventListener('click',async()=>{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
     if(workChoice==='existing'||workChoice==='demo'){await startSixSense();return;}
     const response=await fetch('/api/routes/recommend',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,requested_work_mode:'new_product_build'})});
-    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));routeRecommendation=JSON.parse(text);renderRoute();
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));routeRecommendation=JSON.parse(text);
+    const exact=routeRecommendation.options.filter(item=>item.assessment.fit==='exact');
+    if(routeRecommendation.recommendation.status==='recommended'&&exact.length===1&&routeRecommendation.recommendation.recommended_toolpack_id===exact[0].toolpack.toolpack_id){
+      requestedToolpackId=exact[0].toolpack.toolpack_id;await startSixSense();return;
+    }
+    renderRoute();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
 function renderRoute(){

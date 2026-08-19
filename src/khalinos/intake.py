@@ -108,6 +108,35 @@ def inspect_materials(request: MaterialInspectionRequest) -> MaterialInspection:
     )
 
 
+def bind_material_role(
+    inspection: MaterialInspection,
+    *,
+    requested_work_mode: str,
+) -> MaterialInspection:
+    """Honor the user's explicit new/existing choice when assigning submitted material."""
+
+    if requested_work_mode != "new_product_build" or inspection.material_count == 0:
+        return inspection
+    notices = [
+        item
+        for item in inspection.notices
+        if not item.startswith("An archive is treated as possible source material")
+    ]
+    notices.append(
+        "Because the user selected New project, submitted files are reference inputs and do not convert this run into existing-project work."
+    )
+    return inspection.model_copy(update={
+        "recommended_work_mode": "reference_guided_build",
+        "source_available": False,
+        "detected_materials": [
+            item for item in inspection.detected_materials
+            if item != "Source or project material"
+        ] + ["Reference inputs for a new product"],
+        "summary": "Reference material was supplied for a new product build; KHALINOS will create a new project rather than modify the files.",
+        "notices": list(dict.fromkeys(notices))[:12],
+    })
+
+
 class IntakeStore(Protocol):
     def create(self, record: IntakeRecord, sources: list[tuple[SourceReference, bytes]]) -> None: ...
     def read(self, intake_id: str) -> IntakeRecord: ...
@@ -194,10 +223,13 @@ async def start_intake(
     source_snapshot: ArchiveSnapshot | None = None,
 ) -> IntakeRecord:
     sources = decode_sources(request)
-    material_inspection = inspect_materials(MaterialInspectionRequest(
-        project_locator=request.project_locator,
-        materials=request.materials,
-    ))
+    material_inspection = bind_material_role(
+        inspect_materials(MaterialInspectionRequest(
+            project_locator=request.project_locator,
+            materials=request.materials,
+        )),
+        requested_work_mode=request.requested_work_mode,
+    )
     record = IntakeRecord(
         intake_id=uuid4().hex,
         project_name=request.project_name,

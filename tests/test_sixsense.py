@@ -4,7 +4,7 @@ import base64
 
 import pytest
 
-from khalinos.intake import answer_intake, authorized_brief, inspect_materials, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, bind_material_role, inspect_materials, restart_intake, start_intake
 from khalinos.intake_storage import LocalIntakeStore
 from khalinos.models import (
     ALL_SENSE_DIMENSIONS,
@@ -48,6 +48,18 @@ def preview() -> OutcomePreview:
             authorized_output_files=["README.md", "app.js", "index.html", "journey.json", "styles.css"],
         ),
     )
+
+
+def test_explicit_new_project_treats_uploaded_archive_as_reference_not_existing_work() -> None:
+    inspection = inspect_materials(MaterialInspectionRequest(materials=[
+        MaterialDescriptor(filename="Trinity-Survivors-Input.zip", relative_path="Trinity-Survivors-Input.zip", media_type="application/zip", size_bytes=16000),
+    ]))
+    assert inspection.recommended_work_mode == "existing_project_work"
+    bound = bind_material_role(inspection, requested_work_mode="new_product_build")
+    assert bound.recommended_work_mode == "reference_guided_build"
+    assert bound.source_available is False
+    assert "new product" in bound.summary.lower()
+    assert any("Reference inputs" in item for item in bound.detected_materials)
 
 
 class AdaptiveFake:
