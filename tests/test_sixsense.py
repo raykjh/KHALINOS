@@ -21,7 +21,7 @@ from khalinos.models import (
     SourceUpload,
     UserBrief,
 )
-from khalinos.sixsense import validate_decision
+from khalinos.sixsense import bind_preview_to_profile, validate_decision
 
 
 def preview() -> OutcomePreview:
@@ -291,6 +291,74 @@ def test_sixsense_stops_asking_after_six_user_decisions() -> None:
     )
     with pytest.raises(ValueError, match="more than six"):
         validate_decision(record, decision)
+
+
+def test_gameplay_preview_cannot_collapse_back_to_topology() -> None:
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="d" * 32,
+        project_name="Trinity Survivors",
+        goal="Create a playable 2D Godot survival game with combat, health, and level choices.",
+        requested_project_kind="godot",
+        requested_toolpack_id="godot.gameplay",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+    )
+    topology = preview().model_copy(update={
+        "final_result": "A bounded Godot screen-and-overlay topology prototype with connected scenes only.",
+        "exclusions_and_preservation": ["No gameplay mechanics or input loops are included."],
+    })
+    decision = SenseDecision(
+        status="ready",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+        preview=bind_preview_to_profile(record, topology),
+    )
+
+    with pytest.raises(ValueError, match="topology-only"):
+        validate_decision(record, decision)
+
+
+def test_gameplay_preview_is_bound_to_exact_output_surface_and_mechanics() -> None:
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="e" * 32,
+        project_name="Trinity Survivors",
+        goal="Create a playable 2D Godot survival game with combat, health, and level choices.",
+        requested_project_kind="godot",
+        requested_toolpack_id="godot.gameplay",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+    )
+    gameplay = preview().model_copy(update={
+        "final_result": "A bounded playable Godot 2D survival gameplay vertical slice with rendered evidence.",
+        "completion_and_quality": [
+            "Formation movement and enemy spawn combat pass the runtime probe.",
+            "Shared health, level choices, and survival victory or defeat pass the runtime probe.",
+        ],
+        "recommended_brief": preview().recommended_brief.model_copy(update={
+            "goal": "Create a bounded playable Godot survival gameplay vertical slice with rendered evidence.",
+            "acceptance_criteria": [
+                "Formation movement and enemy spawn combat pass the runtime probe.",
+                "Shared health, level choices, and survival victory or defeat pass the runtime probe.",
+            ],
+        }),
+    })
+    bound = bind_preview_to_profile(record, gameplay)
+    decision = SenseDecision(
+        status="ready",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+        preview=bound,
+    )
+
+    validate_decision(record, decision)
+    assert bound.recommended_brief.max_repairs_per_quest == 0
+    assert bound.recommended_brief.authorized_output_files == [
+        "KHALINOS_GAMEPLAY.json",
+        "KHALINOS_SPRITE_ATLAS.json",
+        "README.md",
+        "assets/sprite-atlas.png",
+        "assets/visual-foundation.png",
+        "project.godot",
+        "scenes/gameplay.tscn",
+        "scripts/khalinos_gameplay.gd",
+        "scripts/khalinos_gameplay_probe.gd",
+    ]
 
 
 def test_authorization_binds_visual_direction_and_quality_to_execution_brief() -> None:

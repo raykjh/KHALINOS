@@ -125,7 +125,89 @@ connected under digest-bound headless verification. Do not promise gameplay, arb
 scripts, input mechanics, physics, generated assets, existing-project repair, or production
 3D behavior. Put the zero-repair rule under authority or constraints, never under completion
 criteria. Set repairs per Quest to zero for this profile. Return only OutcomePreview.
+
+For godot.gameplay.new-product, state plainly that the result is a bounded playable Godot
+2D gameplay vertical slice, not a topology prototype and not a full production game. Bind
+completion to several mechanics the approved probe can execute: formation movement, enemy
+spawn and automatic combat, shared health or support effects, record/experience and level
+choices, and survival victory or defeat. Include real display-backed render evidence and the
+digest-bound Sprite Atlas with independent visual completeness verification. Never say that
+gameplay, physics, input loops, or generated sprites are excluded. The exact authorized files
+are KHALINOS_GAMEPLAY.json, KHALINOS_SPRITE_ATLAS.json, README.md,
+assets/sprite-atlas.png, assets/visual-foundation.png, project.godot,
+scenes/gameplay.tscn, scripts/khalinos_gameplay.gd, and
+scripts/khalinos_gameplay_probe.gd. Set repairs per Quest to zero. Return only OutcomePreview.
 """.strip()
+
+
+_GODOT_GAMEPLAY_OUTPUTS = [
+    "KHALINOS_GAMEPLAY.json",
+    "KHALINOS_SPRITE_ATLAS.json",
+    "README.md",
+    "assets/sprite-atlas.png",
+    "assets/visual-foundation.png",
+    "project.godot",
+    "scenes/gameplay.tscn",
+    "scripts/khalinos_gameplay.gd",
+    "scripts/khalinos_gameplay_probe.gd",
+]
+
+
+def bind_preview_to_profile(record: IntakeRecord, preview: OutcomePreview) -> OutcomePreview:
+    """Bind model-authored preview details to the already approved execution profile."""
+
+    if record.requested_toolpack_id != "godot.gameplay":
+        return preview
+    brief = preview.recommended_brief.model_copy(update={
+        "max_repairs_per_quest": 0,
+        "toolpack_binding": record.requested_toolpack_binding,
+        "authorized_output_files": _GODOT_GAMEPLAY_OUTPUTS,
+    })
+    return preview.model_copy(update={"recommended_brief": brief})
+
+
+def validate_preview_profile(record: IntakeRecord, preview: OutcomePreview) -> None:
+    """Fail closed when a preview silently narrows an approved gameplay route."""
+
+    if record.requested_toolpack_id != "godot.gameplay":
+        return
+    all_text = " ".join([
+        preview.final_result,
+        *preview.required_enablers,
+        *preview.exclusions_and_preservation,
+        *preview.operating_context,
+        *preview.completion_and_quality,
+        *preview.authority_budget_and_delivery,
+        preview.recommended_brief.goal,
+        *preview.recommended_brief.acceptance_criteria,
+    ]).casefold()
+    forbidden = (
+        "screen-and-overlay topology prototype",
+        "no gameplay mechanics",
+        "without gameplay mechanics",
+        "no input loops",
+        "exactly 4 authorized output files",
+        "delivery of exactly 4",
+    )
+    if any(term in all_text for term in forbidden):
+        raise ValueError("Godot Gameplay Preview cannot be narrowed to a topology-only outcome")
+    if "godot" not in preview.final_result.casefold() or not any(
+        term in preview.final_result.casefold() for term in ("playable", "gameplay", "survival")
+    ):
+        raise ValueError("Godot Gameplay Preview must state the playable Godot outcome")
+    criteria = " ".join(preview.recommended_brief.acceptance_criteria).casefold()
+    mechanic_groups = (
+        ("movement", "move", "formation"),
+        ("enemy", "spawn", "attack", "combat"),
+        ("health", "damage", "heal", "shield"),
+        ("record", "experience", "level", "choice"),
+        ("survival", "victory", "defeat", "timer", "session"),
+    )
+    covered = sum(any(term in criteria for term in group) for group in mechanic_groups)
+    if covered < 3:
+        raise ValueError("Godot Gameplay Preview must bind completion to executed mechanics")
+    if preview.recommended_brief.authorized_output_files != _GODOT_GAMEPLAY_OUTPUTS:
+        raise ValueError("Godot Gameplay Preview output surface must match the approved ToolPack")
 
 
 class SixSenseAgent:
@@ -280,6 +362,7 @@ class SixSenseAgent:
             preview = OutcomePreview.model_validate(json.loads(
                 await self._structured(self.preview_agent, payload, source_payloads)
             ))
+            preview = bind_preview_to_profile(record, preview)
             decision = SenseDecision(
                 status="ready",
                 resolved_dimensions=assessment.resolved_dimensions,
@@ -308,3 +391,5 @@ def validate_decision(record: IntakeRecord, decision: SenseDecision) -> None:
         previous_questions = {" ".join(item.question.casefold().split()) for item in record.question_history}
         if normalized_question in previous_questions:
             raise ValueError("SixSense repeated a previous question")
+    elif decision.preview:
+        validate_preview_profile(record, decision.preview)
