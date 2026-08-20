@@ -85,16 +85,19 @@ def gameplay_plan() -> GodotGameplayPlan:
                 GameplayProfession(profession_id="warrior", label="Warrior", role="tank", stat_focus="balanced"),
                 GameplayProfession(profession_id="shield_warrior", label="Shield Warrior", role="tank", stat_focus="defense"),
                 GameplayProfession(profession_id="axe_warrior", label="Axe Warrior", role="tank", stat_focus="attack"),
+                GameplayProfession(profession_id="dual_swordsman", label="Dual Swordsman", role="tank", stat_focus="attack_speed"),
             )),
             GameplayProfessionRoster(role="damage", starting_profession_id="archer", professions=(
                 GameplayProfession(profession_id="archer", label="Archer", role="damage", stat_focus="balanced"),
                 GameplayProfession(profession_id="crossbowman", label="Crossbowman", role="damage", stat_focus="move_speed"),
                 GameplayProfession(profession_id="longbowman", label="Longbowman", role="damage", stat_focus="attack"),
+                GameplayProfession(profession_id="rifleman", label="Rifleman", role="damage", stat_focus="attack_speed"),
             )),
             GameplayProfessionRoster(role="support", starting_profession_id="priest", professions=(
                 GameplayProfession(profession_id="priest", label="Priest", role="support", stat_focus="utility"),
                 GameplayProfession(profession_id="paladin", label="Paladin", role="support", stat_focus="defense"),
                 GameplayProfession(profession_id="dark_priest", label="Dark Priest", role="support", stat_focus="attack"),
+                GameplayProfession(profession_id="guardian_priest", label="Guardian Priest", role="support", stat_focus="health"),
             )),
         ),
         resurrection_capacity=1,
@@ -138,13 +141,15 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.3.0"
+    assert binding.version == "1.4.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
     first = artifact()
     second = artifact()
     assert first.bundle_sha256 == second.bundle_sha256
+    assert first.gameplay.profession_choice_mode == "seeded_random_alternatives"
+    assert "_seeded_profession_alternatives" in first.files["scripts/khalinos_gameplay.gd"]
     destination = tmp_path / "product"
     GODOT_GAMEPLAY_TOOLPACK.execution_adapter.materialize(first, destination)
     assert {path.as_posix() for path in destination.rglob("*") if path.is_file()} == {

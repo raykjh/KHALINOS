@@ -118,6 +118,7 @@ def test_public_gameplay_route_accepts_only_bounded_observable_mechanics() -> No
             "The three-hero formation moves while enemies spawn and attack.",
             "Automatic abilities, shared health, and level choices work during the session.",
             "Victory and defeat states are visible in the rendered game.",
+            "Each promotion offers exactly one guaranteed grade advancement and two seeded random alternatives.",
         ],
         authorized_output_files=["placeholder.txt"],
     )

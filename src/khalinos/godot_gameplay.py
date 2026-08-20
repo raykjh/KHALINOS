@@ -197,6 +197,7 @@ class GodotGameplayPlan(BaseModel):
     level_count: int = Field(ge=2, le=20)
     level_interval_seconds: int = Field(ge=5, le=180)
     choices_per_level: int = Field(ge=2, le=5)
+    profession_choice_mode: Literal["seeded_random_alternatives"] = "seeded_random_alternatives"
     team_stat_mode: Literal["sum"] = "sum"
     upgrade_role_order: tuple[Literal["tank", "damage", "support"], ...] = Field(
         default=("tank", "damage", "support"), min_length=1, max_length=3,
@@ -457,15 +458,47 @@ func _open_level_choice() -> void:
     current_upgrade_role = String(order[(level - 1) % order.size()])
     var state: Dictionary = profession_state.get(current_upgrade_role, {"profession_id": "", "rank": 1})
     current_upgrade_options.append({"kind": "rank_up", "profession_id": state.profession_id, "role": current_upgrade_role})
+    var alternatives := _seeded_profession_alternatives(
+        current_upgrade_role,
+        String(state.profession_id),
+        int(config.deterministic_seed),
+        level,
+    )
+    for profession_id in alternatives:
+        current_upgrade_options.append({"kind": "specialization", "profession_id": profession_id, "role": current_upgrade_role})
+
+func _profession_candidates(role: String, current_profession_id: String) -> Array[String]:
+    var candidates: Array[String] = []
     for roster in config.get("profession_rosters", []):
-        if String(roster.role) != current_upgrade_role:
+        if String(roster.role) != role:
             continue
         for profession in roster.professions:
-            if String(profession.profession_id) == String(state.profession_id):
+            var profession_id := String(profession.profession_id)
+            if profession_id == current_profession_id:
                 continue
-            current_upgrade_options.append({"kind": "specialization", "profession_id": profession.profession_id, "role": current_upgrade_role})
-            if current_upgrade_options.size() == int(config.choices_per_level):
-                return
+            candidates.append(profession_id)
+    return candidates
+
+func _seeded_profession_alternatives(
+    role: String,
+    current_profession_id: String,
+    seed_value: int,
+    choice_level: int,
+) -> Array[String]:
+    var candidates := _profession_candidates(role, current_profession_id)
+    var local_rng := RandomNumberGenerator.new()
+    var order: Array = config.get("upgrade_role_order", [])
+    var role_index: int = max(0, order.find(role))
+    local_rng.seed = seed_value + choice_level * 1009 + role_index * 9176
+    for index in range(candidates.size() - 1, 0, -1):
+        var swap_index := local_rng.randi_range(0, index)
+        var temporary := candidates[index]
+        candidates[index] = candidates[swap_index]
+        candidates[swap_index] = temporary
+    var selected: Array[String] = []
+    for index in range(min(int(config.choices_per_level) - 1, candidates.size())):
+        selected.append(candidates[index])
+    return selected
 
 func _choose_upgrade(index: int) -> void:
     if index < 0 or index >= int(config.choices_per_level):
@@ -500,6 +533,10 @@ func verification_scenario() -> Dictionary:
     var ability_applied := records > 0 or shared_health > 0.0 or shield > 0.0
     var observed_roles: Array[String] = []
     var choice_contract_valid := true
+    var seeded_alternatives_valid := true
+    var same_seed_repeatable := true
+    var different_seed_variation_when_possible := true
+    var upgrade_choice_trace: Array[Dictionary] = []
     for stage in range(int(config.level_count) - 1):
         elapsed = float((stage + 1) * int(config.level_interval_seconds))
         _step_simulation(0.01, Vector2.ZERO)
@@ -508,10 +545,48 @@ func verification_scenario() -> Dictionary:
             break
         observed_roles.append(current_upgrade_role)
         if not config.get("profession_rosters", []).is_empty():
+            var state: Dictionary = profession_state.get(current_upgrade_role, {"profession_id": "", "rank": 1})
+            var current_profession_id := String(state.profession_id)
+            var observed_alternatives: Array[String] = []
+            for option in current_upgrade_options.slice(1):
+                observed_alternatives.append(String(option.profession_id))
+            var candidates := _profession_candidates(current_upgrade_role, current_profession_id)
+            var repeated := _seeded_profession_alternatives(
+                current_upgrade_role, current_profession_id, int(config.deterministic_seed), level,
+            )
             choice_contract_valid = choice_contract_valid and current_upgrade_options.size() == 3
             choice_contract_valid = choice_contract_valid and current_upgrade_options[0].kind == "rank_up"
             choice_contract_valid = choice_contract_valid and current_upgrade_options[1].kind == "specialization"
             choice_contract_valid = choice_contract_valid and current_upgrade_options[2].kind == "specialization"
+            seeded_alternatives_valid = seeded_alternatives_valid and observed_alternatives.size() == 2
+            seeded_alternatives_valid = seeded_alternatives_valid and observed_alternatives[0] != observed_alternatives[1]
+            seeded_alternatives_valid = seeded_alternatives_valid and not observed_alternatives.has(current_profession_id)
+            seeded_alternatives_valid = seeded_alternatives_valid and candidates.has(observed_alternatives[0])
+            seeded_alternatives_valid = seeded_alternatives_valid and candidates.has(observed_alternatives[1])
+            same_seed_repeatable = same_seed_repeatable and observed_alternatives == repeated
+            if candidates.size() > 2:
+                var changed := false
+                var observed_set := observed_alternatives.duplicate()
+                observed_set.sort()
+                for seed_offset in range(1, 9):
+                    var alternate := _seeded_profession_alternatives(
+                        current_upgrade_role,
+                        current_profession_id,
+                        int(config.deterministic_seed) + seed_offset,
+                        level,
+                    )
+                    var alternate_set := alternate.duplicate()
+                    alternate_set.sort()
+                    if alternate_set != observed_set:
+                        changed = true
+                        break
+                different_seed_variation_when_possible = different_seed_variation_when_possible and changed
+            upgrade_choice_trace.append({
+                "level": level,
+                "role": current_upgrade_role,
+                "current_profession_id": current_profession_id,
+                "alternatives": observed_alternatives,
+            })
         _choose_upgrade(0)
     var upgraded := level == int(config.level_count) and not choice_open
     for ability in config.abilities:
@@ -537,7 +612,7 @@ func verification_scenario() -> Dictionary:
         if not role_order.is_empty():
             expected_roles.append(String(role_order[stage % role_order.size()]))
     return {
-        "schema_version": "khalinos-godot-gameplay-probe-v2",
+        "schema_version": "khalinos-godot-gameplay-probe-v3",
         "formation_count": config.heroes.size(),
         "movement_applied": moved,
         "enemy_spawned": spawned,
@@ -551,6 +626,11 @@ func verification_scenario() -> Dictionary:
         "upgrade_roles_observed": observed_roles,
         "upgrade_role_order_valid": observed_roles == expected_roles,
         "upgrade_choice_contract_valid": choice_contract_valid,
+        "profession_choice_mode": config.get("profession_choice_mode", ""),
+        "seeded_alternatives_valid": seeded_alternatives_valid,
+        "same_seed_repeatable": same_seed_repeatable,
+        "different_seed_variation_when_possible": different_seed_variation_when_possible,
+        "upgrade_choice_trace": upgrade_choice_trace,
         "party_stats": party_stats,
         "team_stat_mode": config.get("team_stat_mode", ""),
         "resurrection_stored": resurrection_stored,
@@ -621,6 +701,10 @@ func _probe() -> void:
         and receipt.get("level_choice_applied", false)
         and receipt.get("upgrade_role_order_valid", false)
         and receipt.get("upgrade_choice_contract_valid", false)
+        and receipt.get("profession_choice_mode", "") == "seeded_random_alternatives"
+        and receipt.get("seeded_alternatives_valid", false)
+        and receipt.get("same_seed_repeatable", false)
+        and receipt.get("different_seed_variation_when_possible", false)
         and receipt.get("resurrection_stored", false)
         and receipt.get("resurrection_consumed", false)
         and receipt.get("victory_at_session_end", false)

@@ -124,7 +124,7 @@ def _validate_materialized(artifact: CompiledGodotGameplay, root: Path) -> None:
 
 
 class GodotGameplayExecutionAdapter:
-    adapter_id = "godot.gameplay.execution.v1"
+    adapter_id = "godot.gameplay.execution.v2"
 
     def materialize(self, artifact: CompiledGodotGameplay, root: Path) -> None:
         _validate_artifact(artifact)
@@ -166,7 +166,7 @@ class GodotGameplayExecutionAdapter:
 
 
 class GodotGameplayEvidenceAdapter:
-    adapter_id = "godot.gameplay.evidence.v1"
+    adapter_id = "godot.gameplay.evidence.v2"
 
     def verify(
         self,
@@ -184,14 +184,18 @@ class GodotGameplayEvidenceAdapter:
         if (executable.stat().st_size, executable_sha256) not in APPROVED_GODOT_RUNTIMES:
             raise PermissionError("Godot executable size or digest changed after approval")
         evidence_dir.mkdir(parents=True, exist_ok=True)
+        import_log = evidence_dir / "godot-gameplay-import.log"
         imported = subprocess.run(
-            [str(executable), "--language", "en", "--headless", "--path", str(root.resolve()), "--editor", "--quit"],
+            [str(executable), "--language", "en", "--headless", "--log-file", str(import_log.resolve()),
+             "--path", str(root.resolve()), "--editor", "--quit"],
             cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=60, shell=False, check=False,
         )
         receipt_path = evidence_dir / "godot-gameplay-probe.json"
+        probe_log = evidence_dir / "godot-gameplay-probe.log"
         probe = subprocess.run(
-            [str(executable), "--language", "en", "--headless", "--path", str(root.resolve()),
+            [str(executable), "--language", "en", "--headless", "--log-file", str(probe_log.resolve()),
+             "--path", str(root.resolve()),
              "--script", "res://scripts/khalinos_gameplay_probe.gd", "--", f"--output={receipt_path.resolve()}"],
             cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=60, shell=False, check=False,
@@ -200,8 +204,10 @@ class GodotGameplayEvidenceAdapter:
         xvfb, environment = _start_xvfb(artifact.gameplay.viewport_width, artifact.gameplay.viewport_height)
         try:
             prefix = evidence_dir / "godot-gameplay-render.png"
+            render_log = evidence_dir / "godot-gameplay-render.log"
             rendered = subprocess.run(
-                [str(executable), "--language", "en", "--windowed", "--path", str(root.resolve()),
+                [str(executable), "--language", "en", "--windowed", "--log-file", str(render_log.resolve()),
+                 "--path", str(root.resolve()),
                  "--write-movie", str(prefix.resolve()), "--fixed-fps", "30", "--quit-after", "3"],
                 cwd=root, env=environment, capture_output=True, text=True, encoding="utf-8", errors="replace",
                 timeout=60, shell=False, check=False,
@@ -228,7 +234,7 @@ class GodotGameplayEvidenceAdapter:
             "approved_executable_digest": True,
             "asset_import_process": imported.returncode == 0,
             "headless_process": probe.returncode == 0,
-            "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v2",
+            "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v3",
             "formation_instantiated": receipt.get("formation_count") == len(artifact.gameplay.heroes),
             "movement_applied": receipt.get("movement_applied") is True,
             "enemy_spawned": receipt.get("enemy_spawned") is True,
@@ -243,6 +249,12 @@ class GodotGameplayEvidenceAdapter:
             ),
             "upgrade_role_order_executed": receipt.get("upgrade_role_order_valid") is True,
             "three_choice_profession_contract": receipt.get("upgrade_choice_contract_valid") is True,
+            "seeded_profession_alternatives": (
+                receipt.get("profession_choice_mode") == "seeded_random_alternatives"
+                and receipt.get("seeded_alternatives_valid") is True
+                and receipt.get("same_seed_repeatable") is True
+                and receipt.get("different_seed_variation_when_possible") is True
+            ),
             "party_stats_aggregated": (
                 receipt.get("team_stat_mode") == "sum"
                 and all(abs(float(observed_stats.get(key, -1)) - value) < 0.001 for key, value in expected_stats.items())
@@ -276,7 +288,8 @@ class GodotGameplayEvidenceAdapter:
             f"Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, "
             f"summed party stats, {artifact.gameplay.session_seconds}-second victory, "
             f"{artifact.gameplay.level_count}-level progression every {artifact.gameplay.level_interval_seconds} seconds, "
-            f"ordered three-option profession choices, and bounded resurrection with seed={artifact.gameplay.deterministic_seed}; "
+            f"ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, "
+            f"and bounded resurrection with seed={artifact.gameplay.deterministic_seed}; "
             f"the display runtime produced {len(frames)} {dimensions[0]}x{dimensions[1]} PNG frames."
         )
         return DeterministicEvidence(
@@ -295,7 +308,7 @@ GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="1.3.0",
+    version="1.4.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),
@@ -341,7 +354,7 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     ),
     evidence=EvidenceContract(
         adapter_id=GodotGameplayEvidenceAdapter.adapter_id,
-        evidence_types=("godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
+        evidence_types=("godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "seeded.profession.choice", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
         network_isolated=False,
         independent_verifier_required=True,
     ),

@@ -88,7 +88,8 @@ def validate_godot_gameplay_brief(brief: UserBrief) -> None:
         "game", "play", "movement", "move", "formation", "hero", "enemy", "spawn",
         "attack", "combat", "ability", "skill", "health", "damage", "heal", "shield",
         "record", "experience", "level", "choice", "survival", "victory", "defeat",
-        "session", "visual", "render", "screen",
+        "session", "visual", "render", "screen", "promotion", "profession", "upgrade",
+        "rank", "grade", "alternative", "random", "seed",
     )
     unsupported_terms = (
         "3d", "multiplayer", "network", "server", "backend", "plugin", "storefront",
@@ -509,24 +510,29 @@ def authorize_intake(
         if intake.requested_toolpack_binding is not None
         else intake.requested_toolpack_id
     )
-    result = queue_run(
-        authorized_brief(
-            intake.preview,
-            include_preview_quality=(
-                project_kind != "godot" or requested_toolpack_id in {
-                    "godot.visual-prototype", "godot.gameplay",
-                }
+    try:
+        result = queue_run(
+            authorized_brief(
+                intake.preview,
+                include_preview_quality=(
+                    project_kind != "godot" or requested_toolpack_id in {
+                        "godot.visual-prototype", "godot.gameplay",
+                    }
+                ),
+                authoritative_sources=source_payloads(store, intake),
             ),
-            authoritative_sources=source_payloads(store, intake),
-        ),
-        owner_id=identity.owner_id,
-        project_id=project_id,
-        project_kind=project_kind,
-        work_mode=work_mode,
-        requested_toolpack_id=intake.requested_toolpack_id,
-        requested_toolpack_binding=intake.requested_toolpack_binding,
-        source_snapshot=intake.source_snapshot,
-    )
+            owner_id=identity.owner_id,
+            project_id=project_id,
+            project_kind=project_kind,
+            work_mode=work_mode,
+            requested_toolpack_id=intake.requested_toolpack_id,
+            requested_toolpack_binding=intake.requested_toolpack_binding,
+            source_snapshot=intake.source_snapshot,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     run_id = result["record"]["run_id"]
     project_store.prepare(ProjectRecord(
         project_id=project_id,
