@@ -13,11 +13,12 @@ from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
 from khalinos.auth import AuthenticationUnavailable, Identity, InvalidIdentity, authenticate_bearer, google_client_id
-from khalinos.intake import answer_intake, authorized_brief, inspect_materials, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, inspect_materials, reroute_intake, restart_intake, start_intake
 from khalinos.intake_storage import CloudIntakeStore
 from khalinos.models import (
     IntakeAnswer,
     IntakeCreate,
+    IntakeReroute,
     IntakeRevision,
     MaterialInspectionRequest,
     ProjectRecord,
@@ -423,6 +424,40 @@ async def revise_intake(
         )
         return record.model_dump(mode="json")
     except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="intake not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/intakes/{intake_id}/reroute", status_code=201)
+async def reroute_ready_intake(
+    intake_id: str,
+    reroute: IntakeReroute,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    store = CloudIntakeStore()
+    try:
+        previous = store.read(intake_id)
+        if previous.owner_id != identity.owner_id:
+            raise FileNotFoundError(intake_id)
+        if previous.requested_work_mode != "new_product_build":
+            raise ValueError("route changes are available only for new-product builds")
+        selected = APPROVED_TOOLPACKS.select(
+            project_kind=reroute.requested_project_kind,
+            work_mode=previous.requested_work_mode,
+            requested_toolpack_id=reroute.requested_toolpack_id,
+        )
+        bound = APPROVED_TOOLPACKS.resolve(reroute.requested_toolpack_binding)
+        if selected.binding() != bound.binding():
+            raise ValueError("the confirmed ToolPack binding does not match the selected route")
+        record = await reroute_intake(
+            intake_id,
+            reroute,
+            store=store,
+            agent=SixSenseAgent(),
+        )
+        return record.model_dump(mode="json")
+    except (FileNotFoundError, PermissionError) as exc:
         raise HTTPException(status_code=404, detail="intake not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

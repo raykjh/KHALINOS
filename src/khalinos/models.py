@@ -313,6 +313,14 @@ class IntakeRevision(BaseModel):
     change_request: str = Field(min_length=2, max_length=2000)
 
 
+class IntakeReroute(BaseModel):
+    """A user-confirmed replacement ToolPack for an existing Outcome Preview."""
+
+    requested_project_kind: Literal["browser", "godot"]
+    requested_toolpack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    requested_toolpack_binding: ToolPackBinding
+
+
 class IntakeRecord(BaseModel):
     intake_id: str
     status: Literal["sensing", "ready", "authorized"] = "sensing"

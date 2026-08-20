@@ -440,7 +440,7 @@ $('#beginSensing').addEventListener('click',async()=>{
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
 function renderRoute(){
-  show('route');const decision=routeRecommendation.recommendation;requestedToolpackId=decision.recommended_toolpack_id||'';const options=routeRecommendation.options;
+  show('route');const decision=routeRecommendation.recommendation;const options=routeRecommendation.options;if(!options.some(item=>item.toolpack.toolpack_id===requestedToolpackId&&item.assessment.fit!=='incompatible'))requestedToolpackId=decision.recommended_toolpack_id||'';
   $('#routeStatus').textContent=decision.status==='unsupported'?'No approved route can complete this goal as written.':'Recommended route';
   $('#routeSummary').textContent=decision.status==='unsupported'?'Revise the goal or wait for a compatible approved ToolPack. KHALINOS will not force this work into the wrong runtime.':'Review the expected result and limitations. A bounded alternative changes the outcome and requires your explicit confirmation.';
   $('#routeOptions').innerHTML=options.map(option=>{const a=option.assessment;const selected=option.toolpack.toolpack_id===requestedToolpackId;return `<button class="entry route-option${selected?' selected':''}" type="button" data-toolpack="${escapeHtml(option.toolpack.toolpack_id)}" ${a.fit==='incompatible'?'disabled':''}><strong>${escapeHtml(option.toolpack.display_name)} · ${a.fit.replace('_',' ')}</strong><span>${escapeHtml(a.expected_result)}</span><small>${escapeHtml(a.reason)}</small>${a.limitations.length?`<small>Not included: ${escapeHtml(a.limitations.join(' · '))}</small>`:''}</button>`;}).join('');
@@ -453,9 +453,20 @@ async function startSixSense(){
   const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId,requested_project_kind:requestedWorkMode==='new_product_build'?requestedProjectKind:null,requested_toolpack_id:requestedWorkMode==='new_product_build'?requestedToolpackId:null,requested_toolpack_binding:requestedWorkMode==='new_product_build'?requestedToolpackBinding:null,requested_work_mode:requestedWorkMode})});
   const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();
 }
-$('#confirmRoute').addEventListener('click',async()=>{const button=$('#confirmRoute');busy(button,true,'Starting SixSense…');try{await startSixSense();}catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}});
+async function continueFromRoute(){
+  const option=routeRecommendation.options.find(item=>item.toolpack.toolpack_id===requestedToolpackId);if(!option)throw new Error('Choose one compatible approved route.');
+  const binding={toolpack_id:option.toolpack.toolpack_id,version:option.toolpack.version,manifest_sha256:option.toolpack.manifest_sha256};
+  if(intake?.status==='ready'){
+    const previous=intake.requested_toolpack_binding;
+    if(previous&&previous.toolpack_id===binding.toolpack_id&&previous.version===binding.version&&previous.manifest_sha256===binding.manifest_sha256){renderIntake();return;}
+    const response=await fetch(`/api/intakes/${intake.intake_id}/reroute`,{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({requested_project_kind:option.project_kind,requested_toolpack_id:option.toolpack.toolpack_id,requested_toolpack_binding:binding})});
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);requestedProjectKind=option.project_kind;requestedToolpackBinding=binding;renderIntake();return;
+  }
+  await startSixSense();
+}
+$('#confirmRoute').addEventListener('click',async()=>{const button=$('#confirmRoute');busy(button,true,'Starting SixSense…');try{await continueFromRoute();}catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}});
 $('#backToGoal').addEventListener('click',()=>{routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
-$('#changeRoute').addEventListener('click',()=>{intake=null;requestedProjectKind='';requestedToolpackBinding=null;if(routeRecommendation){renderRoute();return;}requestedToolpackId='';show('goal');});
+$('#changeRoute').addEventListener('click',()=>{requestedProjectKind='';requestedToolpackBinding=null;requestedToolpackId=intake?.requested_toolpack_id||requestedToolpackId;if(routeRecommendation){renderRoute();return;}requestedToolpackId='';show('goal');});
 function renderIntake(){
   if(intake.status==='ready'){renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');

@@ -4,13 +4,14 @@ import base64
 
 import pytest
 
-from khalinos.intake import answer_intake, authorized_brief, bind_material_role, inspect_materials, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, bind_material_role, inspect_materials, reroute_intake, restart_intake, start_intake
 from khalinos.intake_storage import LocalIntakeStore
 from khalinos.models import (
     ALL_SENSE_DIMENSIONS,
     ExecutionEstimate,
     IntakeAnswer,
     IntakeCreate,
+    IntakeReroute,
     IntakeRevision,
     MaterialDescriptor,
     MaterialInspectionRequest,
@@ -21,6 +22,7 @@ from khalinos.models import (
     SourceUpload,
     UserBrief,
 )
+from khalinos.toolpacks import ToolPackBinding
 from khalinos.sixsense import bind_preview_to_profile, validate_decision
 
 
@@ -92,6 +94,28 @@ class AdaptiveFake:
             resolved_dimensions=ALL_SENSE_DIMENSIONS,
             preview=preview(),
         )
+
+
+class MemoryIntakeStore:
+    """Small fixture-free store for state-transition contract tests."""
+
+    def __init__(self) -> None:
+        self.records = {}
+        self.payloads = {}
+
+    def create(self, record, sources) -> None:
+        self.records[record.intake_id] = record
+        for reference, data in sources:
+            self.payloads[(record.intake_id, reference.source_id)] = data
+
+    def read(self, intake_id):
+        return self.records[intake_id]
+
+    def update(self, record) -> None:
+        self.records[record.intake_id] = record
+
+    def source_bytes(self, intake_id, reference):
+        return self.payloads[(intake_id, reference.source_id)]
 
 
 async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tmp_path) -> None:
@@ -202,6 +226,86 @@ async def test_new_godot_intake_preserves_explicit_runtime_authority(tmp_path) -
     )
     assert record.requested_project_kind == "godot"
     assert record.requested_work_mode == "new_product_build"
+
+
+async def test_same_route_is_idempotent_and_preserves_ready_preview() -> None:
+    store = MemoryIntakeStore()
+    agent = AdaptiveFake()
+    binding = ToolPackBinding(toolpack_id="godot.gameplay", version="1.2.0", manifest_sha256="a" * 64)
+    first = await start_intake(
+        IntakeCreate(
+            project_name="Trinity Survivors",
+            goal="Create a playable ten-minute Godot survival game with a three-hero party.",
+            requested_project_kind="godot",
+            requested_toolpack_id="godot.gameplay",
+            requested_toolpack_binding=binding,
+        ),
+        store=store,
+        agent=agent,
+    )
+    first = await answer_intake(
+        first.intake_id,
+        IntakeAnswer(dimension=first.current_question.dimension, answer="Tight Formation"),
+        store=store,
+        agent=agent,
+    )
+    calls_before = agent.calls
+    same = await reroute_intake(
+        first.intake_id,
+        IntakeReroute(
+            requested_project_kind="godot",
+            requested_toolpack_id="godot.gameplay",
+            requested_toolpack_binding=binding,
+        ),
+        store=store,
+        agent=agent,
+    )
+    assert same.intake_id == first.intake_id
+    assert same.preview == first.preview
+    assert same.answers == first.answers
+    assert agent.calls == calls_before
+
+
+async def test_real_route_change_preserves_goal_sources_and_confirmed_answers() -> None:
+    store = MemoryIntakeStore()
+    agent = AdaptiveFake()
+    old_binding = ToolPackBinding(toolpack_id="godot.gameplay", version="1.2.0", manifest_sha256="a" * 64)
+    first = await start_intake(
+        IntakeCreate(
+            project_name="Trinity Survivors",
+            goal="Create a playable ten-minute Godot survival game with a three-hero party.",
+            sources=[SourceUpload(filename="rules.md", media_type="text/markdown", data_base64=base64.b64encode(b"ten minute run").decode())],
+            requested_project_kind="godot",
+            requested_toolpack_id="godot.gameplay",
+            requested_toolpack_binding=old_binding,
+        ),
+        store=store,
+        agent=agent,
+    )
+    first = await answer_intake(
+        first.intake_id,
+        IntakeAnswer(dimension=first.current_question.dimension, answer="Tight Formation"),
+        store=store,
+        agent=agent,
+    )
+    new_binding = ToolPackBinding(toolpack_id="godot.visual-prototype", version="1.0.0", manifest_sha256="b" * 64)
+    changed = await reroute_intake(
+        first.intake_id,
+        IntakeReroute(
+            requested_project_kind="godot",
+            requested_toolpack_id="godot.visual-prototype",
+            requested_toolpack_binding=new_binding,
+        ),
+        store=store,
+        agent=agent,
+    )
+    assert changed.intake_id != first.intake_id
+    assert changed.goal == first.goal
+    assert changed.answers == first.answers
+    assert changed.resolved_dimensions == first.resolved_dimensions
+    assert changed.sources == first.sources
+    assert store.source_bytes(changed.intake_id, changed.sources[0]) == b"ten minute run"
+    assert changed.requested_toolpack_binding == new_binding
 
 
 def test_sixsense_cannot_repeat_a_resolved_dimension() -> None:

@@ -70,6 +70,10 @@ def test_project_mode_can_switch_cleanly_before_goal_entry() -> None:
     assert "chooseWork('existing')" in html
     assert "function renderRoute()" in html
     assert "if(routeRecommendation){renderRoute();return;}" in html
+    assert "intake=null" not in re.search(r"\$\('#changeRoute'\).*?;\}\);", html).group(0)
+    assert "async function continueFromRoute()" in html
+    assert "/reroute`" in html
+    assert "previous.manifest_sha256===binding.manifest_sha256" in html
     assert "$('#changeRoute').addEventListener" in html
     assert "function startSixSense()" in html
     assert "requested_project_kind" in html

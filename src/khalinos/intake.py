@@ -14,6 +14,7 @@ from khalinos.models import (
     IntakeAnswer,
     IntakeCreate,
     IntakeRecord,
+    IntakeReroute,
     IntakeRevision,
     MaterialInspection,
     MaterialInspectionRequest,
@@ -323,6 +324,60 @@ async def restart_intake(
         record,
         [(reference.filename, reference.media_type, data) for reference, data in copied_sources],
     )
+    record = apply_decision(record, decision)
+    store.update(record)
+    return record
+
+
+async def reroute_intake(
+    intake_id: str,
+    reroute: IntakeReroute,
+    *,
+    store: IntakeStore,
+    agent: SensingAgent,
+) -> IntakeRecord:
+    """Rebind a ready preview without discarding user decisions or source authority.
+
+    Reconfirming the same digest-bound ToolPack is an idempotent no-op. A real
+    route change creates a new intake so the former preview remains auditable,
+    while the original goal, sources, and every confirmed SixSense answer are
+    carried forward unchanged.
+    """
+
+    previous = store.read(intake_id)
+    if previous.status != "ready" or previous.preview is None:
+        raise ValueError("only a completed Outcome Preview can change route")
+    if (
+        previous.requested_project_kind == reroute.requested_project_kind
+        and previous.requested_toolpack_id == reroute.requested_toolpack_id
+        and previous.requested_toolpack_binding == reroute.requested_toolpack_binding
+    ):
+        return previous
+
+    copied_sources = [
+        (reference, store.source_bytes(previous.intake_id, reference))
+        for reference in previous.sources
+    ]
+    record = IntakeRecord(
+        intake_id=uuid4().hex,
+        project_name=previous.project_name,
+        goal=previous.goal,
+        sources=list(previous.sources),
+        project_locator=previous.project_locator,
+        material_inspection=previous.material_inspection,
+        owner_id=previous.owner_id,
+        selected_project_id=previous.selected_project_id,
+        source_snapshot=previous.source_snapshot,
+        requested_project_kind=reroute.requested_project_kind,
+        requested_toolpack_id=reroute.requested_toolpack_id,
+        requested_toolpack_binding=reroute.requested_toolpack_binding,
+        requested_work_mode=previous.requested_work_mode,
+        answers=dict(previous.answers),
+        resolved_dimensions=list(previous.resolved_dimensions),
+        question_history=list(previous.question_history),
+    )
+    store.create(record, copied_sources)
+    decision = await agent.assess(record, source_payloads(store, record))
     record = apply_decision(record, decision)
     store.update(record)
     return record
