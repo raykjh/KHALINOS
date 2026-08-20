@@ -69,6 +69,8 @@ def test_project_mode_can_switch_cleanly_before_goal_entry() -> None:
     assert "chooseWork('new')" in html
     assert "chooseWork('existing')" in html
     assert "function renderRoute()" in html
+    assert "if(routeRecommendation){renderRoute();return;}" in html
+    assert "$('#changeRoute').addEventListener" in html
     assert "function startSixSense()" in html
     assert "requested_project_kind" in html
     assert "requested_toolpack_id" in html

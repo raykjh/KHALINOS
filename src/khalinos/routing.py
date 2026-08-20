@@ -34,6 +34,69 @@ when its full behavior is feasible there. Return only RouteRecommendation.
 """.strip()
 
 
+_GODOT_GAMEPLAY_SIGNALS = (
+    "playable",
+    "gameplay",
+    "survival",
+    "roguelike",
+    "combat",
+    "attack",
+    "enemy",
+    "enemies",
+    "health",
+    "level",
+    "skill",
+    "ability",
+    "victory",
+    "defeat",
+)
+_NON_GAMEPLAY_GODOT_ROUTES = {
+    "godot.topology",
+    "godot.visual-prototype",
+}
+
+
+def requires_godot_gameplay(request: RouteRecommendationRequest) -> bool:
+    """Recognize an explicit playable Godot outcome without asking a model to grant scope."""
+
+    text = f"{request.project_name}\n{request.goal}".lower()
+    if "godot" not in text:
+        return False
+    matched = sum(signal in text for signal in _GODOT_GAMEPLAY_SIGNALS)
+    return ("playable" in text or "gameplay" in text) and matched >= 3
+
+
+def enforce_required_route(
+    recommendation: RouteRecommendation,
+    candidates: tuple[ToolPackManifest, ...],
+    request: RouteRecommendationRequest,
+) -> RouteRecommendation:
+    """Prevent a narrower prototype route from replacing required playable mechanics."""
+
+    if not requires_godot_gameplay(request):
+        return recommendation
+    approved_ids = {item.toolpack_id for item in candidates}
+    if "godot.gameplay" not in approved_ids:
+        return recommendation
+    by_id = {item.toolpack_id: item for item in recommendation.candidates}
+    gameplay = by_id.get("godot.gameplay")
+    if gameplay is None or gameplay.fit == "incompatible":
+        raise ValueError(
+            "the approved Godot Gameplay route must remain usable for an explicit playable Godot goal"
+        )
+    corrected = [
+        item.model_copy(update={"fit": "bounded_alternative"})
+        if item.toolpack_id != "godot.gameplay" and item.fit == "exact"
+        else item
+        for item in recommendation.candidates
+    ]
+    return recommendation.model_copy(update={
+        "status": "recommended",
+        "recommended_toolpack_id": "godot.gameplay",
+        "candidates": corrected,
+    })
+
+
 class RouteAdvisor:
     def __init__(self) -> None:
         os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
@@ -97,9 +160,10 @@ class RouteAdvisor:
                 final_text = "".join(part.text or "" for part in event.content.parts)
         if not final_text:
             raise RuntimeError("Route Advisor returned no structured response")
-        return validate_route_recommendation(
-            RouteRecommendation.model_validate_json(final_text), candidates
+        recommendation = enforce_required_route(
+            RouteRecommendation.model_validate_json(final_text), candidates, request
         )
+        return validate_route_recommendation(recommendation, candidates)
 
 
 def validate_route_recommendation(

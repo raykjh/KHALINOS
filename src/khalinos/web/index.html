@@ -455,7 +455,7 @@ async function startSixSense(){
 }
 $('#confirmRoute').addEventListener('click',async()=>{const button=$('#confirmRoute');busy(button,true,'Starting SixSense…');try{await startSixSense();}catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}});
 $('#backToGoal').addEventListener('click',()=>{routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
-$('#changeRoute').addEventListener('click',()=>{intake=null;routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
+$('#changeRoute').addEventListener('click',()=>{intake=null;requestedProjectKind='';requestedToolpackBinding=null;if(routeRecommendation){renderRoute();return;}requestedToolpackId='';show('goal');});
 function renderIntake(){
   if(intake.status==='ready'){renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');
