@@ -38,6 +38,73 @@ MODEL = os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash")
 T = TypeVar("T", bound=BaseModel)
 
 
+def compact_vertex_json_schema(schema: type[BaseModel]) -> dict[str, object]:
+    """Return the small JSON-schema subset needed to shape model output.
+
+    Vertex rejects overly complex structured-output schemas with an opaque 400.
+    KHALINOS keeps all numeric, pattern, cross-reference, and authority checks in
+    the trusted Pydantic validator after generation, so the model-facing schema
+    only needs to preserve object shape, required fields, arrays, and enums.
+    """
+
+    source = schema.model_json_schema()
+    definitions = source.get("$defs", {})
+
+    def compact(node: object) -> object:
+        if not isinstance(node, dict):
+            return node
+        reference = node.get("$ref")
+        if isinstance(reference, str) and reference.startswith("#/$defs/"):
+            return compact(definitions[reference.rsplit("/", 1)[-1]])
+
+        result: dict[str, object] = {}
+        if "type" in node:
+            result["type"] = node["type"]
+        if "enum" in node:
+            result["enum"] = node["enum"]
+        elif "const" in node:
+            result["enum"] = [node["const"]]
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            result["properties"] = {name: compact(value) for name, value in properties.items()}
+        if "required" in node:
+            result["required"] = node["required"]
+        if "items" in node:
+            result["items"] = compact(node["items"])
+        return result
+
+    compacted = compact(source)
+    if not isinstance(compacted, dict):
+        raise TypeError("model JSON schema did not compact to an object")
+    return compacted
+
+
+def normalize_structured_result(schema: type[BaseModel], result: object) -> object:
+    """Normalize presentation-only model variance before strict validation."""
+
+    if schema is QuestPlan and isinstance(result, dict):
+        for key in ("product_summary", "architecture_decision"):
+            value = result.get(key)
+            if isinstance(value, str) and len(value) > 800:
+                result[key] = value[:797].rstrip() + "..."
+        quests = result.get("quests", [])
+        if isinstance(quests, list):
+            for index, quest in enumerate(quests, start=1):
+                if not isinstance(quest, dict):
+                    continue
+                quest["quest_id"] = f"Q{index}"
+                quest["depends_on"] = [] if index == 1 else [f"Q{index - 1}"]
+    if schema is GodotGameplayPlan and isinstance(result, dict):
+        role_order = result.get("upgrade_role_order")
+        if isinstance(role_order, list):
+            result["upgrade_role_order"] = list(dict.fromkeys(role_order))
+        for collection in ("heroes", "enemies"):
+            for item in result.get(collection, []):
+                if isinstance(item, dict) and isinstance(item.get("color_hex"), str):
+                    item["color_hex"] = item["color_hex"].removeprefix("#")
+    return result
+
+
 OWNER_INSTRUCTION = """
 You are the KHALINOS Project Owner. Convert the approved user brief into a short,
 linear sequence of outcome-bound quests. Each quest must be independently verifiable
@@ -195,6 +262,7 @@ the approved brief, every approved criterion must appear exactly once across the
 and no criterion may be omitted or added. Put trusted compilation, runtime execution,
 file inspection, rendered capture, and receipt requirements only in evidence_required.
 The model must not set or alter the ToolPack binding. Return only the required QuestPlan.
+Keep product_summary and architecture_decision below 700 characters each.
 """.strip()
 
 GODOT_TOPOLOGY_OWNER_INSTRUCTION = """
@@ -223,6 +291,11 @@ is required, declare capacity one and exactly one automatic resurrection ability
 requested roles and session length exactly. Do not
 invent networking, 3D, plugins, backend services, save systems, arbitrary mechanics, or
 production scope. Return only the required GodotGameplayPlan schema.
+Every identifier must start with a lowercase letter and contain only lowercase letters,
+digits, and underscores. Every color_hex must contain exactly six hexadecimal characters
+without a leading '#'. Keep hero health within 20..10000, attack and defense within
+their declared bounds, hero move_speed within 40..800, enemy speed within 10..500,
+ability radius within 20..1000, and all other numeric values within the supplied schema.
 """.strip()
 
 GODOT_VERIFIER_INSTRUCTION = """
@@ -243,18 +316,22 @@ def _agent(
     *,
     temperature: float,
     max_output_tokens: int = 8192,
+    compact_json_schema: bool = False,
 ) -> LlmAgent:
+    structured_schema = compact_vertex_json_schema(schema) if compact_json_schema else None
     return LlmAgent(
         name=name,
         model=MODEL,
         instruction=instruction,
-        output_schema=schema,
+        output_schema=None if compact_json_schema else schema,
         output_key=f"{name}_output",
         include_contents="none",
         generate_content_config=types.GenerateContentConfig(
             temperature=temperature,
             max_output_tokens=max_output_tokens,
             thinking_config=types.ThinkingConfig(thinking_level="low"),
+            response_mime_type="application/json" if compact_json_schema else None,
+            response_json_schema=structured_schema,
         ),
     )
 
@@ -317,6 +394,7 @@ class AgentTeam:
             GODOT_QUEST_OWNER_INSTRUCTION,
             QuestPlan,
             temperature=0.1,
+            compact_json_schema=True,
         )
         self.godot_topology_owner = _agent(
             "khalinos_godot_topology_owner",
@@ -329,6 +407,7 @@ class AgentTeam:
             GODOT_GAMEPLAY_OWNER_INSTRUCTION,
             GodotGameplayPlan,
             temperature=0.1,
+            compact_json_schema=True,
         )
         self.godot_verifier = _agent(
             "khalinos_godot_independent_verifier",
@@ -364,7 +443,8 @@ class AgentTeam:
         self.call_count += 1
         if not final_text:
             raise RuntimeError(f"{agent.name} returned no structured response")
-        return schema.model_validate(json.loads(final_text))
+        result = normalize_structured_result(schema, json.loads(final_text))
+        return schema.model_validate(result)
 
     async def plan(self, payload: dict) -> QuestPlan:
         return await self._run(self.owner, payload, QuestPlan)

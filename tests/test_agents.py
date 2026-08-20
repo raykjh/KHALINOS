@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from khalinos.agents import AgentTeam, VISUAL_MAKER_INSTRUCTION
+import json
+
+from khalinos.agents import (
+    AgentTeam,
+    VISUAL_MAKER_INSTRUCTION,
+    compact_vertex_json_schema,
+    normalize_structured_result,
+)
+from khalinos.godot_gameplay import GodotGameplayPlan
 from khalinos.godot_topology import GodotRegion, GodotTopologyPlan
 from khalinos.models import QuestPlan, QuestSpec
 from khalinos.sixsense import SIXSENSE_INSTRUCTION
@@ -18,6 +26,41 @@ def test_artifact_agents_have_capacity_for_the_bounded_complete_bundle() -> None
     assert team.visual_asset_verifier.generate_content_config.max_output_tokens == 8_192
     assert team.godot_quest_owner.generate_content_config.max_output_tokens == 8_192
     assert team.godot_topology_owner.generate_content_config.max_output_tokens == 8_192
+
+
+def test_godot_planners_use_vertex_safe_json_schemas() -> None:
+    team = AgentTeam()
+    assert team.godot_quest_owner.output_schema is None
+    assert team.godot_gameplay_owner.output_schema is None
+    assert team.godot_quest_owner.generate_content_config.response_json_schema
+    gameplay_schema = team.godot_gameplay_owner.generate_content_config.response_json_schema
+    assert gameplay_schema == compact_vertex_json_schema(GodotGameplayPlan)
+    assert len(json.dumps(gameplay_schema)) < 3_500
+    assert "pattern" not in json.dumps(gameplay_schema)
+
+
+def test_trusted_normalization_repairs_only_structural_model_variance() -> None:
+    quest_payload = {
+        "product_summary": "s" * 900,
+        "architecture_decision": "a" * 900,
+        "quests": [
+            {"quest_id": "long_name", "depends_on": ["wrong"]},
+            {"quest_id": "another_name", "depends_on": []},
+        ],
+    }
+    normalized_quests = normalize_structured_result(QuestPlan, quest_payload)
+    assert len(normalized_quests["product_summary"]) == 800
+    assert normalized_quests["quests"][0]["quest_id"] == "Q1"
+    assert normalized_quests["quests"][1]["depends_on"] == ["Q1"]
+
+    gameplay_payload = {
+        "upgrade_role_order": ["tank", "damage", "support", "tank"],
+        "heroes": [{"color_hex": "#A1B2C3"}],
+        "enemies": [{"color_hex": "112233"}],
+    }
+    normalized_gameplay = normalize_structured_result(GodotGameplayPlan, gameplay_payload)
+    assert normalized_gameplay["upgrade_role_order"] == ["tank", "damage", "support"]
+    assert normalized_gameplay["heroes"][0]["color_hex"] == "A1B2C3"
 
 
 def test_sixsense_visual_instruction_rejects_generic_template_defaults() -> None:
