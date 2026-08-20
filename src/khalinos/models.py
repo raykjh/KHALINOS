@@ -12,6 +12,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from khalinos.toolpacks import ToolPackBinding
 
@@ -57,7 +58,9 @@ class UserBrief(BaseModel):
     max_repairs_per_quest: int = Field(default=2, ge=0, le=2)
     toolpack_binding: ToolPackBinding | None = None
     authorized_output_files: list[str] = Field(min_length=1, max_length=256)
-    authoritative_references: list[AuthoritativeReference] = Field(default_factory=list, max_length=8)
+    # Execution-only authority. The Outcome Preview model must not reproduce source
+    # documents inside its structured-output schema; authorization injects them later.
+    authoritative_references: SkipJsonSchema[list[AuthoritativeReference]] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def safe_output_surface(self) -> "UserBrief":

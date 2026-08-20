@@ -155,6 +155,11 @@ class MemoryIntakeStore:
         return self.payloads[(intake_id, reference.source_id)]
 
 
+class FailingPreviewFake:
+    async def assess(self, record, source_payloads):
+        raise RuntimeError("preview provider failed")
+
+
 async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tmp_path) -> None:
     store = LocalIntakeStore(tmp_path)
     agent = AdaptiveFake()
@@ -185,6 +190,59 @@ async def test_adaptive_flow_asks_only_missing_dimension_and_preserves_source(tm
     assert record.status == "ready"
     assert set(record.resolved_dimensions) == set(ALL_SENSE_DIMENSIONS)
     assert agent.source_counts == [1, 1]
+
+
+@pytest.mark.asyncio
+async def test_answer_failure_preserves_the_active_question_for_retry() -> None:
+    store = MemoryIntakeStore()
+    question = SenseQuestion(
+        dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,
+        question="Which visual direction should the game use?",
+        answer_options=["Dark Gothic", "Vibrant Stylized"],
+        why_it_matters="It changes the rendered visual result.",
+    )
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="d" * 32,
+        project_name="Trinity Survivors",
+        goal="Create a playable Godot survival game from the supplied requirements.",
+        current_question=question,
+        question_history=[question],
+    )
+    store.create(record, [])
+    answer = IntakeAnswer(dimension=question.dimension, answer="Vibrant Stylized")
+    with pytest.raises(RuntimeError, match="provider failed"):
+        await answer_intake(record.intake_id, answer, store=store, agent=FailingPreviewFake())
+    preserved = store.read(record.intake_id)
+    assert preserved.current_question == question
+    assert preserved.answers == {}
+
+
+@pytest.mark.asyncio
+async def test_same_answer_recovers_a_legacy_provisional_intake() -> None:
+    store = MemoryIntakeStore()
+    dimension = SenseDimension.EXPERIENCE_VISUAL_DIRECTION
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="c" * 32,
+        project_name="Trinity Survivors",
+        goal="Create a playable Godot survival game from the supplied requirements.",
+        answers={dimension.value: "Vibrant Stylized"},
+        resolved_dimensions=[dimension],
+        current_question=None,
+    )
+    store.create(record, [])
+    recovered = await answer_intake(
+        record.intake_id,
+        IntakeAnswer(dimension=dimension, answer="Vibrant Stylized"),
+        store=store,
+        agent=AdaptiveFake(),
+    )
+    assert recovered.status == "ready"
+    assert recovered.preview is not None
+
+
+def test_authoritative_references_are_not_part_of_model_output_schema() -> None:
+    schema = UserBrief.model_json_schema()
+    assert "authoritative_references" not in schema["properties"]
 
 
 def test_material_inspection_routes_source_and_build_to_reproduce_and_repair() -> None:

@@ -329,21 +329,31 @@ async def answer_intake(
     agent: SensingAgent,
 ) -> IntakeRecord:
     record = store.read(intake_id)
-    if record.status != "sensing" or record.current_question is None:
+    if record.status != "sensing":
         raise ValueError("intake is not waiting for an answer")
+    if record.current_question is None:
+        # Recover an intake written by an older worker that persisted the answer
+        # before Preview generation failed. The same answer is an idempotent retry.
+        if record.answers.get(answer.dimension.value) != answer.answer:
+            raise ValueError("intake is not waiting for this answer")
+        decision = await agent.assess(record, source_payloads(store, record))
+        record = apply_decision(record, decision)
+        store.update(record)
+        return record
     if answer.dimension != record.current_question.dimension:
         raise ValueError("answer does not match the active SixSense question")
     answers = dict(record.answers)
     answers[answer.dimension.value] = answer.answer
     resolved = list(dict.fromkeys([*record.resolved_dimensions, answer.dimension]))
-    record = record.model_copy(update={
+    provisional = record.model_copy(update={
         "answers": answers,
         "resolved_dimensions": resolved,
         "current_question": None,
     })
-    store.update(record)
-    decision = await agent.assess(record, source_payloads(store, record))
-    record = apply_decision(record, decision)
+    # Commit the answer only after the next question or Preview is valid. A model
+    # or provider failure therefore leaves the original question retryable.
+    decision = await agent.assess(provisional, source_payloads(store, provisional))
+    record = apply_decision(provisional, decision)
     store.update(record)
     return record
 
