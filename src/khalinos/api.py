@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
 from khalinos.auth import AuthenticationUnavailable, Identity, InvalidIdentity, authenticate_bearer, google_client_id
-from khalinos.intake import answer_intake, authorized_brief, inspect_materials, reroute_intake, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, inspect_materials, reroute_intake, restart_intake, source_payloads, start_intake
 from khalinos.intake_storage import CloudIntakeStore
 from khalinos.models import (
     IntakeAnswer,
@@ -517,6 +517,7 @@ def authorize_intake(
                     "godot.visual-prototype", "godot.gameplay",
                 }
             ),
+            authoritative_sources=source_payloads(store, intake),
         ),
         owner_id=identity.owner_id,
         project_id=project_id,

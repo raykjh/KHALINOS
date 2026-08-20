@@ -216,11 +216,19 @@ class GodotGameplayEvidenceAdapter:
         frames = sorted(evidence_dir.glob("godot-gameplay-render????????.png"))
         capture = frames[-1] if frames else prefix
         dimensions = png_dimensions(capture.read_bytes()) if capture.is_file() else (0, 0)
+        expected_stats = {
+            "health": float(sum(item.health for item in artifact.gameplay.heroes)),
+            "attack": float(sum(item.attack for item in artifact.gameplay.heroes)),
+            "defense": float(sum(item.defense for item in artifact.gameplay.heroes)),
+            "attack_speed": float(sum(item.attack_speed for item in artifact.gameplay.heroes)),
+            "move_speed": float(sum(item.move_speed for item in artifact.gameplay.heroes)),
+        }
+        observed_stats = receipt.get("party_stats", {})
         checks = {
             "approved_executable_digest": True,
             "asset_import_process": imported.returncode == 0,
             "headless_process": probe.returncode == 0,
-            "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v1",
+            "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v2",
             "formation_instantiated": receipt.get("formation_count") == len(artifact.gameplay.heroes),
             "movement_applied": receipt.get("movement_applied") is True,
             "enemy_spawned": receipt.get("enemy_spawned") is True,
@@ -228,6 +236,22 @@ class GodotGameplayEvidenceAdapter:
             "shared_health_initialized": receipt.get("shared_health_initialized") is True,
             "level_choice_offered": receipt.get("level_choice_offered") is True,
             "level_choice_applied": receipt.get("level_choice_applied") is True,
+            "session_duration_bound": receipt.get("session_seconds") == artifact.gameplay.session_seconds,
+            "level_schedule_bound": (
+                receipt.get("level_count") == artifact.gameplay.level_count
+                and receipt.get("level_interval_seconds") == artifact.gameplay.level_interval_seconds
+            ),
+            "upgrade_role_order_executed": receipt.get("upgrade_role_order_valid") is True,
+            "three_choice_profession_contract": receipt.get("upgrade_choice_contract_valid") is True,
+            "party_stats_aggregated": (
+                receipt.get("team_stat_mode") == "sum"
+                and all(abs(float(observed_stats.get(key, -1)) - value) < 0.001 for key, value in expected_stats.items())
+            ),
+            "resurrection_contract_executed": (
+                receipt.get("resurrection_stored") is True
+                and receipt.get("resurrection_consumed") is True
+            ),
+            "victory_at_session_end": receipt.get("victory_at_session_end") is True,
             "deterministic_seed_bound": receipt.get("seed") == artifact.gameplay.deterministic_seed,
             "probe_passed": receipt.get("passed") is True,
             "trusted_asset_materialized": _file_sha256(root / ASSET_PATH) == artifact.asset.sha256,
@@ -250,7 +274,9 @@ class GodotGameplayEvidenceAdapter:
         issues = [name for name, passed in checks.items() if not passed]
         observation = (
             f"Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, "
-            f"shared health, and level choice with seed={artifact.gameplay.deterministic_seed}; "
+            f"summed party stats, {artifact.gameplay.session_seconds}-second victory, "
+            f"{artifact.gameplay.level_count}-level progression every {artifact.gameplay.level_interval_seconds} seconds, "
+            f"ordered three-option profession choices, and bounded resurrection with seed={artifact.gameplay.deterministic_seed}; "
             f"the display runtime produced {len(frames)} {dimensions[0]}x{dimensions[1]} PNG frames."
         )
         return DeterministicEvidence(
@@ -269,7 +295,7 @@ GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="1.2.0",
+    version="1.3.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),

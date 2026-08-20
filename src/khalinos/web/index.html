@@ -312,8 +312,8 @@ function apiError(response,text){try{return JSON.parse(text).detail||text;}catch
 async function filePayload(file){
   const data=await file.arrayBuffer(); let binary=''; const bytes=new Uint8Array(data); const chunk=0x8000;
   for(let i=0;i<bytes.length;i+=chunk) binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-  const inferred={'txt':'text/plain','md':'text/markdown','json':'application/json','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp'};
-  return {filename:file.name,media_type:file.type||inferred[file.name.split('.').pop().toLowerCase()]||'text/plain',data_base64:btoa(binary)};
+  const inferred={'txt':'text/plain','md':'text/markdown','json':'application/json','zip':'application/zip','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp'};
+  return {filename:file.name,media_type:inferred[file.name.split('.').pop().toLowerCase()]||file.type||'text/plain',data_base64:btoa(binary)};
 }
 function selectedMaterialFiles(){return [...$('#externalZip').files,...$('#materials').files];}
 function descriptor(file){return {filename:file.name,relative_path:file.webkitRelativePath||file.name,media_type:file.type||'application/octet-stream',size_bytes:file.size};}
@@ -448,7 +448,7 @@ function renderRoute(){
   $('#confirmRoute').disabled=!requestedToolpackId;
 }
 async function startSixSense(){
-  const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);const sources=await Promise.all(supported.map(filePayload));const requestedWorkMode=workChoice==='existing'?'existing_project_repair':'new_product_build';
+  const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|zip|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);const sources=await Promise.all(supported.map(filePayload));const requestedWorkMode=workChoice==='existing'?'existing_project_repair':'new_product_build';
   if(requestedWorkMode==='new_product_build'&&routeRecommendation){const option=routeRecommendation.options.find(item=>item.toolpack.toolpack_id===requestedToolpackId);if(!option)throw new Error('Choose one compatible approved route.');requestedProjectKind=option.project_kind;requestedToolpackBinding={toolpack_id:option.toolpack.toolpack_id,version:option.toolpack.version,manifest_sha256:option.toolpack.manifest_sha256};}
   const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId,requested_project_kind:requestedWorkMode==='new_product_build'?requestedProjectKind:null,requested_toolpack_id:requestedWorkMode==='new_product_build'?requestedToolpackId:null,requested_toolpack_binding:requestedWorkMode==='new_product_build'?requestedToolpackBinding:null,requested_work_mode:requestedWorkMode})});
   const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();

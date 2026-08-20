@@ -41,6 +41,13 @@ class RunStatus(StrEnum):
     FAILED = "failed"
 
 
+class AuthoritativeReference(BaseModel):
+    filename: str = Field(min_length=1, max_length=160)
+    media_type: Literal["text/plain", "text/markdown", "application/json"]
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    content: str = Field(min_length=1, max_length=100_000)
+
+
 class UserBrief(BaseModel):
     project_name: str = Field(min_length=2, max_length=80)
     goal: str = Field(min_length=30, max_length=5000)
@@ -50,6 +57,7 @@ class UserBrief(BaseModel):
     max_repairs_per_quest: int = Field(default=2, ge=0, le=2)
     toolpack_binding: ToolPackBinding | None = None
     authorized_output_files: list[str] = Field(min_length=1, max_length=256)
+    authoritative_references: list[AuthoritativeReference] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
     def safe_output_surface(self) -> "UserBrief":
@@ -65,6 +73,8 @@ class UserBrief(BaseModel):
                 or any(part in {"", ".", ".."} for part in parts)
             ):
                 raise ValueError("authorized output paths must stay relative to the artifact root")
+        if sum(len(item.content.encode("utf-8")) for item in self.authoritative_references) > 200_000:
+            raise ValueError("authoritative reference text exceeds 200 KB")
         return self
 
 
@@ -82,7 +92,7 @@ ALL_SENSE_DIMENSIONS = list(SenseDimension)
 
 class SourceUpload(BaseModel):
     filename: str = Field(min_length=1, max_length=160)
-    media_type: str = Field(pattern=r"^(text/plain|text/markdown|application/json|image/png|image/jpeg|image/webp)$")
+    media_type: str = Field(pattern=r"^(text/plain|text/markdown|application/json|application/zip|image/png|image/jpeg|image/webp)$")
     data_base64: str = Field(min_length=1, max_length=14_000_000)
 
 

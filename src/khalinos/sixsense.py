@@ -19,6 +19,7 @@ from khalinos.models import (
     SenseDecision,
     SenseDimension,
 )
+from khalinos.godot_gameplay import explicit_gameplay_criteria
 
 
 SIXSENSE_INSTRUCTION = """
@@ -153,20 +154,46 @@ _GODOT_GAMEPLAY_OUTPUTS = [
 ]
 
 
-def bind_preview_to_profile(record: IntakeRecord, preview: OutcomePreview) -> OutcomePreview:
+def _explicit_gameplay_criteria(
+    record: IntakeRecord,
+    source_payloads: list[tuple[str, str, bytes]] | None = None,
+) -> list[str]:
+    """Derive mandatory mechanics from both the goal and bounded text references."""
+
+    texts = [record.goal]
+    for _name, media_type, data in source_payloads or []:
+        if media_type not in {"text/plain", "text/markdown", "application/json"}:
+            continue
+        texts.append(data.decode("utf-8", errors="strict"))
+    return explicit_gameplay_criteria("\n\n".join(texts))
+
+
+def bind_preview_to_profile(
+    record: IntakeRecord,
+    preview: OutcomePreview,
+    source_payloads: list[tuple[str, str, bytes]] | None = None,
+) -> OutcomePreview:
     """Bind model-authored preview details to the already approved execution profile."""
 
     if record.requested_toolpack_id != "godot.gameplay":
         return preview
+    explicit = _explicit_gameplay_criteria(record, source_payloads)
+    acceptance = list(dict.fromkeys([*explicit, *preview.recommended_brief.acceptance_criteria]))[:10]
+    completion = list(dict.fromkeys([*explicit, *preview.completion_and_quality]))[:10]
     brief = preview.recommended_brief.model_copy(update={
         "max_repairs_per_quest": 0,
         "toolpack_binding": record.requested_toolpack_binding,
         "authorized_output_files": _GODOT_GAMEPLAY_OUTPUTS,
+        "acceptance_criteria": acceptance,
     })
-    return preview.model_copy(update={"recommended_brief": brief})
+    return preview.model_copy(update={"recommended_brief": brief, "completion_and_quality": completion})
 
 
-def validate_preview_profile(record: IntakeRecord, preview: OutcomePreview) -> None:
+def validate_preview_profile(
+    record: IntakeRecord,
+    preview: OutcomePreview,
+    source_payloads: list[tuple[str, str, bytes]] | None = None,
+) -> None:
     """Fail closed when a preview silently narrows an approved gameplay route."""
 
     if record.requested_toolpack_id != "godot.gameplay":
@@ -208,6 +235,9 @@ def validate_preview_profile(record: IntakeRecord, preview: OutcomePreview) -> N
         raise ValueError("Godot Gameplay Preview must bind completion to executed mechanics")
     if preview.recommended_brief.authorized_output_files != _GODOT_GAMEPLAY_OUTPUTS:
         raise ValueError("Godot Gameplay Preview output surface must match the approved ToolPack")
+    explicit = _explicit_gameplay_criteria(record, source_payloads)
+    if not set(explicit).issubset(set(preview.recommended_brief.acceptance_criteria)):
+        raise ValueError("Godot Gameplay Preview omitted an explicit probe-shaped user requirement")
 
 
 class SixSenseAgent:
@@ -276,7 +306,7 @@ class SixSenseAgent:
                 "scope": "a bounded playable offline Godot 4.7.1 2D top-down gameplay vertical slice",
                 "files": ["data-driven gameplay manifest", "trusted Godot scene and script", "one trusted PNG visual foundation", "runtime and render evidence"],
                 "technologies": ["Godot 4.7.1", "Nano Banana", "trusted gameplay compiler", "headless mechanics probe", "real display-backed PNG capture"],
-                "supported_outcomes": ["formation movement", "enemy survival loop", "automatic abilities", "shared health", "level choices", "victory and defeat", "rendered gameplay evidence"],
+                "supported_outcomes": ["formation movement", "enemy survival loop", "automatic abilities", "summed party stats", "ordered profession choices", "bounded resurrection", "session-bound victory and defeat", "rendered gameplay evidence"],
                 "forbidden": ["3D", "multiplayer", "network services", "arbitrary plugins or scripts", "existing-project repair", "production-ready full game claim"],
                 "quest_limit": "2 to 5",
                 "repair_limit_per_quest": "0",
@@ -362,17 +392,21 @@ class SixSenseAgent:
             preview = OutcomePreview.model_validate(json.loads(
                 await self._structured(self.preview_agent, payload, source_payloads)
             ))
-            preview = bind_preview_to_profile(record, preview)
+            preview = bind_preview_to_profile(record, preview, source_payloads)
             decision = SenseDecision(
                 status="ready",
                 resolved_dimensions=assessment.resolved_dimensions,
                 preview=preview,
             )
-        validate_decision(record, decision)
+        validate_decision(record, decision, source_payloads)
         return decision
 
 
-def validate_decision(record: IntakeRecord, decision: SenseDecision) -> None:
+def validate_decision(
+    record: IntakeRecord,
+    decision: SenseDecision,
+    source_payloads: list[tuple[str, str, bytes]] | None = None,
+) -> None:
     answered = {SenseDimension(key) for key in record.answers}
     previously_resolved = set(record.resolved_dimensions)
     resolved = set(decision.resolved_dimensions)
@@ -392,4 +426,4 @@ def validate_decision(record: IntakeRecord, decision: SenseDecision) -> None:
         if normalized_question in previous_questions:
             raise ValueError("SixSense repeated a previous question")
     elif decision.preview:
-        validate_preview_profile(record, decision.preview)
+        validate_preview_profile(record, decision.preview, source_payloads)

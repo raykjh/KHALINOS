@@ -5,12 +5,15 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import io
+import zipfile
 from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
 from khalinos.models import (
     ArchiveSnapshot,
+    AuthoritativeReference,
     IntakeAnswer,
     IntakeCreate,
     IntakeRecord,
@@ -149,7 +152,12 @@ class SensingAgent(Protocol):
     async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision: ...
 
 
-def authorized_brief(preview: OutcomePreview, *, include_preview_quality: bool = True):
+def authorized_brief(
+    preview: OutcomePreview,
+    *,
+    include_preview_quality: bool = True,
+    authoritative_sources: list[tuple[str, str, bytes]] | None = None,
+):
     """Bind the confirmed SixSense outcome to the immutable execution contract."""
     source = preview.recommended_brief
     constraints = list(source.constraints[:6])
@@ -160,17 +168,47 @@ def authorized_brief(preview: OutcomePreview, *, include_preview_quality: bool =
         *source.acceptance_criteria,
         *(preview.completion_and_quality if include_preview_quality else []),
     ]))[:10]
+    references: list[AuthoritativeReference] = []
+    for filename, media_type, data in authoritative_sources or []:
+        if media_type not in {"text/plain", "text/markdown", "application/json"}:
+            continue
+        try:
+            content = data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"authoritative source must be UTF-8: {filename}") from exc
+        references.append(AuthoritativeReference(
+            filename=filename,
+            media_type=media_type,
+            sha256=hashlib.sha256(data).hexdigest(),
+            content=content,
+        ))
     return source.model_copy(update={
         "goal": preview.final_result,
         "constraints": constraints[:12],
         "acceptance_criteria": criteria,
         "max_quests": preview.estimate.quest_count,
+        "authoritative_references": references,
     })
 
 
 def decode_sources(request: IntakeCreate) -> list[tuple[SourceReference, bytes]]:
     decoded: list[tuple[SourceReference, bytes]] = []
     total = 0
+
+    def append_source(filename: str, media_type: str, data: bytes) -> None:
+        nonlocal total
+        total += len(data)
+        if total > 20_000_000:
+            raise ValueError("combined source size exceeds 20 MB")
+        reference = SourceReference(
+            source_id=uuid4().hex,
+            filename=filename,
+            media_type=media_type,
+            size_bytes=len(data),
+            sha256=hashlib.sha256(data).hexdigest(),
+        )
+        decoded.append((reference, data))
+
     for upload in request.sources:
         safe_name = Path(upload.filename).name
         if safe_name != upload.filename or safe_name in {"", ".", ".."}:
@@ -181,17 +219,44 @@ def decode_sources(request: IntakeCreate) -> list[tuple[SourceReference, bytes]]
             raise ValueError(f"invalid base64 source: {safe_name}") from exc
         if not data or len(data) > 10_000_000:
             raise ValueError(f"source must contain 1 byte to 10 MB: {safe_name}")
-        total += len(data)
-        if total > 20_000_000:
-            raise ValueError("combined source size exceeds 20 MB")
-        reference = SourceReference(
-            source_id=uuid4().hex,
-            filename=safe_name,
-            media_type=upload.media_type,
-            size_bytes=len(data),
-            sha256=hashlib.sha256(data).hexdigest(),
-        )
-        decoded.append((reference, data))
+        if upload.media_type != "application/zip":
+            append_source(safe_name, upload.media_type, data)
+            continue
+        try:
+            archive = zipfile.ZipFile(io.BytesIO(data))
+        except zipfile.BadZipFile as exc:
+            raise ValueError(f"invalid reference ZIP: {safe_name}") from exc
+        members = [item for item in archive.infolist() if not item.is_dir()]
+        if not members or len(members) > 8:
+            raise ValueError("reference ZIP must contain 1 to 8 text documents")
+        uncompressed_total = 0
+        seen: set[str] = set()
+        for member in members:
+            normalized = member.filename.replace("\\", "/")
+            parts = [part for part in normalized.split("/") if part]
+            if normalized.startswith("/") or not parts or any(part in {".", ".."} for part in parts):
+                raise ValueError("reference ZIP contains an unsafe path")
+            suffix = Path(parts[-1]).suffix.casefold()
+            if suffix not in {".md", ".txt", ".json"}:
+                raise ValueError("reference ZIP may contain only Markdown, text, or JSON documents")
+            if member.flag_bits & 0x1:
+                raise ValueError("encrypted reference ZIP entries are not allowed")
+            uncompressed_total += member.file_size
+            if uncompressed_total > 2_000_000 or member.file_size > 500_000:
+                raise ValueError("reference ZIP text exceeds the bounded extraction limit")
+            if member.compress_size and member.file_size > member.compress_size * 100:
+                raise ValueError("reference ZIP entry exceeds the safe compression ratio")
+            extracted = archive.read(member)
+            try:
+                extracted.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ValueError("reference ZIP text must be UTF-8") from exc
+            flattened = "__".join(parts)[-160:]
+            if flattened in seen:
+                raise ValueError("reference ZIP document names must be unique")
+            seen.add(flattened)
+            media_type = {".md": "text/markdown", ".json": "application/json"}.get(suffix, "text/plain")
+            append_source(flattened, media_type, extracted)
     return decoded
 
 

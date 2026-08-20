@@ -13,10 +13,14 @@ from khalinos.godot_gameplay import (
     GameplayAbility,
     GameplayEnemy,
     GameplayHero,
+    GameplayProfession,
+    GameplayProfessionRoster,
     GodotGameplayPlan,
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
     derive_sprite_atlas_plan,
+    explicit_gameplay_criteria,
+    validate_gameplay_plan_requirements,
 )
 from khalinos.godot_gameplay_toolpack import GODOT_GAMEPLAY_MANIFEST, GODOT_GAMEPLAY_TOOLPACK
 from khalinos.godot_gameplay_workflow import execute_godot_gameplay_run
@@ -71,10 +75,29 @@ def gameplay_plan() -> GodotGameplayPlan:
             GameplayAbility(ability_id="sweep", label="Sweeping Arc", owner_hero_id="warrior", kind="damage", cooldown_seconds=1, power=25, radius=100),
             GameplayAbility(ability_id="volley", label="Arrow Volley", owner_hero_id="archer", kind="damage", cooldown_seconds=1.5, power=20, radius=180),
             GameplayAbility(ability_id="prayer", label="Restoring Prayer", owner_hero_id="priest", kind="heal", cooldown_seconds=3, power=16, radius=120),
+            GameplayAbility(ability_id="revive", label="Stored Resurrection", owner_hero_id="priest", kind="resurrection", cooldown_seconds=5, power=1, radius=120),
         ),
         level_count=3,
         level_interval_seconds=20,
         choices_per_level=3,
+        profession_rosters=(
+            GameplayProfessionRoster(role="tank", starting_profession_id="warrior", professions=(
+                GameplayProfession(profession_id="warrior", label="Warrior", role="tank", stat_focus="balanced"),
+                GameplayProfession(profession_id="shield_warrior", label="Shield Warrior", role="tank", stat_focus="defense"),
+                GameplayProfession(profession_id="axe_warrior", label="Axe Warrior", role="tank", stat_focus="attack"),
+            )),
+            GameplayProfessionRoster(role="damage", starting_profession_id="archer", professions=(
+                GameplayProfession(profession_id="archer", label="Archer", role="damage", stat_focus="balanced"),
+                GameplayProfession(profession_id="crossbowman", label="Crossbowman", role="damage", stat_focus="move_speed"),
+                GameplayProfession(profession_id="longbowman", label="Longbowman", role="damage", stat_focus="attack"),
+            )),
+            GameplayProfessionRoster(role="support", starting_profession_id="priest", professions=(
+                GameplayProfession(profession_id="priest", label="Priest", role="support", stat_focus="utility"),
+                GameplayProfession(profession_id="paladin", label="Paladin", role="support", stat_focus="defense"),
+                GameplayProfession(profession_id="dark_priest", label="Dark Priest", role="support", stat_focus="attack"),
+            )),
+        ),
+        resurrection_capacity=1,
         deterministic_seed=20260819,
     )
 
@@ -115,7 +138,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.2.0"
+    assert binding.version == "1.3.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
@@ -135,6 +158,20 @@ def test_gameplay_plan_rejects_unknown_ability_owner_and_impossible_level_schedu
     raw["abilities"][0]["owner_hero_id"] = "missing"
     with pytest.raises(ValueError, match="unknown heroes"):
         GodotGameplayPlan.model_validate(raw)
+
+
+def test_explicit_trinity_requirements_are_plan_and_probe_authority() -> None:
+    criteria = explicit_gameplay_criteria(
+        "Create a 10-minute run with levels about once per minute; tank, damage, and healer in order; "
+        "one upgrade and two alternative professions; combined health, attack, defense, attack speed, and movement speed; stored resurrection."
+    )
+    raw = gameplay_plan().model_dump(mode="json")
+    raw.update({"session_seconds": 600, "level_count": 10, "level_interval_seconds": 60})
+    plan = GodotGameplayPlan.model_validate(raw)
+    validate_gameplay_plan_requirements(plan, criteria)
+    wrong = plan.model_copy(update={"session_seconds": 120})
+    with pytest.raises(PermissionError, match="10-minute"):
+        validate_gameplay_plan_requirements(wrong, criteria)
     raw = gameplay_plan().model_dump(mode="json")
     raw["session_seconds"] = 30
     with pytest.raises(ValueError, match="level schedule"):

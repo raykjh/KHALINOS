@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import base64
+import io
+import zipfile
 
 import pytest
 
-from khalinos.intake import answer_intake, authorized_brief, bind_material_role, inspect_materials, reroute_intake, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, bind_material_role, decode_sources, inspect_materials, reroute_intake, restart_intake, start_intake
 from khalinos.intake_storage import LocalIntakeStore
 from khalinos.models import (
     ALL_SENSE_DIMENSIONS,
@@ -62,6 +64,41 @@ def test_explicit_new_project_treats_uploaded_archive_as_reference_not_existing_
     assert bound.source_available is False
     assert "new product" in bound.summary.lower()
     assert any("Reference inputs" in item for item in bound.detected_materials)
+
+
+def test_reference_zip_is_safely_expanded_into_authoritative_text_sources() -> None:
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("rules/GAME_RULES.md", "10-minute run\n")
+        archive.writestr("CLASS_PROGRESSION.md", "Tank, Damage, Healer\n")
+    decoded = decode_sources(IntakeCreate(
+        project_name="Trinity Survivors",
+        goal="Create a playable Godot survival game from the supplied authoritative rules.",
+        sources=[SourceUpload(
+            filename="trinity.zip",
+            media_type="application/zip",
+            data_base64=base64.b64encode(payload.getvalue()).decode(),
+        )],
+        requested_project_kind="godot",
+    ))
+    assert [item.filename for item, _ in decoded] == ["rules__GAME_RULES.md", "CLASS_PROGRESSION.md"]
+    assert [item.media_type for item, _ in decoded] == ["text/markdown", "text/markdown"]
+
+
+def test_reference_zip_rejects_path_traversal() -> None:
+    payload = io.BytesIO()
+    with zipfile.ZipFile(payload, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("../escape.md", "not allowed")
+    with pytest.raises(ValueError, match="unsafe path"):
+        decode_sources(IntakeCreate(
+            project_name="Unsafe archive",
+            goal="Create a product from these supplied source documents safely.",
+            sources=[SourceUpload(
+                filename="unsafe.zip",
+                media_type="application/zip",
+                data_base64=base64.b64encode(payload.getvalue()).decode(),
+            )],
+        ))
 
 
 class AdaptiveFake:
@@ -465,6 +502,58 @@ def test_gameplay_preview_is_bound_to_exact_output_surface_and_mechanics() -> No
     ]
 
 
+def test_trinity_preview_binds_every_explicit_probe_requirement() -> None:
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="f" * 32,
+        project_name="Trinity Survivors",
+        goal=(
+            "Create a 10-minute Godot game that levels up about once per minute. "
+            "Choose tank, damage, and healer in order with one upgrade and two alternative professions. "
+            "Use combined health, attack, defense, attack speed, and movement speed. "
+            "A stored resurrection survives lethal damage."
+        ),
+        requested_project_kind="godot",
+        requested_toolpack_id="godot.gameplay",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+    )
+    bound = bind_preview_to_profile(record, preview())
+    criteria = " ".join(bound.recommended_brief.acceptance_criteria)
+    assert "600-second session" in criteria
+    assert "Tank, Damage, and Healer" in criteria
+    assert "equal the sum of all three heroes" in criteria
+    assert "stores at most one charge" in criteria
+    explicit = [item for item in bound.recommended_brief.acceptance_criteria if item.startswith("The probe verifies")]
+    assert set(explicit).issubset(set(bound.completion_and_quality))
+
+
+def test_trinity_reference_rules_become_probe_requirements_even_when_goal_is_brief() -> None:
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="e" * 32,
+        project_name="Trinity Survivors",
+        goal="Create the supplied Trinity Survivors design as a playable Godot vertical slice.",
+        requested_project_kind="godot",
+        requested_toolpack_id="godot.gameplay",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+    )
+    reference = (
+        "GAME_RULES.md",
+        "text/markdown",
+        (
+            "Victory is triggered when the timer reaches 10:00, with approximately one level per minute. "
+            "The required promotion order repeats by role: Tank, Damage, and Healing. Every promotion event shows "
+            "exactly three choices: one guaranteed same-profession grade advancement and two distinct professions. "
+            "Trinity Attack = Tank Attack + Damage Attack + Healing Attack; combined health, defense, attack speed, "
+            "and movement speed are summed. Priest Resurrection Stock stores a capped Resurrection x1."
+        ).encode(),
+    )
+    bound = bind_preview_to_profile(record, preview(), [reference])
+    criteria = " ".join(bound.recommended_brief.acceptance_criteria)
+    assert "600-second session" in criteria
+    assert "Tank, Damage, and Healer" in criteria
+    assert "equal the sum of all three heroes" in criteria
+    assert "stores at most one charge" in criteria
+
+
 def test_authorization_binds_visual_direction_and_quality_to_execution_brief() -> None:
     outcome = preview()
     brief = authorized_brief(outcome)
@@ -472,6 +561,19 @@ def test_authorization_binds_visual_direction_and_quality_to_execution_brief() -
     assert set(outcome.completion_and_quality).issubset(set(brief.acceptance_criteria))
     assert brief.max_quests == outcome.estimate.quest_count
     assert brief.goal == outcome.final_result
+
+
+def test_authorization_carries_digest_bound_text_references_to_project_owner() -> None:
+    data = b"# Trinity rules\nTen levels and profession choices.\n"
+    brief = authorized_brief(
+        preview(),
+        authoritative_sources=[("GAME_RULES.md", "text/markdown", data)],
+    )
+    assert len(brief.authoritative_references) == 1
+    reference = brief.authoritative_references[0]
+    assert reference.filename == "GAME_RULES.md"
+    assert reference.content == data.decode()
+    assert reference.sha256 == __import__("hashlib").sha256(data).hexdigest()
 
 
 def test_godot_authorization_uses_only_profile_bounded_brief_criteria() -> None:

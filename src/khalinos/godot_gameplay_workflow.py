@@ -13,6 +13,7 @@ from khalinos.godot_gameplay import (
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
     derive_sprite_atlas_plan,
+    validate_gameplay_plan_requirements,
 )
 from khalinos.models import (
     AgentVerification, ArtifactAsset, CriterionFinding, QuestReceipt, RunRecord, RunStatus,
@@ -99,6 +100,7 @@ async def execute_godot_gameplay_run(
         })
         if decision.gameplay.project_name != brief.project_name:
             raise PermissionError("Godot Project Owner changed the approved project name")
+        validate_gameplay_plan_requirements(decision.gameplay, brief.acceptance_criteria)
         plan = decision.quest_plan.model_copy(update={"toolpack_binding": binding})
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Godot Project Owner exceeded the approved Quest limit")

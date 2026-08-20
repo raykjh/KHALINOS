@@ -28,11 +28,89 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def explicit_gameplay_criteria(text: str) -> list[str]:
+    """Translate explicit user gameplay requirements into probe-shaped criteria."""
+
+    normalized = " ".join(text.casefold().replace("–", "-").split())
+    criteria: list[str] = []
+    has_ten_minutes = (
+        bool(re.search(r"\b10(?:-|\s*)minute", normalized))
+        or "600 second" in normalized
+        or "10:00" in normalized
+    )
+    minute_cadence = "once per minute" in normalized or "about once per minute" in normalized or "1 minute" in normalized
+    if has_ten_minutes or minute_cadence:
+        criteria.append(
+            "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary."
+        )
+    has_three_roles = (
+        "tank" in normalized
+        and "damage" in normalized
+        and ("healer" in normalized or "healing" in normalized or "support" in normalized)
+    )
+    role_order = has_three_roles and any(
+        phrase in normalized
+        for phrase in ("in order", "order repeats by role", "promotion order", "upgrade order")
+    )
+    three_choices = (
+        (
+            "one upgrade" in normalized
+            or "1 upgrade" in normalized
+            or "one guaranteed same-profession" in normalized
+            or "advance the current profession" in normalized
+        )
+        and (
+            "two alternative" in normalized
+            or "2 alternative" in normalized
+            or "two distinct professions" in normalized
+            or "second distinct" in normalized
+        )
+    )
+    if role_order or three_choices:
+        criteria.append(
+            "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice."
+        )
+    stat_terms = ("health", "attack", "defense", "attack speed", "movement speed")
+    if ("combined" in normalized or "sum" in normalized or "trinity attack =" in normalized) and all(
+        term in normalized for term in stat_terms
+    ):
+        criteria.append(
+            "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes."
+        )
+    if "resurrection" in normalized or "stored resurrection" in normalized:
+        criteria.append(
+            "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage."
+        )
+    return criteria
+
+
+def validate_gameplay_plan_requirements(plan: "GodotGameplayPlan", criteria: list[str]) -> None:
+    """Fail before materialization when the plan cannot produce approved probe evidence."""
+
+    normalized = " ".join(criteria).casefold()
+    if "600-second session" in normalized and (
+        plan.session_seconds != 600 or plan.level_count != 10 or plan.level_interval_seconds != 60
+    ):
+        raise PermissionError("Godot gameplay plan changed the approved 10-minute level schedule")
+    if "tank, damage, and healer upgrade turns" in normalized:
+        if plan.upgrade_role_order != ("tank", "damage", "support"):
+            raise PermissionError("Godot gameplay plan changed the approved Tank-Damage-Healer order")
+        if plan.choices_per_level != 3 or {item.role for item in plan.profession_rosters} != {"tank", "damage", "support"}:
+            raise PermissionError("Godot gameplay plan lacks the approved three-choice profession rosters")
+    if "equal the sum of all three heroes" in normalized and plan.team_stat_mode != "sum":
+        raise PermissionError("Godot gameplay plan changed the approved summed party-stat contract")
+    if "resurrection stores at most one charge" in normalized:
+        resurrection = [item for item in plan.abilities if item.kind == GameplayAbilityKind.RESURRECTION]
+        if plan.resurrection_capacity != 1 or len(resurrection) != 1:
+            raise PermissionError("Godot gameplay plan lacks one bounded automatic resurrection ability")
+
+
 class GameplayAbilityKind(StrEnum):
     DAMAGE = "damage"
     HEAL = "heal"
     SHIELD = "shield"
     BUFF = "buff"
+    RESURRECTION = "resurrection"
 
 
 class GameplayHero(BaseModel):
@@ -45,6 +123,7 @@ class GameplayHero(BaseModel):
     health: int = Field(ge=20, le=10_000)
     attack: int = Field(ge=1, le=2_000)
     defense: int = Field(ge=0, le=2_000)
+    attack_speed: float = Field(default=1.0, ge=0.1, le=20)
     move_speed: float = Field(ge=40, le=800)
 
 
@@ -73,6 +152,34 @@ class GameplayAbility(BaseModel):
     radius: float = Field(ge=20, le=1_000)
 
 
+class GameplayProfession(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    profession_id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,31}$")
+    label: str = Field(min_length=1, max_length=50)
+    role: Literal["tank", "damage", "support"]
+    stat_focus: Literal["balanced", "health", "attack", "defense", "attack_speed", "move_speed", "utility"]
+
+
+class GameplayProfessionRoster(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    role: Literal["tank", "damage", "support"]
+    starting_profession_id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,31}$")
+    professions: tuple[GameplayProfession, ...] = Field(min_length=3, max_length=8)
+
+    @model_validator(mode="after")
+    def valid_roster(self) -> "GameplayProfessionRoster":
+        ids = [item.profession_id for item in self.professions]
+        if len(ids) != len(set(ids)):
+            raise ValueError("profession IDs must be unique inside one role roster")
+        if self.starting_profession_id not in ids:
+            raise ValueError("starting profession must exist in its role roster")
+        if any(item.role != self.role for item in self.professions):
+            raise ValueError("profession role must match its roster role")
+        return self
+
+
 class GodotGameplayPlan(BaseModel):
     """The only model-authored gameplay contract accepted by the trusted compiler."""
 
@@ -90,6 +197,12 @@ class GodotGameplayPlan(BaseModel):
     level_count: int = Field(ge=2, le=20)
     level_interval_seconds: int = Field(ge=5, le=180)
     choices_per_level: int = Field(ge=2, le=5)
+    team_stat_mode: Literal["sum"] = "sum"
+    upgrade_role_order: tuple[Literal["tank", "damage", "support"], ...] = Field(
+        default=("tank", "damage", "support"), min_length=1, max_length=3,
+    )
+    profession_rosters: tuple[GameplayProfessionRoster, ...] = Field(default=(), max_length=3)
+    resurrection_capacity: int = Field(default=0, ge=0, le=1)
     deterministic_seed: int = Field(ge=1, le=2_147_483_647)
 
     @model_validator(mode="after")
@@ -105,6 +218,19 @@ class GodotGameplayPlan(BaseModel):
             raise ValueError(f"Godot gameplay abilities reference unknown heroes: {sorted(unknown)}")
         if self.level_interval_seconds * (self.level_count - 1) > self.session_seconds:
             raise ValueError("Godot gameplay level schedule exceeds the session duration")
+        if len(self.upgrade_role_order) != len(set(self.upgrade_role_order)):
+            raise ValueError("upgrade role order must not repeat a role")
+        roster_roles = [item.role for item in self.profession_rosters]
+        if len(roster_roles) != len(set(roster_roles)):
+            raise ValueError("Godot gameplay profession roster roles must be unique")
+        if self.profession_rosters:
+            if set(roster_roles) != set(self.upgrade_role_order):
+                raise ValueError("profession rosters must exactly cover the upgrade role order")
+            if self.choices_per_level != 3:
+                raise ValueError("profession progression requires exactly three choices per level")
+        resurrection_abilities = [item for item in self.abilities if item.kind == GameplayAbilityKind.RESURRECTION]
+        if bool(resurrection_abilities) != bool(self.resurrection_capacity):
+            raise ValueError("resurrection capacity and automatic resurrection ability must be declared together")
         return self
 
 
@@ -169,6 +295,10 @@ var records := 0
 var enemies: Array[Dictionary] = []
 var ability_clocks: Dictionary = {}
 var choice_open := false
+var current_upgrade_role := ""
+var current_upgrade_options: Array[Dictionary] = []
+var profession_state: Dictionary = {}
+var stored_resurrections := 0
 var ended := false
 var victory := false
 var rng := RandomNumberGenerator.new()
@@ -183,6 +313,8 @@ func _ready() -> void:
     shared_health = shared_health_max
     for ability in config.abilities:
         ability_clocks[ability.ability_id] = 0.0
+    for roster in config.get("profession_rosters", []):
+        profession_state[roster.role] = {"profession_id": roster.starting_profession_id, "rank": 1}
     rng.seed = int(config.deterministic_seed)
     if FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json"):
         sprite_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_SPRITE_ATLAS.json"))
@@ -222,10 +354,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _step_simulation(delta: float, direction: Vector2) -> void:
     elapsed += delta
-    var speed := 0.0
-    for hero in config.heroes:
-        speed += float(hero.move_speed)
-    speed /= max(1, config.heroes.size())
+    var speed: float = _party_stats().move_speed
     center += direction.normalized() * speed * delta
     center.x = clamp(center.x, 70.0, float(config.viewport_width) - 70.0)
     center.y = clamp(center.y, 90.0, float(config.viewport_height) - 70.0)
@@ -244,19 +373,30 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
     _remove_dead()
     var target_level: int = min(int(config.level_count), 1 + int(elapsed / float(config.level_interval_seconds)))
     if target_level > level:
-        choice_open = true
+        _open_level_choice()
     if shared_health <= 0.0:
-        ended = true
-        victory = false
+        if stored_resurrections > 0:
+            stored_resurrections -= 1
+            shared_health = shared_health_max
+        else:
+            ended = true
+            victory = false
     elif elapsed >= float(config.session_seconds):
         ended = true
         victory = true
 
 func _party_defense() -> float:
-    var value := 0.0
+    return float(_party_stats().defense)
+
+func _party_stats() -> Dictionary:
+    var totals := {"health": 0.0, "attack": 0.0, "defense": 0.0, "attack_speed": 0.0, "move_speed": 0.0}
     for hero in config.heroes:
-        value += float(hero.defense)
-    return value
+        totals.health += float(hero.health)
+        totals.attack += float(hero.attack)
+        totals.defense += float(hero.defense)
+        totals.attack_speed += float(hero.get("attack_speed", 1.0))
+        totals.move_speed += float(hero.move_speed)
+    return totals
 
 func _spawn_enemy() -> void:
     var template: Dictionary = config.enemies[rng.randi_range(0, config.enemies.size() - 1)]
@@ -291,6 +431,8 @@ func _tick_abilities(delta: float) -> void:
             "buff":
                 for enemy in enemies:
                     enemy.health -= float(ability.power) * 0.25
+            "resurrection":
+                stored_resurrections = min(int(config.get("resurrection_capacity", 0)), stored_resurrections + 1)
 
 func _apply_damage(amount: float) -> void:
     var absorbed: float = min(shield, amount)
@@ -306,13 +448,41 @@ func _remove_dead() -> void:
             alive.append(enemy)
     enemies = alive
 
+func _open_level_choice() -> void:
+    choice_open = true
+    current_upgrade_options = []
+    var order: Array = config.get("upgrade_role_order", [])
+    if order.is_empty():
+        return
+    current_upgrade_role = String(order[(level - 1) % order.size()])
+    var state: Dictionary = profession_state.get(current_upgrade_role, {"profession_id": "", "rank": 1})
+    current_upgrade_options.append({"kind": "rank_up", "profession_id": state.profession_id, "role": current_upgrade_role})
+    for roster in config.get("profession_rosters", []):
+        if String(roster.role) != current_upgrade_role:
+            continue
+        for profession in roster.professions:
+            if String(profession.profession_id) == String(state.profession_id):
+                continue
+            current_upgrade_options.append({"kind": "specialization", "profession_id": profession.profession_id, "role": current_upgrade_role})
+            if current_upgrade_options.size() == int(config.choices_per_level):
+                return
+
 func _choose_upgrade(index: int) -> void:
     if index < 0 or index >= int(config.choices_per_level):
         return
+    if not current_upgrade_options.is_empty() and index < current_upgrade_options.size():
+        var selected: Dictionary = current_upgrade_options[index]
+        var state: Dictionary = profession_state.get(current_upgrade_role, {"profession_id": selected.profession_id, "rank": 1})
+        if selected.kind == "rank_up":
+            state.rank = int(state.rank) + 1
+        else:
+            state.profession_id = selected.profession_id
+        profession_state[current_upgrade_role] = state
     level = min(int(config.level_count), level + 1)
-    shared_health_max *= 1.08
     shared_health = min(shared_health_max, shared_health + shared_health_max * 0.12)
     choice_open = false
+    current_upgrade_role = ""
+    current_upgrade_options = []
 
 func verification_scenario() -> Dictionary:
     var start := center
@@ -328,20 +498,64 @@ func verification_scenario() -> Dictionary:
     _tick_abilities(0.01)
     _remove_dead()
     var ability_applied := records > 0 or shared_health > 0.0 or shield > 0.0
-    elapsed = float(config.level_interval_seconds)
-    _step_simulation(0.01, Vector2.ZERO)
-    var offered := choice_open
-    _choose_upgrade(0)
-    var upgraded := level == 2 and not choice_open
+    var observed_roles: Array[String] = []
+    var choice_contract_valid := true
+    for stage in range(int(config.level_count) - 1):
+        elapsed = float((stage + 1) * int(config.level_interval_seconds))
+        _step_simulation(0.01, Vector2.ZERO)
+        if not choice_open:
+            choice_contract_valid = false
+            break
+        observed_roles.append(current_upgrade_role)
+        if not config.get("profession_rosters", []).is_empty():
+            choice_contract_valid = choice_contract_valid and current_upgrade_options.size() == 3
+            choice_contract_valid = choice_contract_valid and current_upgrade_options[0].kind == "rank_up"
+            choice_contract_valid = choice_contract_valid and current_upgrade_options[1].kind == "specialization"
+            choice_contract_valid = choice_contract_valid and current_upgrade_options[2].kind == "specialization"
+        _choose_upgrade(0)
+    var upgraded := level == int(config.level_count) and not choice_open
+    for ability in config.abilities:
+        if ability.kind == "resurrection":
+            ability_clocks[ability.ability_id] = float(ability.cooldown_seconds)
+    _tick_abilities(0.01)
+    var resurrection_stored := stored_resurrections == int(config.get("resurrection_capacity", 0))
+    if stored_resurrections > 0:
+        shared_health = 1.0
+        _apply_damage(shared_health_max + 1.0)
+        _step_simulation(0.01, Vector2.ZERO)
+    var resurrection_consumed := int(config.get("resurrection_capacity", 0)) == 0 or (stored_resurrections == 0 and shared_health == shared_health_max and not ended)
+    choice_open = false
+    ended = false
+    victory = false
+    shared_health = shared_health_max
+    elapsed = float(config.session_seconds) - 0.01
+    _step_simulation(0.02, Vector2.ZERO)
+    var party_stats := _party_stats()
+    var expected_roles: Array[String] = []
+    var role_order: Array = config.get("upgrade_role_order", [])
+    for stage in range(int(config.level_count) - 1):
+        if not role_order.is_empty():
+            expected_roles.append(String(role_order[stage % role_order.size()]))
     return {
-        "schema_version": "khalinos-godot-gameplay-probe-v1",
+        "schema_version": "khalinos-godot-gameplay-probe-v2",
         "formation_count": config.heroes.size(),
         "movement_applied": moved,
         "enemy_spawned": spawned,
         "auto_ability_applied": ability_applied,
         "shared_health_initialized": shared_health_max > 0.0,
-        "level_choice_offered": offered,
+        "level_choice_offered": observed_roles.size() > 0,
         "level_choice_applied": upgraded,
+        "session_seconds": int(config.session_seconds),
+        "level_count": int(config.level_count),
+        "level_interval_seconds": int(config.level_interval_seconds),
+        "upgrade_roles_observed": observed_roles,
+        "upgrade_role_order_valid": observed_roles == expected_roles,
+        "upgrade_choice_contract_valid": choice_contract_valid,
+        "party_stats": party_stats,
+        "team_stat_mode": config.get("team_stat_mode", ""),
+        "resurrection_stored": resurrection_stored,
+        "resurrection_consumed": resurrection_consumed,
+        "victory_at_session_end": ended and victory and elapsed >= float(config.session_seconds),
         "sprite_atlas_loaded": sprite_texture != null,
         "sprite_slot_count": sprite_manifest.get("slots", []).size(),
         "all_sprite_ids_mapped": _all_sprite_ids_mapped(),
@@ -405,6 +619,11 @@ func _probe() -> void:
         and receipt.get("shared_health_initialized", false)
         and receipt.get("level_choice_offered", false)
         and receipt.get("level_choice_applied", false)
+        and receipt.get("upgrade_role_order_valid", false)
+        and receipt.get("upgrade_choice_contract_valid", false)
+        and receipt.get("resurrection_stored", false)
+        and receipt.get("resurrection_consumed", false)
+        and receipt.get("victory_at_session_end", false)
         and (
             not FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json")
             or (receipt.get("sprite_atlas_loaded", false) and receipt.get("all_sprite_ids_mapped", false))

@@ -29,6 +29,8 @@ def test_materials_precede_goal_and_sixsense() -> None:
     assert 'id="toggleZip"' in html
     assert 'data-file-target="materials"' in html
     assert "No files selected" in html
+    assert "'zip':'application/zip'" in html
+    assert "txt|md|json|zip|png" in html
 
 
 def test_intake_ui_explains_static_detection_and_executable_limit() -> None:
