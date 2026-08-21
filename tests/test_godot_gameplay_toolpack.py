@@ -8,7 +8,9 @@ import io
 
 import pytest
 from PIL import Image, ImageDraw
+from pydantic import ValidationError
 
+from khalinos.agents import AgentTeam
 from khalinos.godot_gameplay import (
     CompiledGodotGameplay,
     GODOT_GAMEPLAY_SPRITE_PROFILE,
@@ -144,7 +146,54 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.8.0"
+    assert binding.version == "1.8.1"
+
+
+async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
+    team = AgentTeam()
+    gameplay_payloads: list[dict] = []
+    valid_plan = gameplay_plan()
+    quest_plan = QuestPlan(
+        product_summary="A bounded playable Godot survival vertical slice with explicit runtime proof.",
+        architecture_decision="Use the trusted data-driven compiler and digest-bound deterministic verifier.",
+        quests=[
+            QuestSpec(
+                quest_id="Q1",
+                objective="Create the approved bounded survival mechanics and visible combat feedback.",
+                acceptance_criteria=["The bounded mechanics execute."],
+                evidence_required=["A deterministic gameplay probe."],
+            ),
+            QuestSpec(
+                quest_id="Q2",
+                objective="Verify the approved mechanics and rendered output without changing them.",
+                acceptance_criteria=["The rendered gameplay is independently verified."],
+                evidence_required=["Digest-bound render and verification receipts."],
+                depends_on=["Q1"],
+            ),
+        ],
+    )
+
+    async def fake_run(agent, payload, schema, **kwargs):
+        del agent, kwargs
+        if schema is QuestPlan:
+            return quest_plan
+        gameplay_payloads.append(payload)
+        if len(gameplay_payloads) == 1:
+            invalid = valid_plan.model_dump(mode="json")
+            invalid["resurrection_capacity"] = 0
+            with pytest.raises(ValidationError) as captured:
+                GodotGameplayPlan.model_validate(invalid)
+            raise captured.value
+        return valid_plan
+
+    monkeypatch.setattr(team, "_run", fake_run)
+    result = await team.plan_godot_gameplay({"approved_brief": {"project_name": "Trinity Trial"}})
+
+    assert result.gameplay == valid_plan
+    assert len(gameplay_payloads) == 2
+    repair = gameplay_payloads[1]["schema_repair"]
+    assert repair["attempt"] == repair["maximum_attempts"] == 1
+    assert "resurrection_capacity" in repair["instruction"]
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:

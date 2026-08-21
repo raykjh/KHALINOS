@@ -13,7 +13,7 @@ from google.adk.agents import LlmAgent
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from khalinos.browser_artifacts import BrowserArtifactBundle
 from khalinos.godot_gameplay import GodotGameplayPlan, GodotGameplayProjectPlan
@@ -305,8 +305,10 @@ ToolPack manifest. Explicit numeric duration and cadence requirements are mandat
 suggestions. When the brief requires profession progression, provide Tank, Damage, and
 Support profession rosters, the exact upgrade_role_order, and exactly three choices per
 level: current-profession rank-up first and two alternative professions. When resurrection
-is required, declare capacity one and exactly one automatic resurrection ability. Preserve
-requested roles and session length exactly. Do not
+is required, declare capacity one and exactly one automatic resurrection ability. Otherwise,
+declare resurrection_capacity as zero and include no resurrection ability. Capacity zero and
+a resurrection ability, or capacity one without exactly one resurrection ability, is invalid.
+Never rely on field defaults for this pair. Preserve requested roles and session length exactly. Do not
 invent networking, 3D, plugins, backend services, save systems, arbitrary mechanics, or
 production scope. Return only the required GodotGameplayPlan schema.
 Every identifier must start with a lowercase letter and contain only lowercase letters,
@@ -497,11 +499,32 @@ class AgentTeam:
 
     async def plan_godot_gameplay(self, payload: dict) -> GodotGameplayProjectPlan:
         quest_plan = await self._run(self.godot_quest_owner, payload, QuestPlan)
-        gameplay = await self._run(
-            self.godot_gameplay_owner,
-            {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")},
-            GodotGameplayPlan,
-        )
+        gameplay_payload = {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")}
+        try:
+            gameplay = await self._run(
+                self.godot_gameplay_owner,
+                gameplay_payload,
+                GodotGameplayPlan,
+            )
+        except ValidationError as error:
+            gameplay = await self._run(
+                self.godot_gameplay_owner,
+                {
+                    **gameplay_payload,
+                    "schema_repair": {
+                        "attempt": 1,
+                        "maximum_attempts": 1,
+                        "validation_errors": error.errors(include_url=False),
+                        "instruction": (
+                            "Return the complete plan again after correcting only the reported schema "
+                            "violations. Preserve the approved brief and QuestPlan. In particular, "
+                            "resurrection_capacity must be zero with no resurrection ability, or one "
+                            "with exactly one resurrection ability."
+                        ),
+                    },
+                },
+                GodotGameplayPlan,
+            )
         return GodotGameplayProjectPlan(quest_plan=quest_plan, gameplay=gameplay)
 
     async def plan_godot_side_scroll(self, payload: dict) -> GodotSideScrollProjectPlan:
