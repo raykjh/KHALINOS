@@ -301,7 +301,7 @@ async def execute_godot_gameplay_run(
                 "model_calls": team.call_count,
             })
             store.update(record)
-            verification = await team.verify_godot({
+            verification_payload = {
                 "approved_brief": brief.model_dump(mode="json"),
                 "quest": quest.model_dump(mode="json"),
                 "gameplay_plan": decision.gameplay.model_dump(mode="json"),
@@ -316,7 +316,20 @@ async def execute_godot_gameplay_run(
                     "sprite_atlas_gate": sprite_gate.model_dump(mode="json"),
                 },
                 "deterministic_evidence": deterministic.model_dump(mode="json"),
-            }) if deterministic.passed else _blocked(quest.acceptance_criteria, deterministic.issues)
+            }
+            verification = await team.verify_godot(verification_payload) if deterministic.passed else _blocked(
+                quest.acceptance_criteria, deterministic.issues,
+            )
+            if deterministic.passed and len(verification.findings) != len(quest.acceptance_criteria):
+                verification = await team.verify_godot({
+                    **verification_payload,
+                    "format_repair": {
+                        "reason": "The prior response did not return exactly one finding per active criterion.",
+                        "required_criteria_in_order": quest.acceptance_criteria,
+                        "required_finding_count": len(quest.acceptance_criteria),
+                        "instruction": "Return a fresh complete verification object; do not omit or combine findings.",
+                    },
+                })
             verification = _enforce_verification_contract(
                 quest.acceptance_criteria, deterministic.criterion_evidence, verification,
             )

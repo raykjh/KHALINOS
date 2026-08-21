@@ -276,6 +276,9 @@ class StubGameplayTeam:
         self.sprite_feedback: list[tuple[str, ...]] = []
         self.sprite_gate_calls = 0
         self.reject_first_sprite_gate = False
+        self.reject_first_verification_shape = False
+        self.verification_calls = 0
+        self.verification_payloads: list[dict] = []
         self.concepts = [
             VisualConcept(
                 candidate_id=f"V{index}",
@@ -370,6 +373,12 @@ class StubGameplayTeam:
 
     async def verify_godot(self, payload):
         self.call_count += 1
+        self.verification_calls += 1
+        self.verification_payloads.append(payload)
+        if self.reject_first_verification_shape and self.verification_calls == 1:
+            criterion = payload["quest"]["acceptance_criteria"][0]
+            finding = CriterionFinding(criterion=criterion, passed=True, evidence="Duplicated malformed finding.")
+            return AgentVerification(findings=[finding, finding], verdict="PASS")
         criterion = payload["quest"]["acceptance_criteria"][0]
         return AgentVerification(findings=[CriterionFinding(criterion=criterion, passed=True, evidence="The deterministic gameplay receipt directly proves this criterion.")], verdict="PASS")
 
@@ -398,10 +407,13 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     store.create(RunRecord(run_id=run_id, status=RunStatus.QUEUED, brief_sha256=canonical_sha256(brief), toolpack_binding=binding, message="Queued.", work_mode="new_product_build"), brief)
     team = StubGameplayTeam()
     team.reject_first_sprite_gate = True
+    team.reject_first_verification_shape = True
     result = await execute_godot_gameplay_run(run_id, store=store, team=team, registry=ToolPackRegistry([toolpack]))
     assert result.status == RunStatus.PASSED
     assert team.sprite_gate_calls == 2
     assert team.sprite_feedback == [(), ("Remove checker patterns and platforms from every sprite.",)]
+    assert team.verification_calls == 3
+    assert team.verification_payloads[1]["format_repair"]["required_finding_count"] == 1
     assert (tmp_path / "runs" / run_id / "sprites" / "attempts" / "1" / "gate.json").is_file()
     assert (tmp_path / "runs" / run_id / "sprites" / "attempts" / "2" / "gate.json").is_file()
     assert len(result.completed_receipt_ids) == 3
