@@ -6,9 +6,11 @@ __pycache__/
 .pytest_cache/
 .khalinos-local/
 .test-tmp/
+.manual-test*/
 .gcloud-tmp*/
 smoke-input/
 docs/test-projects/
+docs/evidence/trinity-survivors/cloud-run-dea4cab9/
 tests/
 *.py[cod]
 *.egg-info/

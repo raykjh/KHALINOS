@@ -11,6 +11,20 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
+from khalinos.godot_capability_packs import (
+    GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PROJECT_CORE_PACK,
+    GODOT_VISUAL_FOUNDATION_PACK,
+    godot_combat_feedback_stage,
+    godot_project_core_stage,
+    godot_visual_foundation_stage,
+)
+from khalinos.toolpacks import (
+    CapabilityComposition,
+    CapabilityPackManifest,
+    CapabilityPackStage,
+    compose_capability_stages,
+)
 from khalinos.sprite_assets import (
     SPRITE_ATLAS_MANIFEST_PATH,
     SPRITE_ATLAS_PATH,
@@ -327,6 +341,9 @@ def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
 
 
 GAMEPLAY_SCRIPT = r'''extends Node2D
+
+const CombatFeedback = preload("res://scripts/khalinos_combat_feedback.gd")
+const COMBAT_FEEDBACK_PACK_ID := CombatFeedback.PACK_ID
 
 var config: Dictionary
 var center := Vector2.ZERO
@@ -761,6 +778,7 @@ func verification_scenario() -> Dictionary:
     enemies[0].health = 9999.0
     enemies[0].attack_clock = 0.0
     enemy_attack_effects = []
+    shield = 0.0
     var health_before_enemy_attack := shared_health
     _step_simulation(0.01, Vector2.ZERO)
     var enemy_effect_count := enemy_attack_effects.size()
@@ -851,6 +869,7 @@ func verification_scenario() -> Dictionary:
             expected_roles.append(String(role_order[stage % role_order.size()]))
     return {
         "schema_version": "khalinos-godot-gameplay-probe-v5",
+        "combat_feedback_pack_loaded": COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
         "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
@@ -900,36 +919,11 @@ func _draw() -> void:
     for y in range(0, int(config.viewport_height), 64):
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     for effect in skill_effects:
-        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var alpha: float = 0.78 * (1.0 - progress)
-        var kind := String(effect.kind)
-        var effect_color := Color(1.0, 0.68, 0.18, alpha)
-        if kind == "heal":
-            effect_color = Color(0.25, 1.0, 0.62, alpha)
-            draw_circle(center, float(effect.radius) * (0.30 + progress * 0.25), Color(0.20, 0.92, 0.55, alpha * 0.18))
-        elif kind == "shield":
-            effect_color = Color(0.35, 0.72, 1.0, alpha)
-        elif kind == "resurrection":
-            effect_color = Color(0.88, 0.72, 1.0, alpha)
-        draw_circle(center, float(effect.radius) * (0.72 + progress * 0.28), effect_color, false, 5.0, true)
+        CombatFeedback.draw_skill(self, effect, center)
     for effect in basic_attack_effects:
-        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var attack_color := Color(1.0, 0.68, 0.22, 0.94 * (1.0 - progress))
-        var width := 7.0
-        if String(effect.role) == "damage":
-            attack_color = Color(1.0, 0.94, 0.30, 0.96 * (1.0 - progress))
-            width = 4.0
-        elif String(effect.role) == "support":
-            attack_color = Color(0.35, 0.92, 1.0, 0.94 * (1.0 - progress))
-            width = 5.0
-        draw_line(effect.origin, effect.target, attack_color, width, true)
-        draw_circle(effect.target, 8.0 + progress * 12.0, attack_color, false, 3.0, true)
-        draw_circle(effect.origin, float(effect.range), Color(attack_color, 0.10 * (1.0 - progress)), false, 1.5, true)
+        CombatFeedback.draw_basic_attack(self, effect)
     for effect in enemy_attack_effects:
-        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var enemy_attack_color := Color(1.0, 0.18, 0.12, 0.95 * (1.0 - progress))
-        draw_line(effect.position, effect.target, enemy_attack_color, 8.0, true)
-        draw_circle(effect.target, 12.0 + progress * 14.0, enemy_attack_color, false, 4.0, true)
+        CombatFeedback.draw_enemy_attack(self, effect)
     var hero_index := 0
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
@@ -1048,6 +1042,8 @@ func _probe() -> void:
         await process_frame
     var receipt: Dictionary = instance.verification_scenario() if instance != null else {}
     receipt.passed = (
+        receipt.get("combat_feedback_pack_loaded", false)
+        and
         receipt.get("start_gate_present", false)
         and receipt.get("countdown_decrements", false)
         and receipt.get("first_enemy_level_one_beatable", false)
@@ -1090,8 +1086,83 @@ func _probe() -> void:
 '''
 
 
-def _scene(width: int, height: int) -> str:
-    return f'''[gd_scene load_steps=3 format=3]\n\n[ext_resource type="Script" path="res://scripts/khalinos_gameplay.gd" id="1"]\n[ext_resource type="Texture2D" path="res://assets/visual-foundation.png" id="2"]\n\n[node name="Gameplay" type="Node2D"]\nscript = ExtResource("1")\n\n[node name="VisualFoundation" type="TextureRect" parent="."]\noffset_right = {float(width):.1f}\noffset_bottom = {float(height):.1f}\ntexture = ExtResource("2")\nexpand_mode = 1\nstretch_mode = 6\nmouse_filter = 2\nmodulate = Color(1, 1, 1, 0.60)\nz_index = -2\n'''
+GODOT_TOP_DOWN_AUTO_COMBAT_PACK = CapabilityPackManifest(
+    pack_id="godot.top-down-auto-combat",
+    version="1.0.0",
+    provides=("gameplay.auto-attack", "gameplay.top-down"),
+    requires=("godot.project", "godot.visual.foundation"),
+    text_paths=("KHALINOS_GAMEPLAY.json", "scripts/khalinos_gameplay.gd"),
+)
+GODOT_GAMEPLAY_PROBE_PACK = CapabilityPackManifest(
+    pack_id="godot.gameplay-probe",
+    version="1.0.0",
+    provides=("evidence.gameplay-probe",),
+    requires=("gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.top-down", "godot.project"),
+    text_paths=("scripts/khalinos_gameplay_probe.gd",),
+)
+GODOT_SPRITE_ATLAS_PACK = CapabilityPackManifest(
+    pack_id="godot.sprite-atlas",
+    version="1.0.0",
+    provides=("godot.visual.sprite-atlas",),
+    requires=("gameplay.top-down", "godot.visual.foundation"),
+    text_paths=(SPRITE_ATLAS_MANIFEST_PATH,),
+    binary_paths=(SPRITE_ATLAS_PATH,),
+)
+
+GODOT_GAMEPLAY_BASE_PROFILE = (
+    GODOT_PROJECT_CORE_PACK,
+    GODOT_VISUAL_FOUNDATION_PACK,
+    GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
+    GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_GAMEPLAY_PROBE_PACK,
+)
+GODOT_GAMEPLAY_SPRITE_PROFILE = GODOT_GAMEPLAY_BASE_PROFILE + (GODOT_SPRITE_ATLAS_PACK,)
+
+
+def compose_godot_gameplay_capabilities(
+    plan: GodotGameplayPlan,
+    sprite_plan: SpriteAtlasPlan | None = None,
+) -> CapabilityComposition:
+    """Build Trinity through ordered packs without changing artifact bytes."""
+
+    gameplay_manifest = plan.model_dump(mode="json")
+    stages = [
+        godot_project_core_stage(
+            project_name=plan.project_name,
+            viewport_width=plan.viewport_width,
+            viewport_height=plan.viewport_height,
+            readme_body="A bounded Godot 2D gameplay vertical slice generated by the KHALINOS Godot Gameplay ToolPack.\n\nClick START or press Enter/Space to begin. Move with WASD or arrow keys. Heroes attack automatically and show their attack range. Choose level upgrades with number keys. Press R after victory or defeat to restart.",
+        ),
+        godot_visual_foundation_stage(
+            viewport_width=plan.viewport_width,
+            viewport_height=plan.viewport_height,
+            script_path="scripts/khalinos_gameplay.gd",
+            node_name="Gameplay",
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
+            text_files={
+                "scripts/khalinos_gameplay.gd": GAMEPLAY_SCRIPT,
+                "KHALINOS_GAMEPLAY.json": json.dumps(gameplay_manifest, ensure_ascii=False, indent=2) + "\n",
+            },
+        ),
+        godot_combat_feedback_stage(),
+        CapabilityPackStage(
+            manifest=GODOT_GAMEPLAY_PROBE_PACK,
+            text_files={"scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT},
+        ),
+    ]
+    if sprite_plan is not None:
+        stages.append(CapabilityPackStage(
+            manifest=GODOT_SPRITE_ATLAS_PACK,
+            text_files={
+                SPRITE_ATLAS_MANIFEST_PATH: json.dumps(
+                    sprite_plan.manifest(), ensure_ascii=False, indent=2
+                ) + "\n"
+            },
+            binary_paths=(SPRITE_ATLAS_PATH,),
+        ))
+    return compose_capability_stages(stages)
 
 
 def compile_godot_gameplay(
@@ -1116,7 +1187,6 @@ def compile_godot_gameplay(
         expected_ids = [item.hero_id for item in plan.heroes] + [item.enemy_id for item in plan.enemies]
         if [item.sprite_id for item in sprite_plan.slots] != expected_ids:
             raise ValueError("sprite atlas slots do not exactly cover the gameplay archetypes")
-    safe_name = re.sub(r"[^A-Za-z0-9 _.-]", "", plan.project_name).strip() or "KHALINOS Game"
     manifest = plan.model_dump(mode="json")
     plan_sha = _sha256({
         "gameplay": manifest,
@@ -1127,16 +1197,11 @@ def compile_godot_gameplay(
         "sprite_contract_required": require_sprite_atlas,
         "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
     })
-    files = {
-        "project.godot": f'''[application]\nconfig/name={json.dumps(safe_name)}\nrun/main_scene="res://scenes/gameplay.tscn"\n\n[display]\nwindow/size/viewport_width={plan.viewport_width}\nwindow/size/viewport_height={plan.viewport_height}\nwindow/size/window_width_override={plan.viewport_width}\nwindow/size/window_height_override={plan.viewport_height}\n\n[input]\nmove_left={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":65), Object(InputEventKey,"physical_keycode":4194311)]}}\nmove_right={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":68), Object(InputEventKey,"physical_keycode":4194313)]}}\nmove_up={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":87), Object(InputEventKey,"physical_keycode":4194320)]}}\nmove_down={{"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":83), Object(InputEventKey,"physical_keycode":4194322)]}}\n\n[rendering]\nrenderer/rendering_method="gl_compatibility"\nrenderer/rendering_method.mobile="gl_compatibility"\n''',
-        "scenes/gameplay.tscn": _scene(plan.viewport_width, plan.viewport_height),
-        "scripts/khalinos_gameplay.gd": GAMEPLAY_SCRIPT,
-        "scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT,
-        "KHALINOS_GAMEPLAY.json": json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        "README.md": f"# {safe_name}\n\nA bounded Godot 2D gameplay vertical slice generated by the KHALINOS Godot Gameplay ToolPack.\n\nClick START or press Enter/Space to begin. Move with WASD or arrow keys. Heroes attack automatically and show their attack range. Choose level upgrades with number keys. Press R after victory or defeat to restart.\n",
-    }
-    if sprite_plan is not None:
-        files[SPRITE_ATLAS_MANIFEST_PATH] = json.dumps(sprite_plan.manifest(), ensure_ascii=False, indent=2) + "\n"
+    composition = compose_godot_gameplay_capabilities(plan, sprite_plan)
+    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set())
+    if set(composition.binary_paths) != expected_binary_paths:
+        raise PermissionError("Godot Capability Pack binary bindings do not match approved assets")
+    files = composition.text_files
     files = {path: content.replace("\r\n", "\n").replace("\r", "\n") for path, content in files.items()}
     return CompiledGodotGameplay(
         gameplay=plan,

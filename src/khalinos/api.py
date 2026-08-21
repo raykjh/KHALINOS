@@ -105,6 +105,28 @@ def validate_godot_gameplay_brief(brief: UserBrief) -> None:
             )
 
 
+def validate_godot_side_scroll_brief(brief: UserBrief) -> None:
+    """Bind the side-scroll route to its exact deterministic evidence surface."""
+
+    observable_terms = (
+        "side", "horizontal", "right", "advance", "travel", "journey", "lane",
+        "enemy", "spawn", "attack", "combat", "defeat", "kill", "destination",
+        "progress", "victory", "visual", "render", "screen",
+    )
+    unsupported_terms = (
+        "3d", "multiplayer", "network", "server", "backend", "plugin", "storefront",
+        "jump", "platformer", "open world", "save game",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot side-scroll evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(
+                f"Godot side-scroll criteria must be observable horizontal mechanics or rendered outcomes: {criterion}"
+            )
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(web_root / "index.html")
@@ -163,6 +185,9 @@ def queue_run(
         brief_updates["max_repairs_per_quest"] = 0
     elif toolpack.manifest.toolpack_id == "godot.gameplay":
         validate_godot_gameplay_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    elif toolpack.manifest.toolpack_id == "godot.side-scroll-experiment":
+        validate_godot_side_scroll_brief(brief)
         brief_updates["max_repairs_per_quest"] = 0
     brief = brief.model_copy(update=brief_updates)
     run_id = uuid4().hex
@@ -516,7 +541,7 @@ def authorize_intake(
                 intake.preview,
                 include_preview_quality=(
                     project_kind != "godot" or requested_toolpack_id in {
-                        "godot.visual-prototype", "godot.gameplay",
+                        "godot.visual-prototype", "godot.gameplay", "godot.side-scroll-experiment",
                     }
                 ),
                 authoritative_sources=source_payloads(store, intake),

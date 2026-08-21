@@ -3,6 +3,7 @@
 from khalinos.browser_toolpack import BROWSER_PRODUCT_TOOLPACK
 from khalinos.godot_toolpack import GODOT_TOPOLOGY_TOOLPACK
 from khalinos.godot_gameplay_toolpack import GODOT_GAMEPLAY_TOOLPACK
+from khalinos.godot_side_scroll_toolpack import GODOT_SIDE_SCROLL_TOOLPACK
 from khalinos.godot_visual_toolpack import GODOT_VISUAL_PROTOTYPE_TOOLPACK
 from khalinos.toolpacks import ToolPackRegistry
 
@@ -12,5 +13,6 @@ APPROVED_TOOLPACKS = ToolPackRegistry([
     GODOT_TOPOLOGY_TOOLPACK,
     GODOT_VISUAL_PROTOTYPE_TOOLPACK,
     GODOT_GAMEPLAY_TOOLPACK,
+    GODOT_SIDE_SCROLL_TOOLPACK,
 ])
 DEFAULT_TOOLPACK_ID = BROWSER_PRODUCT_TOOLPACK.manifest.toolpack_id

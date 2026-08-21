@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import struct
 import zlib
 import io
 
 import pytest
 from PIL import Image, ImageDraw
+from pydantic import ValidationError
 
+from khalinos.agents import AgentTeam
 from khalinos.godot_gameplay import (
     CompiledGodotGameplay,
+    GODOT_GAMEPLAY_SPRITE_PROFILE,
     GameplayAbility,
     GameplayEnemy,
     GameplayHero,
@@ -18,6 +22,7 @@ from khalinos.godot_gameplay import (
     GodotGameplayPlan,
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
+    compose_godot_gameplay_capabilities,
     derive_sprite_atlas_plan,
     explicit_gameplay_criteria,
     validate_gameplay_plan_requirements,
@@ -141,21 +146,76 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.6.2"
+    assert binding.version == "1.9.0"
+
+
+async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
+    team = AgentTeam()
+    gameplay_payloads: list[dict] = []
+    valid_plan = gameplay_plan()
+    quest_plan = QuestPlan(
+        product_summary="A bounded playable Godot survival vertical slice with explicit runtime proof.",
+        architecture_decision="Use the trusted data-driven compiler and digest-bound deterministic verifier.",
+        quests=[
+            QuestSpec(
+                quest_id="Q1",
+                objective="Create the approved bounded survival mechanics and visible combat feedback.",
+                acceptance_criteria=["The bounded mechanics execute."],
+                evidence_required=["A deterministic gameplay probe."],
+            ),
+            QuestSpec(
+                quest_id="Q2",
+                objective="Verify the approved mechanics and rendered output without changing them.",
+                acceptance_criteria=["The rendered gameplay is independently verified."],
+                evidence_required=["Digest-bound render and verification receipts."],
+                depends_on=["Q1"],
+            ),
+        ],
+    )
+
+    async def fake_run(agent, payload, schema, **kwargs):
+        del agent, kwargs
+        if schema is QuestPlan:
+            return quest_plan
+        gameplay_payloads.append(payload)
+        if len(gameplay_payloads) == 1:
+            invalid = valid_plan.model_dump(mode="json")
+            invalid["resurrection_capacity"] = 0
+            with pytest.raises(ValidationError) as captured:
+                GodotGameplayPlan.model_validate(invalid)
+            raise captured.value
+        return valid_plan
+
+    monkeypatch.setattr(team, "_run", fake_run)
+    result = await team.plan_godot_gameplay({"approved_brief": {"project_name": "Trinity Trial"}})
+
+    assert result.gameplay == valid_plan
+    assert len(gameplay_payloads) == 2
+    repair = gameplay_payloads[1]["schema_repair"]
+    assert repair["attempt"] == repair["maximum_attempts"] == 1
+    assert "resurrection_capacity" in repair["instruction"]
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
     first = artifact()
     second = artifact()
     assert first.bundle_sha256 == second.bundle_sha256
+    assert first.bundle_sha256 == "21fae766cf137979421d74d04121b8ab0488c9ae293df91b41cf7419a19e6358"
     assert first.gameplay.profession_choice_mode == "seeded_random_alternatives"
     assert "_seeded_profession_alternatives" in first.files["scripts/khalinos_gameplay.gd"]
     gameplay_script = first.files["scripts/khalinos_gameplay.gd"]
+    feedback_script = first.files["scripts/khalinos_combat_feedback.gd"]
+    assert 'preload("res://scripts/khalinos_combat_feedback.gd")' in gameplay_script
+    assert 'PACK_ID := "godot.combat-feedback@1.0.0"' in feedback_script
+    assert "CombatFeedback.draw_basic_attack" in gameplay_script
+    assert "CombatFeedback.draw_skill" in gameplay_script
+    assert "CombatFeedback.draw_enemy_attack" in gameplay_script
     assert "func _draw_start_overlay" in gameplay_script
     assert "func _format_countdown" in gameplay_script
     assert "basic_attack_effects.append" in gameplay_script
     assert "skill_effects.append" in gameplay_script
     assert "enemy_attack_effects.append" in gameplay_script
+    assert "shield = 0.0\n    var health_before_enemy_attack" in gameplay_script
     assert "func _draw_skill_cooldowns" in gameplay_script
     assert 'Color("8ee58a")' in gameplay_script
     assert "func _draw_choice_overlay" in gameplay_script
@@ -166,6 +226,16 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
         (destination / path).as_posix() for path in [*first.files, first.asset.path, first.sprite_atlas.path]
     }
     assert hashlib.sha256((destination / first.asset.path).read_bytes()).hexdigest() == first.asset.sha256
+
+
+def test_trinity_sprite_profile_owns_the_exact_existing_artifact_surface() -> None:
+    approved = artifact()
+    composition = compose_godot_gameplay_capabilities(approved.gameplay, approved.sprite_plan)
+    assert tuple(binding.pack_id for binding in composition.bindings) == tuple(
+        pack.pack_id for pack in GODOT_GAMEPLAY_SPRITE_PROFILE
+    )
+    assert set(composition.text_files) == set(approved.files)
+    assert set(composition.binary_paths) == {approved.asset.path, approved.sprite_atlas.path}
 
 
 def test_gameplay_plan_rejects_unknown_ability_owner_and_impossible_level_schedule() -> None:
@@ -273,6 +343,7 @@ class StubGameplayEvidenceAdapter:
 class StubGameplayTeam:
     def __init__(self) -> None:
         self.call_count = 0
+        self.call_count_by_agent: dict[str, int] = {}
         self.sprite_feedback: list[tuple[str, ...]] = []
         self.sprite_gate_calls = 0
         self.reject_first_sprite_gate = False
@@ -297,8 +368,13 @@ class StubGameplayTeam:
             ], start=1)
         ]
 
+    def record_call(self, agent_id: str, count: int = 1) -> None:
+        self.call_count += count
+        self.call_count_by_agent[agent_id] = self.call_count_by_agent.get(agent_id, 0) + count
+
     async def plan_godot_gameplay(self, payload):
-        self.call_count += 2
+        self.record_call("khalinos_godot_quest_owner")
+        self.record_call("khalinos_godot_gameplay_owner")
         criteria = payload["approved_brief"]["acceptance_criteria"]
         return GodotGameplayProjectPlan(
             quest_plan=QuestPlan(
@@ -313,24 +389,25 @@ class StubGameplayTeam:
         )
 
     async def plan_visuals(self, payload):
-        self.call_count += 1
+        self.record_call("khalinos_visual_director")
         return VisualConceptPlan(shared_contract="Three distinct readable environmental foundations for the same bounded gameplay loop.", candidates=self.concepts)
 
-    async def make_visual_asset(self, brief, concept):
-        self.call_count += 1
+    async def make_visual_asset(self, brief, concept, feedback=()):
+        del feedback
+        self.record_call("khalinos_visual_candidate_maker")
         return trusted_png_asset(png())
 
     async def verify_visual_asset(self, candidate_id, asset, concept):
-        self.call_count += 1
+        self.record_call("khalinos_visual_asset_verifier")
         return VisualAssetGate(candidate_id=candidate_id, approved=True, contains_text_or_glyphs=False, contains_interface_elements=False, contains_logo_or_watermark=False, rationale="The image is a clean environmental foundation without text or interface elements.")
 
     async def make_sprite_atlas(self, brief, concept, plan, feedback=()):
-        self.call_count += 1
+        self.record_call("khalinos_visual_candidate_maker")
         self.sprite_feedback.append(tuple(feedback))
         return sprite_asset(plan)
 
     async def verify_sprite_atlas(self, plan, asset, concept):
-        self.call_count += 1
+        self.record_call("khalinos_sprite_atlas_verifier")
         self.sprite_gate_calls += 1
         approved = not (self.reject_first_sprite_gate and self.sprite_gate_calls == 1)
         return SpriteAtlasGate(
@@ -364,7 +441,7 @@ class StubGameplayTeam:
         )
 
     async def select_visual(self, payload, screenshots):
-        self.call_count += 1
+        self.record_call("khalinos_visual_verifier")
         assessments = [
             VisualAssessment(candidate_id=candidate_id, contract_alignment=score, visual_hierarchy=score, distinctiveness=score, interaction_clarity=score, craft_and_cohesion=score, strengths=["Clear gameplay field."])
             for candidate_id, score in [("V1", 10), ("V2", 9), ("V3", 8)]
@@ -372,7 +449,7 @@ class StubGameplayTeam:
         return VisualSelection(assessments=assessments, selected_candidate_id="V1", rationale="V1 has the strongest readable hierarchy and contract alignment for this gameplay slice.")
 
     async def verify_godot(self, payload):
-        self.call_count += 1
+        self.record_call("khalinos_godot_independent_verifier")
         self.verification_calls += 1
         self.verification_payloads.append(payload)
         if self.reject_first_verification_shape and self.verification_calls == 1:
@@ -419,4 +496,12 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     assert len(result.completed_receipt_ids) == 3
     assert (tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").is_file()
     assert (tmp_path / "runs" / run_id / "final" / "source.zip").is_file()
+    trace_path = tmp_path / "runs" / run_id / "final" / "agent-capability-trace.json"
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    assert trace["profile_id"] == "godot.trinity-top-down"
+    calls = {item["agent_id"]: item["model_calls"] for item in trace["receipts"]}
+    assert calls["khalinos_godot_gameplay_owner"] == 1
+    assert calls["khalinos_visual_candidate_maker"] == 5
+    assert calls["khalinos_sprite_atlas_verifier"] == 2
+    assert calls["khalinos_godot_independent_verifier"] == 3
     assert (tmp_path / "runs" / run_id / "sprites" / "final" / "deterministic_evidence.json").is_file()

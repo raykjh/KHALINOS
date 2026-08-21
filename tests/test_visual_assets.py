@@ -95,6 +95,11 @@ def test_asset_prompt_forbids_ui_and_abstract_glyph_escape_hatches() -> None:
     assert "do not visualize those elements" in prompt
     assert "runes, inscriptions, carvings, symbols" in prompt
     assert "only the unmarked physical environment" in prompt
+    assert "centered emblems, concentric circles, connected nodes, grids" in prompt
+
+    repaired = asset_prompt(brief, concept, ("contains_interface_elements",))
+    assert "previous candidate was rejected" in repaired
+    assert "contains_interface_elements" in repaired
 
 
 def test_image_generation_retries_only_bounded_transient_errors() -> None:
