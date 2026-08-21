@@ -259,6 +259,20 @@ class CapabilityComposition:
     binary_paths: tuple[str, ...]
     bindings: tuple[CapabilityPackBinding, ...]
 
+    def sha256(self) -> str:
+        payload = {
+            "bindings": [item.model_dump(mode="json") for item in self.bindings],
+            "text_file_sha256": {
+                path: hashlib.sha256(content.encode("utf-8")).hexdigest()
+                for path, content in sorted(self.text_files.items())
+            },
+            "binary_paths": self.binary_paths,
+        }
+        encoded = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
 
 def compose_capability_stages(stages: Iterable[CapabilityPackStage]) -> CapabilityComposition:
     """Compose an ordered pack graph and fail closed on any authority ambiguity."""

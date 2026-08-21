@@ -235,7 +235,7 @@ GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES = (
 
 GODOT_SIDE_SCROLL_MANIFEST = ToolPackManifest(
     toolpack_id="godot.side-scroll-experiment",
-    version="0.1.0",
+    version="0.1.1",
     display_name="Godot Side-scroll Composition Experiment",
     description="Composes a bounded horizontal auto-combat journey from reusable Godot Capability Packs and verifies mechanics in the approved runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES),
