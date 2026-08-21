@@ -29,6 +29,7 @@ from khalinos.models import (
 from khalinos.storage import LocalRunStore
 from khalinos.toolpacks import RegisteredToolPack, ToolPackBinding, ToolPackRegistry
 from khalinos.projects import LocalProjectStore
+from khalinos.run_router import execute_authorized_run
 from khalinos.workflow import _bind_plan_authority, _enforce_verification_contract, _validate_plan_authority, execute_run
 from khalinos.visual_assets import trusted_png_asset
 
@@ -643,3 +644,44 @@ async def test_third_failure_stops_instead_of_looping(monkeypatch, tmp_path: Pat
     result = await execute_run(run_id, store=store, team=team, registry=ToolPackRegistry([active_toolpack]))
     assert result.status == RunStatus.BLOCKED
     assert team.repairs == 2
+    assert calls["count"] == 6
+    receipt = json.loads(
+        (tmp_path / "runs" / run_id / "quests" / "Q1" / "receipt.json").read_text(encoding="utf-8")
+    )
+    assert receipt["state"] == "blocked"
+    assert receipt["repair_rounds"] == 2
+    assert not (tmp_path / "runs" / run_id / "quests" / "Q2" / "receipt.json").exists()
+    assert not (tmp_path / "runs" / run_id / "final" / "source.zip").exists()
+
+
+def test_run_store_allows_exactly_one_execution_claim(tmp_path: Path) -> None:
+    store, run_id = setup_run(tmp_path)
+
+    claimed = store.claim_execution(run_id)
+
+    assert claimed is not None
+    assert claimed.status == RunStatus.PLANNING
+    assert store.claim_execution(run_id) is None
+
+
+async def test_terminal_authorized_run_is_an_idempotent_no_op(tmp_path: Path) -> None:
+    store, run_id = setup_run(tmp_path)
+    passed = store.read_record(run_id).model_copy(update={
+        "status": RunStatus.PASSED,
+        "message": "Previously verified PASS.",
+        "completed_receipt_ids": ["QR-existing"],
+    })
+    store.update(passed)
+    team = FakeTeam()
+
+    result = await execute_authorized_run(
+        run_id,
+        store=store,
+        team=team,
+        registry=ToolPackRegistry([BROWSER_PRODUCT_TOOLPACK]),
+    )
+
+    assert result.status == RunStatus.PASSED
+    assert result.completed_receipt_ids == ["QR-existing"]
+    assert result.message == "Previously verified PASS."
+    assert team.call_count == 0

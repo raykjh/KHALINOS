@@ -11,12 +11,13 @@ from typing import Protocol
 
 from google.cloud import firestore, storage
 
-from khalinos.models import ArchiveSnapshot, ArtifactBundle, RunRecord, UserBrief, utc_now
+from khalinos.models import ArchiveSnapshot, ArtifactBundle, RunRecord, RunStatus, UserBrief, utc_now
 from khalinos.uploads import bundle_from_browser_zip, inspect_browser_zip
 
 
 class RunStore(Protocol):
     def create(self, record: RunRecord, brief: UserBrief) -> None: ...
+    def claim_execution(self, run_id: str) -> RunRecord | None: ...
     def read_brief(self, run_id: str) -> UserBrief: ...
     def read_record(self, run_id: str) -> RunRecord: ...
     def update(self, record: RunRecord) -> None: ...
@@ -39,6 +40,23 @@ class LocalRunStore:
         root.mkdir(parents=True, exist_ok=False)
         (root / "brief.json").write_text(brief.model_dump_json(indent=2) + "\n", encoding="utf-8")
         self.update(record)
+
+    def claim_execution(self, run_id: str) -> RunRecord | None:
+        record = self.read_record(run_id)
+        if record.status != RunStatus.QUEUED:
+            return None
+        claim = self._run(run_id) / ".execution-claim"
+        try:
+            with claim.open("x", encoding="utf-8") as handle:
+                handle.write(run_id + "\n")
+        except FileExistsError:
+            return None
+        claimed = record.model_copy(update={
+            "status": RunStatus.PLANNING,
+            "message": "One worker claimed the immutable run for execution.",
+        })
+        self.update(claimed)
+        return claimed
 
     def read_brief(self, run_id: str) -> UserBrief:
         return UserBrief.model_validate_json((self._run(run_id) / "brief.json").read_text(encoding="utf-8"))
@@ -108,6 +126,28 @@ class CloudRunStore:
             if_generation_match=0,
         )
         self._doc(record.run_id).create(record.model_dump(mode="json"))
+
+    def claim_execution(self, run_id: str) -> RunRecord | None:
+        document = self._doc(run_id)
+        transaction = self.firestore.transaction()
+
+        @firestore.transactional
+        def claim(active_transaction):
+            snapshot = document.get(transaction=active_transaction)
+            if not snapshot.exists:
+                raise FileNotFoundError(run_id)
+            record = RunRecord.model_validate(snapshot.to_dict())
+            if record.status != RunStatus.QUEUED:
+                return None
+            claimed = record.model_copy(update={
+                "status": RunStatus.PLANNING,
+                "message": "One worker claimed the immutable run for execution.",
+                "updated_at": utc_now(),
+            })
+            active_transaction.set(document, claimed.model_dump(mode="json"))
+            return claimed
+
+        return claim(transaction)
 
     def read_brief(self, run_id: str) -> UserBrief:
         return UserBrief.model_validate_json(self._blob(run_id, "brief.json").download_as_text())

@@ -21,6 +21,12 @@ async def execute_authorized_run(
     project_store: ProjectStore | None = None,
 ) -> RunRecord:
     record = store.read_record(run_id)
+    if record.status != RunStatus.QUEUED:
+        return record
+    claimed = store.claim_execution(run_id)
+    if claimed is None:
+        return store.read_record(run_id)
+    record = claimed
     brief = store.read_brief(run_id)
     binding = brief.toolpack_binding
     if binding is None or binding != record.toolpack_binding:

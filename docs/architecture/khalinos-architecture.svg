@@ -137,9 +137,10 @@
     <text x="1030" y="291" class="node-copy muted">Real mechanics + render</text>
     <text x="1030" y="310" class="node-copy muted">Network-isolated assertions</text>
 
-    <text x="1030" y="415" class="node-title">Independent Verifier</text>
+    <text x="1030" y="415" class="node-title">Role-separated Verifier</text>
     <text x="1030" y="441" class="node-copy muted">Criterion-bound judgment</text>
     <text x="1030" y="460" class="node-copy muted">Cannot modify the artifact</text>
+    <text x="1030" y="479" class="node-copy muted">Inside KHALINOS trust boundary</text>
 
     <text x="1030" y="565" class="node-title">Technical Repair</text>
     <text x="1030" y="591" class="node-copy muted">Causal, scoped, max 2 rounds</text>
