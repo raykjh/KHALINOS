@@ -181,6 +181,8 @@ def test_individual_prompt_assigns_one_character_without_atlas_layout() -> None:
     )
     prompt = sprite_source_prompt(brief, concept, plan().slots[0])
     assert "exactly one isolated" in prompt
+    assert "occupy 45% to 65%" in prompt
+    assert "continuous high-contrast outer contour" in prompt
     assert "4-column" not in prompt
 
 

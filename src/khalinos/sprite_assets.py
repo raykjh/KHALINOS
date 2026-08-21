@@ -222,7 +222,10 @@ Visual role: {slot.visual_role}
 
 Use a fully transparent background. If transparency cannot be emitted, use one perfectly
 flat solid #FF00FF background. Place exactly one isolated, centered, full-body top-down or
-high three-quarter-view character on a square canvas with generous empty space on every side.
+high three-quarter-view character on a square canvas. The opaque character silhouette must
+occupy 45% to 65% of the canvas width and height, with a continuous high-contrast outer contour
+and at least 15% empty margin on every side. Never make the character tiny, faint, translucent,
+low-contrast against the background, or mostly hidden by effects.
 Do not use #FF00FF on the character. Keep the selected concept's scale, outline language,
 lighting, and materials so separately generated characters form one coherent roster. Do not
 add text, letters, numbers, labels, logos, icons, HUD, cards, frames, watermarks, signatures,
