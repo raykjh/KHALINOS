@@ -142,6 +142,32 @@ def _validate_plan_authority(brief: UserBrief, plan: QuestPlan) -> None:
         )
 
 
+def _bind_plan_authority(brief: UserBrief, plan: QuestPlan) -> QuestPlan:
+    """Bind immutable criteria to model-proposed Quest boundaries on the trusted host.
+
+    The Project Owner may propose Quest objectives, dependencies, and evidence
+    requests, but regenerated natural language is not an authority boundary. The
+    host partitions the approved criterion list, verbatim and in order, across the
+    proposed Quests before validating the final plan.
+    """
+
+    if len(plan.quests) > len(brief.acceptance_criteria):
+        raise PermissionError(
+            "Project Owner issued more Quests than the immutable brief has acceptance criteria"
+        )
+    quotient, remainder = divmod(len(brief.acceptance_criteria), len(plan.quests))
+    offset = 0
+    bound_quests = []
+    for index, quest in enumerate(plan.quests):
+        size = quotient + (1 if index < remainder else 0)
+        criteria = brief.acceptance_criteria[offset:offset + size]
+        offset += size
+        bound_quests.append(quest.model_copy(update={"acceptance_criteria": criteria}))
+    bound = plan.model_copy(update={"quests": bound_quests})
+    _validate_plan_authority(brief, bound)
+    return bound
+
+
 async def _select_visual_foundation(
     run_id: str,
     *,

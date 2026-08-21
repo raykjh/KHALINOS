@@ -29,7 +29,7 @@ from khalinos.models import (
 from khalinos.storage import LocalRunStore
 from khalinos.toolpacks import RegisteredToolPack, ToolPackBinding, ToolPackRegistry
 from khalinos.projects import LocalProjectStore
-from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority, execute_run
+from khalinos.workflow import _bind_plan_authority, _enforce_verification_contract, _validate_plan_authority, execute_run
 from khalinos.visual_assets import trusted_png_asset
 
 
@@ -297,6 +297,76 @@ def test_project_owner_cannot_repeat_an_approved_criterion_across_quests() -> No
         assert "exactly once" in str(exc)
     else:
         raise AssertionError("repeated approved criteria must be rejected")
+
+
+def test_trusted_host_binds_verbatim_criteria_over_model_paraphrases() -> None:
+    criteria = [
+        "The opening encounter is beatable at level one.",
+        "Every hero basic attack is visibly distinct.",
+        "Active skills use cooldowns and separate effects.",
+    ]
+    brief = UserBrief(
+        project_name="Trinity Trial",
+        goal="Build and prove a bounded Godot combat slice.",
+        acceptance_criteria=criteria,
+        authorized_output_files=list(BROWSER_PRODUCT_MANIFEST.output.authorized_paths),
+    )
+    proposed = QuestPlan(
+        product_summary="A bounded combat slice with runtime evidence.",
+        architecture_decision="Use the approved trusted compiler and evidence adapter.",
+        quests=[
+            QuestSpec(
+                quest_id="Q1",
+                objective="Build the opening combat loop.",
+                acceptance_criteria=["Level one can win the opening fight."],
+                evidence_required=["Runtime combat probe."],
+            ),
+            QuestSpec(
+                quest_id="Q2",
+                objective="Prove readable role feedback.",
+                acceptance_criteria=["Show attacks, cooldowns, and effects."],
+                evidence_required=["Rendered frame and runtime probe."],
+                depends_on=["Q1"],
+            ),
+        ],
+    )
+
+    bound = _bind_plan_authority(brief, proposed)
+
+    assert [item for quest in bound.quests for item in quest.acceptance_criteria] == criteria
+    assert bound.quests[0].acceptance_criteria == criteria[:2]
+    assert bound.quests[1].acceptance_criteria == criteria[2:]
+
+
+def test_trusted_host_rejects_more_quests_than_approved_criteria() -> None:
+    criteria = ["Opening passes.", "Feedback passes."]
+    brief = UserBrief(
+        project_name="Trinity Trial",
+        goal="Build and prove a bounded Godot combat slice.",
+        acceptance_criteria=criteria,
+        authorized_output_files=list(BROWSER_PRODUCT_MANIFEST.output.authorized_paths),
+    )
+    proposed = QuestPlan(
+        product_summary="A bounded combat slice with runtime evidence.",
+        architecture_decision="Use the approved trusted compiler and evidence adapter.",
+        quests=[
+            QuestSpec(
+                quest_id=f"Q{index}",
+                objective=f"Proposed work unit {index}.",
+                acceptance_criteria=[f"Paraphrased criterion {index}."],
+                evidence_required=["Runtime evidence."],
+                depends_on=[] if index == 1 else [f"Q{index - 1}"],
+            )
+            for index in range(1, 4)
+        ],
+    )
+
+    try:
+        _bind_plan_authority(brief, proposed)
+    except PermissionError as exc:
+        assert "more Quests" in str(exc)
+    else:
+        raise AssertionError("the host must not create empty-authority Quests")
 
 
 async def test_full_run_passes_without_human_or_coding_assistant(monkeypatch, tmp_path: Path) -> None:

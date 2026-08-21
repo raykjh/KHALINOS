@@ -24,7 +24,7 @@ from khalinos.projects import ProjectStore
 from khalinos.storage import RunStore
 from khalinos.toolpacks import ToolPackRegistry
 from khalinos.sprite_assets import SPRITE_SEGMENTATION_CONTRACT, SpriteAtlasPlan
-from khalinos.workflow import _enforce_verification_contract, _validate_plan_authority
+from khalinos.workflow import _bind_plan_authority, _enforce_verification_contract
 
 
 class GodotGameplayTeam(Protocol):
@@ -101,10 +101,12 @@ async def execute_godot_gameplay_run(
         if decision.gameplay.project_name != brief.project_name:
             raise PermissionError("Godot Project Owner changed the approved project name")
         validate_gameplay_plan_requirements(decision.gameplay, brief.acceptance_criteria)
-        plan = decision.quest_plan.model_copy(update={"toolpack_binding": binding})
+        plan = _bind_plan_authority(
+            brief,
+            decision.quest_plan.model_copy(update={"toolpack_binding": binding}),
+        )
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Godot Project Owner exceeded the approved Quest limit")
-        _validate_plan_authority(brief, plan)
         store.put_json(run_id, "godot/gameplay_project_plan.json", decision.model_dump(mode="json"))
         store.put_json(run_id, "quest_plan.json", plan.model_dump(mode="json"))
 
