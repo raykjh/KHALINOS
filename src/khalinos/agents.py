@@ -108,6 +108,17 @@ def normalize_structured_result(schema: type[BaseModel], result: object) -> obje
             for item in result.get(collection, []):
                 if isinstance(item, dict) and isinstance(item.get("color_hex"), str):
                     item["color_hex"] = item["color_hex"].removeprefix("#")
+        for ability in result.get("abilities", []):
+            if (
+                isinstance(ability, dict)
+                and ability.get("kind") == "resurrection"
+                and isinstance(ability.get("radius"), (int, float))
+                and ability["radius"] < 20
+            ):
+                # Resurrection is a stored party-state transition, not a spatial
+                # effect. Bind its schema-only radius to the trusted minimum instead
+                # of weakening numeric validation or rerunning the whole planner.
+                ability["radius"] = 20
     return result
 
 

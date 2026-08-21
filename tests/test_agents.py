@@ -59,10 +59,16 @@ def test_trusted_normalization_repairs_only_structural_model_variance() -> None:
         "upgrade_role_order": ["tank", "damage", "support", "tank"],
         "heroes": [{"color_hex": "#A1B2C3"}],
         "enemies": [{"color_hex": "112233"}],
+        "abilities": [
+            {"kind": "resurrection", "radius": 1.0},
+            {"kind": "damage", "radius": 1.0},
+        ],
     }
     normalized_gameplay = normalize_structured_result(GodotGameplayPlan, gameplay_payload)
     assert normalized_gameplay["upgrade_role_order"] == ["tank", "damage", "support"]
     assert normalized_gameplay["heroes"][0]["color_hex"] == "A1B2C3"
+    assert normalized_gameplay["abilities"][0]["radius"] == 20
+    assert normalized_gameplay["abilities"][1]["radius"] == 1.0
 
 
 def test_sixsense_visual_instruction_rejects_generic_template_defaults() -> None:
