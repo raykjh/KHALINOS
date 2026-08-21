@@ -4,7 +4,7 @@
 
 > If it is not proven, it is not complete.
 
-KHALINOS is not a general-purpose coding chatbot and does not promise arbitrary repository completion. It separates authority, production, runtime verification, and judgment so the user does not become the hidden workflow engine. For a new project, a bounded Route Advisor compares the goal only with statically approved ToolPack manifests, explains exact fits, bounded alternatives, and incompatible routes, and waits for the user's confirmation. SixSense then inspects six project dimensions inside that selected capability boundary, asking only material unanswered questions. After authorization, a Gemini Project Owner issues an incremental Quest chain. Maker, deterministic Runtime Check, a separation-of-duties Verifier, and bounded Technical Repair remain separated by permissions and receipts. Browser products use multimodal visual selection; Godot has separate topology, Nano Banana visual-prototype, and bounded 2D gameplay vertical-slice profiles.
+KHALINOS is not a general-purpose coding chatbot and does not promise arbitrary repository completion. It separates authority, production, runtime verification, and judgment so the user does not become the hidden workflow engine. For a new project, a bounded Route Advisor compares the goal only with statically approved ToolPack manifests, explains exact fits, bounded alternatives, and incompatible routes, and waits for the user's confirmation. SixSense then inspects six project dimensions inside that selected capability boundary, asking only material unanswered questions. After authorization, a Gemini Project Owner issues an incremental Quest chain. Maker, deterministic Runtime Check, a separation-of-duties Verifier, and bounded Technical Repair remain separated by permissions and receipts. Browser products use multimodal visual selection. Godot work is composed from versioned Capability Packs: the verified top-down Trinity and side-scroll destination profiles share project, visual-foundation, and combat-feedback boundaries while retaining genre-specific mechanics and probes.
 
 The public entrance separates a no-sign-in Judge Demo from private work. Google OpenID Connect uses only `openid`, `email`, and `profile`; the verified Google subject is the owner boundary for uploads, intakes, runs, and Project Library records. A passed run registers its artifact digest, immutable source ZIP snapshot, and receipt chain as the project's latest verified checkpoint. External browser projects enter through an owner-bound Cloud Storage resumable session and deterministic ZIP admission before SixSense can reference them.
 
@@ -48,16 +48,17 @@ For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example with
 
 [![KHALINOS architecture: authority to verified result](docs/architecture/khalinos-architecture.svg)](docs/architecture/khalinos-architecture.svg)
 
-The standalone diagram shows the full authority boundary, Gemini/ADK orchestration, trusted ToolPack execution, deterministic and separation-of-duties evidence gates, bounded repair loop, and Google Cloud state/evidence plane. A 1600×900 [PNG export](docs/architecture/khalinos-architecture.png) is included for the Devpost page and demo video.
+The standalone diagram shows the full authority boundary, Gemini/ADK orchestration, fixed Agent–Capability bindings, the shared Godot Capability Pack graph, deterministic and separation-of-duties evidence gates, bounded repair loop, and Google Cloud state/evidence plane. A 1600×900 [PNG export](docs/architecture/khalinos-architecture.png) is included for the Devpost page and demo video.
 
 ## Safety and autonomy contract
 
-- The user authorizes one fixed five-file output surface and hard Quest/repair limits.
+- The user authorizes the selected ToolPack's exact bounded output surface and hard Quest/repair limits.
 - External ZIP admission currently accepts only that exact bounded browser profile. Godot, Unity, executables, symlinks, encrypted entries, traversal paths, extra files, oversized text, and high-ratio archives are rejected before execution.
 - The 30-minute setting is a per-execution runaway safety slice, not a general project deadline. The current browser micro-app profile is intentionally non-resumable, so an authorized run must fit one slice.
 - Browser new-product visual selection requires at least two deterministically renderable candidates and records raw-asset gate receipts, asset digests, the concept plan, screenshots, rubric scores, selected artifact digest, and selection receipt.
 - Godot visual-prototype selection has the same two-candidate minimum, but the host compiles every accepted PNG into bounded Godot scenes, imports the texture, proves scene loading and translucent composition, and captures three real 1280×720 frames through an isolated Xvfb display before multimodal selection.
-- Godot gameplay selection compiles a structured 2D top-down plan into a trusted scene and script. Its deterministic runtime probe must execute movement, enemy spawning, automatic abilities, shared health, and level choice before the separation-of-duties verifier can PASS; a real rendered gameplay frame and trusted visual-asset digest are also required.
+- Godot gameplay composition validates pack dependencies before materialization. The Trinity profile owns top-down survival mechanics, profession progression, gameplay probe, and sprite atlas; the side-scroll profile owns lane combat, destination progression, and its genre probe. Both consume `godot.combat-feedback`, which owns only attack-line, attack-range, basic-attack, skill/heal, and enemy-attack drawing primitives.
+- Every Godot Cloud result includes an Agent–Capability trace. The fixed ceiling remains 13 slots: Trinity activates 9 and side-scroll activates 8. The same accountable Maker slot consumes a different least-authority pack set for each profile; no new agent is invented to match a new genre.
 - The model never emits binary asset fields. The trusted host validates and attaches exactly one `assets/visual-foundation.png` sidecar, while Makers receive only its path, digest, and dimensions.
 - Image generation retries only transient 429/5xx responses, at most twice with backoff. Content rejection, invalid output, and non-transient client errors stop immediately.
 - Generated Browser products cannot use external URLs, network calls, dynamic code loading, or files outside the five text files plus the one approved PNG. Prohibited external CSS imports are removed at the trusted promotion boundary before verification.
@@ -79,9 +80,9 @@ The Browser visual-asset path passed an isolated production qualification on run
 
 The separate Godot visual-prototype path passed isolated Cloud qualification on run `5ac8abad53dd4919bca5708557421c3c`. All three Nano Banana assets passed the strict no-text/no-glyph/no-interface gate, all three produced real 1280×720 Godot renders, the independent multimodal Visual Verifier selected V2, and two Quest receipts plus the final source ZIP were stored in Cloud Storage. The qualification used 12 model calls and completed in 2 minutes 7 seconds. The qualified `godot.visual-prototype` manifest SHA-256 is `de20c1d17ea546e69d6b40098f0c5c2acb9363a95a74aca9bb5fe8e08224286d`.
 
-The separate Godot gameplay path passed its expanded isolated Cloud qualification in execution `khalinos-godot-toolpack-staging-wdz9v`. ToolPack `godot.gameplay` 1.3.0 executed all 29 deterministic mechanics, asset, and display checks with zero issues, including the 600-second session boundary, ten-level cadence, ordered three-option profession choices, summed party statistics, and bounded stored resurrection. The approved Linux Godot runtime also produced a real 1280x720 gameplay frame. The qualification receipt is preserved in `docs/evidence/toolpack-restoration/godot-gameplay-explicit-contract-cloud.json`.
+The composed Godot path passed two fresh Cloud qualifications on one Worker image, `sha256:615da3f80441c55e3eb0fca598db0abe8d44d1dd6ea6fd1b7815ce780797a24c`. Trinity run `78d1d06f2a034714b1d917ce6ce6f969` passed 45/45 deterministic mechanics, asset, sprite-atlas, pack-load, and display checks; the side-scroll run `fe2f3493c6af432e9ebd0b0c61852dcf` passed 18/18 horizontal movement, automatic combat, destination, pack-load, and display checks. Both had zero runtime issues and `cloud_workflow_execution` Agent–Capability traces. The comparison receipt is preserved in [`docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json`](docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json).
 
-The unified Browser + Godot runtime is deployed from code commit `ad83e20` to Cloud Run revision `khalinos-00042-jfb` and Worker generation `41`. Both use image digest `sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed`. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous/bounded decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. At this code checkpoint, the approved manifest SHA-256 values are Browser `cdcef5c3e3e960200fcdc916a0f63d0b1598c587e67aebe1fc6c203dad9ce1f2`, Godot gameplay `d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426`, Godot topology `77d2c8b9d7200bb451390d40cc705172e96738a13f1861bbdd08bae8583367d6`, and Godot visual prototype `172423ff3b7403e412b222782d824a50de6acee075b9eeb196fa041dbaa28889`.
+The public API remains Cloud Run revision `khalinos-00042-jfb` on its prior service image. The separately deployed Worker generation `55` uses the qualified Godot image above with 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 1.9.0 / `6c2ff6753c93ac8edcb0d4d7afb01b3ca1d9bdd3a6f9f48292ebfa25336397fb` and `godot.side-scroll-experiment` 0.4.0 / `9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962`.
 
 ## Local setup
 
@@ -168,19 +169,22 @@ Grant the API identity permission to run the fixed worker Job and act as its ide
 
 Trinity Survivors is a proof output, not KHALINOS's product boundary. The current bounded `godot.gameplay` ToolPack converted one immutable game brief into a playable Godot 4.7 vertical slice, executed its real mechanics and display runtimes, and completed only after deterministic checks and the role-separated Verifier passed. The Verifier is separated from planning and making inside KHALINOS; this is not a claim of an external audit organization.
 
-- Run ID: `8be1978415eb40b99d4dddbe8d143c33`
+- Run ID: `78d1d06f2a034714b1d917ce6ce6f969`
 - Result: `PASS` — `Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.`
-- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, API revision `khalinos-00042-jfb`, Job `khalinos-worker`, execution `khalinos-worker-x2xfc`
-- Worker image: `sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed`
-- ToolPack: `godot.gameplay` 1.6.2, manifest SHA-256 `d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426`
-- Agent work: 22 Gemini calls; four immutable receipts (one Visual Selection and three Quest receipts)
-- Runtime proof: 44 deterministic Godot mechanics, asset, sprite-atlas, and display checks passed; Sprite Gate passed; zero issues
-- Artifact SHA-256: `c4e8cce7780bed950e12f25b3df9419ceb8546b392cfc60a998cd31dc28ee05b`
-- Bundle SHA-256: `4549ce7f7f08d689c3353ee6dac272caf75c711d4fed31dc7d66dddb79c27586`
-- Source ZIP SHA-256: `f91288e2f0eb84afc69f2d6bb6dcecc87eeb6737c2ecc063a79b50bd8b52ed32`
-- Sprite atlas SHA-256: `c00399f2436c54c0e93d40f468d364c54748b0a3680f98a57548bfa57f2b58d3`
+- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, Job `khalinos-worker`, execution `khalinos-worker-x74vs`
+- Worker image: `sha256:615da3f80441c55e3eb0fca598db0abe8d44d1dd6ea6fd1b7815ce780797a24c`
+- ToolPack: `godot.gameplay` 1.9.0, manifest SHA-256 `6c2ff6753c93ac8edcb0d4d7afb01b3ca1d9bdd3a6f9f48292ebfa25336397fb`
+- Agent work: 18 Gemini calls; three immutable receipts (one Visual Selection and two Quest receipts)
+- Runtime proof: 45 deterministic Godot mechanics, asset, sprite-atlas, shared-pack, and display checks passed; Sprite Gate passed; zero issues
+- Artifact SHA-256: `34116f1e4e6ee140e0287e152ac6572cb2638feef4a062c7260952e0d46ce482`
+- Bundle SHA-256: `828373b72792c5f2f17fe9ea9bb8b043ecf6ef56d3db1d2ae9dc779311bb6a0e`
+- Source ZIP SHA-256: `160ee614bfefa686830d708ef74876b59ac5bacadfc53c9c324c78a4ccbcf00c`
+- Sprite atlas SHA-256: `a4a9fbcea5d6f94f417651b41c33d53a798282428e1297189198df09ce38cf56`
+- Agent–Capability trace SHA-256: `71b566334c17d8ac8cda873c1a1f5eacfab75301cc8060408e2f9180ede5967a`
 
-![Trinity Survivors real Godot render](docs/evidence/trinity-survivors/cloud-run-8be19784/godot-gameplay-render.png)
+![Representative Trinity Survivors real Godot render from the retained earlier evidence set](docs/evidence/trinity-survivors/cloud-run-8be19784/godot-gameplay-render.png)
+
+The frame above is the retained render from the earlier `8be19784...` evidence set, not a screenshot attributed to the latest run. The latest two-profile qualification is recorded by the digest-bound comparison receipt linked above.
 
 The immutable brief, Quest plan, Visual Selection receipt, three Quest receipts, final artifact manifest, Sprite Gate result, deterministic evidence, raw Godot probe receipt, and rendered frame are preserved in [`docs/evidence/trinity-survivors`](docs/evidence/trinity-survivors).
 
@@ -191,15 +195,37 @@ These are direct log and artifact measurements, not estimated labor or cost savi
 | Measure | Observed value |
 | --- | ---: |
 | Human interventions after immutable authorization | 0 |
-| Cloud Run Job duration | 9m 38.93s |
-| Gemini calls | 22 |
-| Generated source files | 9 |
-| Deterministic checks | 44/44 PASS |
-| Role-separated receipts | 4 |
+| Cloud Run Job duration | 8m 4.87s |
+| Gemini calls | 18 |
+| Generated source files | 10 |
+| Deterministic checks | 45/45 PASS |
+| Role-separated receipts | 3 |
 | Technical Repair rounds | 0 |
 | Final runtime issues | 0 |
 
 The evidence proves a bounded vertical slice with executable mechanics, rendering, and receipt-gated verification. It does not prove general-purpose repository autonomy, production-scale reliability, external organizational independence, or polished commercial game quality. The single retained display capture is a real runtime frame, but the temporal mechanics are proven by the typed Godot probe rather than by claiming that one screenshot shows every state. The failure-and-recovery ledger is preserved beside the run evidence.
+
+## Side-scroll destination: verified composition proof
+
+The experimental side-scroll profile reuses the same project, visual-foundation, and combat-feedback boundaries while replacing Trinity's genre chain with lane combat, destination progression, and a side-scroll probe. This is evidence that fixed KHALINOS agent slots can consume different compatible pack combinations; it is not a claim that arbitrary game genres are already supported.
+
+- Run ID: `fe2f3493c6af432e9ebd0b0c61852dcf`
+- Result: `PASS` — `Godot side-scroll journey passed real mechanics, rendering, and independent verification.`
+- Cloud Run Job execution: `khalinos-worker-2ppkr`, completed in 2m 16.72s
+- ToolPack: `godot.side-scroll-experiment` 0.4.0, manifest SHA-256 `9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962`
+- Agent work: 12 Gemini calls; three immutable receipts
+- Runtime proof: 18/18 deterministic mechanics, pack-load, and display checks passed; zero issues
+- Artifact SHA-256: `1c014a4c5b7205290615cc9382778e5d0e91ca6a53f6e3f2ab11df89692c4745`
+- Bundle SHA-256: `3c73c963cb06f80bb9f7ba55f994b3dd6a2593e57814acec7ade1e5f099d9ade`
+- Source ZIP SHA-256: `42e98c7d65225a578c921b24be032b1295d793b0a924e557f095957fa5953e94`
+- Agent–Capability trace SHA-256: `7c6cdaaee496192a29af6900a463306a4182622fead603f4abd0133487e48f83`
+
+| Profile | Active fixed slots | Accountable Maker packs | Genre-specific verifier |
+| --- | ---: | --- | --- |
+| Trinity top-down | 9 | `project-core`, `top-down-auto-combat`, `combat-feedback` | `gameplay-probe` plus Sprite Gate |
+| Side-scroll destination | 8 | `project-core`, `side-scroll-lane-combat`, `combat-feedback`, `destination-progression` | `side-scroll-probe` |
+
+The fixed ceiling is 13 agent slots and `new_agent_slots_created` is false. The role-separated Verifiers remain inside the KHALINOS trust boundary; deterministic Godot probes and digest-bound evidence compensate for, but do not turn them into, external organizational audits.
 
 ## Earlier verified Browser proof
 
