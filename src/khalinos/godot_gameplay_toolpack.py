@@ -234,7 +234,15 @@ class GodotGameplayEvidenceAdapter:
             "approved_executable_digest": True,
             "asset_import_process": imported.returncode == 0,
             "headless_process": probe.returncode == 0,
-            "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v3",
+            "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v4",
+            "start_gate_present": receipt.get("start_gate_present") is True,
+            "countdown_decrements": receipt.get("countdown_decrements") is True,
+            "contact_damage_delta_scaled": receipt.get("contact_damage_delta_scaled") is True,
+            "attack_feedback_visible": receipt.get("attack_feedback_visible") is True,
+            "level_choice_prompted": receipt.get("level_choice_prompted") is True,
+            "enemy_visual_family_bound": receipt.get("enemy_visual_family") == "green",
+            "background_visual_treatment_bound": receipt.get("background_visual_treatment") == "bright_readable",
+            "outcome_prompt_present": receipt.get("outcome_prompt_present") is True,
             "formation_instantiated": receipt.get("formation_count") == len(artifact.gameplay.heroes),
             "movement_applied": receipt.get("movement_applied") is True,
             "enemy_spawned": receipt.get("enemy_spawned") is True,
@@ -285,7 +293,8 @@ class GodotGameplayEvidenceAdapter:
         }
         issues = [name for name, passed in checks.items() if not passed]
         observation = (
-            f"Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, "
+            f"Godot deterministic gameplay probe exercised a start gate, delta-scaled contact damage, visible attack feedback, a decreasing countdown, "
+            f"green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, "
             f"summed party stats, {artifact.gameplay.session_seconds}-second victory, "
             f"{artifact.gameplay.level_count}-level progression every {artifact.gameplay.level_interval_seconds} seconds, "
             f"ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, "
@@ -308,7 +317,7 @@ GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="1.4.0",
+    version="1.5.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),
@@ -337,7 +346,7 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
         supported_outcomes=(
             "Nano Banana visual foundation validated in a real Godot render",
             "bounded playable Godot 2D top-down action vertical slices",
-            "data-driven survival loops with movement enemies automatic abilities shared health and level choices",
+            "data-driven survival loops with a start gate countdown visible attack ranges green enemy differentiation shared health and readable level or outcome prompts",
         ),
         excluded_outcomes=(
             "3D multiplayer networking arbitrary plugins or arbitrary user-authored scripts",
@@ -354,7 +363,7 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     ),
     evidence=EvidenceContract(
         adapter_id=GodotGameplayEvidenceAdapter.adapter_id,
-        evidence_types=("godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "seeded.profession.choice", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
+        evidence_types=("gameplay.attack.feedback", "gameplay.countdown", "gameplay.start.gate", "gameplay.state.prompt", "godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "seeded.profession.choice", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
         network_isolated=False,
         independent_verifier_required=True,
     ),

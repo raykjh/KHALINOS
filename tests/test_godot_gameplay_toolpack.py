@@ -141,7 +141,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.4.0"
+    assert binding.version == "1.5.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
@@ -150,6 +150,13 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     assert first.bundle_sha256 == second.bundle_sha256
     assert first.gameplay.profession_choice_mode == "seeded_random_alternatives"
     assert "_seeded_profession_alternatives" in first.files["scripts/khalinos_gameplay.gd"]
+    gameplay_script = first.files["scripts/khalinos_gameplay.gd"]
+    assert "func _draw_start_overlay" in gameplay_script
+    assert "func _format_countdown" in gameplay_script
+    assert "attack_effects.append" in gameplay_script
+    assert 'Color("8ee58a")' in gameplay_script
+    assert "func _draw_choice_overlay" in gameplay_script
+    assert "func _draw_outcome_overlay" in gameplay_script
     destination = tmp_path / "product"
     GODOT_GAMEPLAY_TOOLPACK.execution_adapter.materialize(first, destination)
     assert {path.as_posix() for path in destination.rglob("*") if path.is_file()} == {
@@ -181,6 +188,19 @@ def test_explicit_trinity_requirements_are_plan_and_probe_authority() -> None:
     raw["session_seconds"] = 30
     with pytest.raises(ValueError, match="level schedule"):
         GodotGameplayPlan.model_validate(raw)
+
+
+def test_explicit_playability_requirements_bind_visible_gameplay_feedback() -> None:
+    criteria = explicit_gameplay_criteria(
+        "Show a start button and 10:00 countdown, brighter background, green monsters, "
+        "hero attack animation and attack range, level choice text, defeat message, and restart prompt."
+    )
+    assert any("START gate" in criterion for criterion in criteria)
+    assert any("decreasing session countdown" in criterion for criterion in criteria)
+    assert any("visible motion" in criterion for criterion in criteria)
+    assert any("green hostile visual family" in criterion for criterion in criteria)
+    assert any("brighter readable background" in criterion for criterion in criteria)
+    assert any("next available input" in criterion for criterion in criteria)
 
 
 def test_gameplay_toolpack_rejects_bundle_or_asset_tampering(tmp_path) -> None:
@@ -314,6 +334,7 @@ class StubGameplayTeam:
                     required_equipment_preserved=True,
                     background_residue_absent=approved,
                     role_is_readable=True,
+                    issue=None if approved else "Background residue is present.",
                 )
                 for slot in plan.slots
             ],

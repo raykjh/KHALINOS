@@ -43,6 +43,30 @@ def explicit_gameplay_criteria(text: str) -> list[str]:
         criteria.append(
             "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary."
         )
+    if "countdown" in normalized or "count down" in normalized or "10:00" in normalized:
+        criteria.append(
+            "The rendered HUD shows a decreasing session countdown that begins only after the player starts the run."
+        )
+    if "start button" in normalized or "start screen" in normalized or "press start" in normalized:
+        criteria.append(
+            "The rendered game waits at a visible START gate and accepts mouse, Enter, or Space before combat begins."
+        )
+    if any(phrase in normalized for phrase in ("attack range", "attack radius", "attack motion", "attack animation")):
+        criteria.append(
+            "Automatic hero attacks show a visible motion, active range, and impact-timed combat feedback."
+        )
+    if "green" in normalized and any(term in normalized for term in ("enemy", "enemies", "monster", "monsters")):
+        criteria.append(
+            "Rendered enemies use a green hostile visual family that remains immediately distinct from the hero formation."
+        )
+    if any(phrase in normalized for phrase in ("bright background", "brighter background", "lighter background")):
+        criteria.append(
+            "The rendered battlefield uses a brighter readable background while preserving HUD, hero, and enemy contrast."
+        )
+    if any(phrase in normalized for phrase in ("victory message", "defeat message", "restart prompt", "level choice text")):
+        criteria.append(
+            "Paused level choices and victory or defeat states visibly explain the state and the next available input."
+        )
     has_three_roles = (
         "tank" in normalized
         and "damage" in normalized
@@ -295,6 +319,8 @@ var level := 1
 var records := 0
 var enemies: Array[Dictionary] = []
 var ability_clocks: Dictionary = {}
+var attack_effects: Array[Dictionary] = []
+var started := false
 var choice_open := false
 var current_upgrade_role := ""
 var current_upgrade_options: Array[Dictionary] = []
@@ -341,17 +367,45 @@ func _all_sprite_ids_mapped() -> bool:
     return true
 
 func _process(delta: float) -> void:
+    if not started:
+        queue_redraw()
+        return
     if ended or choice_open:
+        queue_redraw()
         return
     var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
     _step_simulation(delta, direction)
     queue_redraw()
 
 func _unhandled_key_input(event: InputEvent) -> void:
-    if event.is_pressed() and choice_open and event.keycode >= KEY_1 and event.keycode <= KEY_5:
+    if event.is_pressed() and not started and event.keycode in [KEY_ENTER, KEY_SPACE]:
+        _start_game()
+    elif event.is_pressed() and choice_open and event.keycode >= KEY_1 and event.keycode <= KEY_5:
         _choose_upgrade(int(event.keycode - KEY_1))
     elif event.is_pressed() and ended and event.keycode == KEY_R:
         get_tree().reload_current_scene()
+
+func _input(event: InputEvent) -> void:
+    if not started and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+        if _start_button_rect().has_point(event.position):
+            _start_game()
+            get_viewport().set_input_as_handled()
+
+func _start_game() -> void:
+    if started:
+        return
+    started = true
+    queue_redraw()
+
+func _start_button_rect() -> Rect2:
+    return Rect2(float(config.viewport_width) / 2.0 - 130.0, float(config.viewport_height) / 2.0 + 48.0, 260.0, 58.0)
+
+func _remaining_seconds() -> float:
+    return max(0.0, float(config.session_seconds) - elapsed)
+
+func _format_countdown() -> String:
+    var remaining := int(ceil(_remaining_seconds()))
+    return "%02d:%02d" % [remaining / 60, remaining % 60]
 
 func _step_simulation(delta: float, direction: Vector2) -> void:
     elapsed += delta
@@ -369,8 +423,9 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
         if offset.length() > 1.0:
             enemy.position += offset.normalized() * float(enemy.speed) * delta
         if offset.length() < 36.0:
-            _apply_damage(max(1.0, float(enemy.damage) * delta - _party_defense() * 0.01 * delta))
+            _apply_damage(_contact_damage_per_second(enemy) * delta)
     _tick_abilities(delta)
+    _update_attack_effects(delta)
     _remove_dead()
     var target_level: int = min(int(config.level_count), 1 + int(elapsed / float(config.level_interval_seconds)))
     if target_level > level:
@@ -388,6 +443,9 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
 
 func _party_defense() -> float:
     return float(_party_stats().defense)
+
+func _contact_damage_per_second(enemy: Dictionary) -> float:
+    return max(0.1, float(enemy.damage) - _party_defense() * 0.01)
 
 func _party_stats() -> Dictionary:
     var totals := {"health": 0.0, "attack": 0.0, "defense": 0.0, "attack_speed": 0.0, "move_speed": 0.0}
@@ -420,6 +478,14 @@ func _tick_abilities(delta: float) -> void:
         if float(ability_clocks[id]) < float(ability.cooldown_seconds):
             continue
         ability_clocks[id] = 0.0
+        if String(ability.kind) in ["damage", "buff"]:
+            attack_effects.append({
+                "owner_hero_id": String(ability.owner_hero_id),
+                "kind": String(ability.kind),
+                "radius": float(ability.radius),
+                "life": 0.42,
+                "max_life": 0.42,
+            })
         match ability.kind:
             "damage":
                 for enemy in enemies:
@@ -434,6 +500,21 @@ func _tick_abilities(delta: float) -> void:
                     enemy.health -= float(ability.power) * 0.25
             "resurrection":
                 stored_resurrections = min(int(config.get("resurrection_capacity", 0)), stored_resurrections + 1)
+
+func _update_attack_effects(delta: float) -> void:
+    var active: Array[Dictionary] = []
+    for effect in attack_effects:
+        effect.life = float(effect.life) - delta
+        if float(effect.life) > 0.0:
+            active.append(effect)
+    attack_effects = active
+
+func _profession_details(profession_id: String) -> Dictionary:
+    for roster in config.get("profession_rosters", []):
+        for profession in roster.professions:
+            if String(profession.profession_id) == profession_id:
+                return profession
+    return {"label": profession_id.replace("_", " ").capitalize(), "stat_focus": "balanced"}
 
 func _apply_damage(amount: float) -> void:
     var absorbed: float = min(shield, amount)
@@ -518,9 +599,15 @@ func _choose_upgrade(index: int) -> void:
     current_upgrade_options = []
 
 func verification_scenario() -> Dictionary:
+    var start_gate_present := not started and elapsed == 0.0 and enemies.is_empty()
+    var initial_countdown := _remaining_seconds()
+    _start_game()
+    var sample_enemy: Dictionary = config.enemies[0]
+    var contact_damage_delta_scaled := _contact_damage_per_second(sample_enemy) * 0.5 < float(sample_enemy.damage)
     var start := center
     _step_simulation(0.5, Vector2.RIGHT)
     var moved := center.x > start.x
+    var countdown_decrements := _remaining_seconds() < initial_countdown
     _spawn_enemy()
     var spawned := enemies.size() > 0
     for enemy in enemies:
@@ -529,6 +616,7 @@ func verification_scenario() -> Dictionary:
     for ability in config.abilities:
         ability_clocks[ability.ability_id] = float(ability.cooldown_seconds)
     _tick_abilities(0.01)
+    var attack_feedback_visible := not attack_effects.is_empty()
     _remove_dead()
     var ability_applied := records > 0 or shared_health > 0.0 or shield > 0.0
     var observed_roles: Array[String] = []
@@ -537,12 +625,14 @@ func verification_scenario() -> Dictionary:
     var same_seed_repeatable := true
     var different_seed_variation_when_possible := true
     var upgrade_choice_trace: Array[Dictionary] = []
+    var level_choice_prompted := false
     for stage in range(int(config.level_count) - 1):
         elapsed = float((stage + 1) * int(config.level_interval_seconds))
         _step_simulation(0.01, Vector2.ZERO)
         if not choice_open:
             choice_contract_valid = false
             break
+        level_choice_prompted = level_choice_prompted or current_upgrade_options.size() == int(config.choices_per_level)
         observed_roles.append(current_upgrade_role)
         if not config.get("profession_rosters", []).is_empty():
             var state: Dictionary = profession_state.get(current_upgrade_role, {"profession_id": "", "rank": 1})
@@ -612,7 +702,15 @@ func verification_scenario() -> Dictionary:
         if not role_order.is_empty():
             expected_roles.append(String(role_order[stage % role_order.size()]))
     return {
-        "schema_version": "khalinos-godot-gameplay-probe-v3",
+        "schema_version": "khalinos-godot-gameplay-probe-v4",
+        "start_gate_present": start_gate_present,
+        "countdown_decrements": countdown_decrements,
+        "contact_damage_delta_scaled": contact_damage_delta_scaled,
+        "attack_feedback_visible": attack_feedback_visible,
+        "level_choice_prompted": level_choice_prompted,
+        "enemy_visual_family": "green",
+        "background_visual_treatment": "bright_readable",
+        "outcome_prompt_present": ended and not _outcome_title().is_empty(),
         "formation_count": config.heroes.size(),
         "movement_applied": moved,
         "enemy_spawned": spawned,
@@ -643,32 +741,92 @@ func verification_scenario() -> Dictionary:
     }
 
 func _draw() -> void:
-    draw_rect(Rect2(Vector2.ZERO, Vector2(config.viewport_width, config.viewport_height)), Color(0.09, 0.15, 0.12, 0.82))
+    draw_rect(Rect2(Vector2.ZERO, Vector2(config.viewport_width, config.viewport_height)), Color(0.16, 0.27, 0.20, 0.68))
     for x in range(0, int(config.viewport_width), 64):
-        draw_line(Vector2(x, 0), Vector2(x, config.viewport_height), Color(0.3, 0.5, 0.32, 0.15), 1.0)
+        draw_line(Vector2(x, 0), Vector2(x, config.viewport_height), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     for y in range(0, int(config.viewport_height), 64):
-        draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.3, 0.5, 0.32, 0.15), 1.0)
+        draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
+    for effect in attack_effects:
+        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
+        var effect_color := Color(0.98, 0.78, 0.25, 0.72 * (1.0 - progress))
+        draw_circle(center, float(effect.radius) * (0.72 + progress * 0.28), effect_color, false, 4.0, true)
     var hero_index := 0
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
         var position: Vector2 = center + Vector2.from_angle(angle) * 30.0
+        var attacking := false
+        for effect in attack_effects:
+            if String(effect.owner_hero_id) == String(hero.hero_id):
+                attacking = true
+                position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
         var hero_region := _sprite_region(hero.hero_id)
         if sprite_texture != null and hero_region.size != Vector2.ZERO:
             draw_texture_rect_region(sprite_texture, Rect2(position - Vector2(28, 28), Vector2(56, 56)), hero_region)
         else:
             draw_circle(position, 16.0, Color(hero.color_hex))
             draw_circle(position, 18.0, Color("f3e6bd"), false, 3.0)
+        if attacking:
+            draw_circle(position, 31.0, Color(1.0, 0.82, 0.28, 0.9), false, 4.0, true)
         hero_index += 1
     for enemy in enemies:
         var enemy_region := _sprite_region(enemy.enemy_id)
         if sprite_texture != null and enemy_region.size != Vector2.ZERO:
-            draw_texture_rect_region(sprite_texture, Rect2(enemy.position - Vector2(22, 22), Vector2(44, 44)), enemy_region)
+            draw_texture_rect_region(sprite_texture, Rect2(enemy.position - Vector2(22, 22), Vector2(44, 44)), enemy_region, Color("8ee58a"))
         else:
-            draw_circle(enemy.position, 12.0, Color(enemy.color_hex))
-    draw_rect(Rect2(28, 24, 360, 22), Color(0.08, 0.09, 0.08, 0.9))
-    draw_rect(Rect2(31, 27, 354.0 * clamp(shared_health / max(1.0, shared_health_max), 0.0, 1.0), 16), Color("b84a3a"))
+            draw_circle(enemy.position, 14.0, Color("58b96a"))
+        draw_circle(enemy.position, 24.0, Color(0.28, 0.78, 0.36, 0.68), false, 2.0, true)
+    draw_rect(Rect2(22, 18, 382, 64), Color(0.035, 0.055, 0.04, 0.88))
+    _draw_label("TRINITY HP  %d / %d" % [max(0, int(shared_health)), int(shared_health_max)], Vector2(32, 42), 18, Color("f7f2df"))
+    draw_rect(Rect2(31, 52, 354, 18), Color(0.08, 0.09, 0.08, 0.9))
+    draw_rect(Rect2(34, 55, 348.0 * clamp(shared_health / max(1.0, shared_health_max), 0.0, 1.0), 12), Color("d95f4f"))
+    _draw_label("TIME  " + _format_countdown(), Vector2(float(config.viewport_width) / 2.0 - 82.0, 45), 26, Color("fff0a8"))
+    _draw_label("LEVEL %d / %d" % [level, int(config.level_count)], Vector2(float(config.viewport_width) - 180.0, 42), 18, Color("f7f2df"))
+    _draw_label("Move: WASD / Arrows", Vector2(30, float(config.viewport_height) - 24.0), 16, Color(0.9, 0.94, 0.86, 0.82))
+    if not started:
+        _draw_start_overlay()
     if choice_open:
-        draw_rect(Rect2(config.viewport_width / 2.0 - 280, config.viewport_height / 2.0 - 120, 560, 240), Color(0.08, 0.1, 0.08, 0.95))
+        _draw_choice_overlay()
+    if ended:
+        _draw_outcome_overlay()
+
+func _draw_label(text: String, position: Vector2, size: int, color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
+    draw_string(ThemeDB.fallback_font, position, text, alignment, width, size, color)
+
+func _draw_start_overlay() -> void:
+    var panel := Rect2(float(config.viewport_width) / 2.0 - 330.0, float(config.viewport_height) / 2.0 - 190.0, 660.0, 380.0)
+    draw_rect(panel, Color(0.035, 0.065, 0.045, 0.94))
+    draw_rect(panel, Color("b8d88f"), false, 3.0)
+    _draw_label(String(config.get("project_name", "TRINITY SURVIVORS")).to_upper(), Vector2(panel.position.x, panel.position.y + 82.0), 34, Color("fff0b5"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+    _draw_label("Survive together until the timer reaches 00:00", Vector2(panel.position.x, panel.position.y + 130.0), 20, Color("e8f3dc"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+    _draw_label("Move with WASD or Arrow Keys · Heroes attack automatically", Vector2(panel.position.x, panel.position.y + 172.0), 16, Color("cddcc4"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+    var button := _start_button_rect()
+    draw_rect(button, Color("d9b84f"))
+    draw_rect(button, Color("fff0b5"), false, 3.0)
+    _draw_label("START", Vector2(button.position.x, button.position.y + 39.0), 24, Color("15251b"), HORIZONTAL_ALIGNMENT_CENTER, button.size.x)
+    _draw_label("Click START or press Enter / Space", Vector2(panel.position.x, panel.end.y - 34.0), 15, Color("b8c9b0"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+
+func _draw_choice_overlay() -> void:
+    var panel := Rect2(float(config.viewport_width) / 2.0 - 340.0, float(config.viewport_height) / 2.0 - 190.0, 680.0, 380.0)
+    draw_rect(panel, Color(0.035, 0.06, 0.04, 0.97))
+    draw_rect(panel, Color("d9b84f"), false, 3.0)
+    _draw_label("LEVEL UP · %s CHOICE" % current_upgrade_role.to_upper(), Vector2(panel.position.x, panel.position.y + 55.0), 25, Color("fff0a8"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+    _draw_label("Combat is paused — press a number to continue", Vector2(panel.position.x, panel.position.y + 88.0), 16, Color("d7e4d0"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+    for index in range(current_upgrade_options.size()):
+        var option: Dictionary = current_upgrade_options[index]
+        var details := _profession_details(String(option.profession_id))
+        var action := "Rank up current profession" if String(option.kind) == "rank_up" else "Change specialization"
+        var line := "%d   %s   ·   %s   ·   Focus: %s" % [index + 1, String(details.label), action, String(details.get("stat_focus", "balanced")).replace("_", " ")]
+        _draw_label(line, Vector2(panel.position.x + 48.0, panel.position.y + 145.0 + index * 62.0), 18, Color("f4f0df"))
+
+func _outcome_title() -> String:
+    return "VICTORY" if victory else "DEFEAT"
+
+func _draw_outcome_overlay() -> void:
+    var panel := Rect2(float(config.viewport_width) / 2.0 - 270.0, float(config.viewport_height) / 2.0 - 115.0, 540.0, 230.0)
+    draw_rect(panel, Color(0.035, 0.055, 0.04, 0.96))
+    draw_rect(panel, Color("d9b84f"), false, 3.0)
+    _draw_label(_outcome_title(), Vector2(panel.position.x, panel.position.y + 82.0), 38, Color("fff0a8"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
+    _draw_label("Press R to restart", Vector2(panel.position.x, panel.position.y + 142.0), 22, Color("eef4e8"), HORIZONTAL_ALIGNMENT_CENTER, panel.size.x)
 
 '''
 
@@ -693,7 +851,15 @@ func _probe() -> void:
         await process_frame
     var receipt: Dictionary = instance.verification_scenario() if instance != null else {}
     receipt.passed = (
-        receipt.get("movement_applied", false)
+        receipt.get("start_gate_present", false)
+        and receipt.get("countdown_decrements", false)
+        and receipt.get("contact_damage_delta_scaled", false)
+        and receipt.get("attack_feedback_visible", false)
+        and receipt.get("level_choice_prompted", false)
+        and receipt.get("enemy_visual_family", "") == "green"
+        and receipt.get("background_visual_treatment", "") == "bright_readable"
+        and receipt.get("outcome_prompt_present", false)
+        and receipt.get("movement_applied", false)
         and receipt.get("enemy_spawned", false)
         and receipt.get("auto_ability_applied", false)
         and receipt.get("shared_health_initialized", false)
@@ -723,7 +889,7 @@ func _probe() -> void:
 
 
 def _scene(width: int, height: int) -> str:
-    return f'''[gd_scene load_steps=3 format=3]\n\n[ext_resource type="Script" path="res://scripts/khalinos_gameplay.gd" id="1"]\n[ext_resource type="Texture2D" path="res://assets/visual-foundation.png" id="2"]\n\n[node name="Gameplay" type="Node2D"]\nscript = ExtResource("1")\n\n[node name="VisualFoundation" type="TextureRect" parent="."]\noffset_right = {float(width):.1f}\noffset_bottom = {float(height):.1f}\ntexture = ExtResource("2")\nexpand_mode = 1\nstretch_mode = 6\nmouse_filter = 2\nmodulate = Color(1, 1, 1, 0.42)\nz_index = -2\n'''
+    return f'''[gd_scene load_steps=3 format=3]\n\n[ext_resource type="Script" path="res://scripts/khalinos_gameplay.gd" id="1"]\n[ext_resource type="Texture2D" path="res://assets/visual-foundation.png" id="2"]\n\n[node name="Gameplay" type="Node2D"]\nscript = ExtResource("1")\n\n[node name="VisualFoundation" type="TextureRect" parent="."]\noffset_right = {float(width):.1f}\noffset_bottom = {float(height):.1f}\ntexture = ExtResource("2")\nexpand_mode = 1\nstretch_mode = 6\nmouse_filter = 2\nmodulate = Color(1, 1, 1, 0.60)\nz_index = -2\n'''
 
 
 def compile_godot_gameplay(
@@ -765,7 +931,7 @@ def compile_godot_gameplay(
         "scripts/khalinos_gameplay.gd": GAMEPLAY_SCRIPT,
         "scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT,
         "KHALINOS_GAMEPLAY.json": json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        "README.md": f"# {safe_name}\n\nA bounded Godot 2D gameplay vertical slice generated by the KHALINOS Godot Gameplay ToolPack.\n\nMove with WASD or arrow keys. Choose level upgrades with number keys. Press R after victory or defeat to restart.\n",
+        "README.md": f"# {safe_name}\n\nA bounded Godot 2D gameplay vertical slice generated by the KHALINOS Godot Gameplay ToolPack.\n\nClick START or press Enter/Space to begin. Move with WASD or arrow keys. Heroes attack automatically and show their attack range. Choose level upgrades with number keys. Press R after victory or defeat to restart.\n",
     }
     if sprite_plan is not None:
         files[SPRITE_ATLAS_MANIFEST_PATH] = json.dumps(sprite_plan.manifest(), ensure_ascii=False, indent=2) + "\n"
