@@ -32,6 +32,7 @@ MAX_SPRITE_ATLAS_BYTES = 2_500_000
 MAX_SPRITE_SOURCE_BYTES = 2_500_000
 SOURCE_SIZE = 1024
 COMPOSED_SPRITE_SIZE = 208
+MAX_SOURCE_NORMALIZATION_ATTEMPTS = 2
 SPRITE_SEGMENTATION_MODEL_ID = "isnet-anime"
 SPRITE_SEGMENTATION_MODEL_VERSION = "rembg-2.0.81-onnx"
 SPRITE_SEGMENTATION_MODEL_URL = (
@@ -534,30 +535,45 @@ def generate_sprite_atlas(
     segment = segment_source or ApprovedSpriteSegmenter()
     sprites: list[NormalizedSprite] = []
     for slot in plan.slots:
-        if on_model_call is not None:
-            on_model_call()
-        response = _generate_with_transient_retry(
-            client,
-            sprite_source_prompt(brief, concept, slot, feedback),
-            aspect_ratio="1:1",
-        )
-        payload = next(
-            (
-                bytes(part.inline_data.data)
-                for candidate in response.candidates or []
-                for part in (candidate.content.parts if candidate.content else [])
-                if part.inline_data and part.inline_data.mime_type == "image/png"
-            ),
-            None,
-        )
-        if payload is None:
-            raise RuntimeError(f"Nano Banana returned no PNG for sprite source {slot.sprite_id}")
-        try:
-            segmented = segment(payload)
-            sprite = normalize_sprite_source(segmented, slot)
-        except Exception as exc:
+        last_failure: Exception | None = None
+        for attempt in range(1, MAX_SOURCE_NORMALIZATION_ATTEMPTS + 1):
+            attempt_feedback = feedback
+            if last_failure is not None:
+                attempt_feedback = (*feedback, (
+                    f"The previous {slot.label} source was rejected by deterministic normalization: "
+                    f"{last_failure}. Generate one larger opaque central full-body character with "
+                    "clear empty margins and no platform or background residue."
+                ))
+            if on_model_call is not None:
+                on_model_call()
+            response = _generate_with_transient_retry(
+                client,
+                sprite_source_prompt(brief, concept, slot, attempt_feedback),
+                aspect_ratio="1:1",
+            )
+            payload = next(
+                (
+                    bytes(part.inline_data.data)
+                    for candidate in response.candidates or []
+                    for part in (candidate.content.parts if candidate.content else [])
+                    if part.inline_data and part.inline_data.mime_type == "image/png"
+                ),
+                None,
+            )
+            if payload is None:
+                last_failure = RuntimeError("Nano Banana returned no PNG")
+                continue
+            try:
+                segmented = segment(payload)
+                sprite = normalize_sprite_source(segmented, slot)
+                break
+            except Exception as exc:
+                last_failure = exc
+        else:
             raise RuntimeError(
-                f"sprite source {slot.sprite_id} failed its approved IS-Net Anime segmentation and normalization: {exc}"
-            ) from exc
+                f"sprite source {slot.sprite_id} failed its approved IS-Net Anime segmentation "
+                f"and normalization after {MAX_SOURCE_NORMALIZATION_ATTEMPTS} bounded attempts: "
+                f"{last_failure}"
+            ) from last_failure
         sprites.append(sprite)
     return compose_sprite_atlas(plan, tuple(sprites))

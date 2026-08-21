@@ -230,6 +230,53 @@ def test_generation_segments_every_source_before_normalization(monkeypatch) -> N
     assert len(segmented) == 2
 
 
+def test_generation_retries_one_rejected_source_once_with_bounded_feedback(monkeypatch) -> None:
+    from khalinos.models import UserBrief, VisualConcept
+    import khalinos.sprite_assets as module
+
+    brief = UserBrief(
+        project_name="Trinity Trial",
+        goal="Create one bounded top-down survival game with readable characters.",
+        acceptance_criteria=["Heroes are distinct.", "Enemies are distinct."],
+        authorized_output_files=["assets/sprite-atlas.png"],
+    )
+    concept = VisualConcept(
+        candidate_id="V1", name="Verdant Ruins",
+        design_thesis="Painterly fantasy silhouettes share one coherent material language.",
+        composition="The party is clear at compact gameplay scale.",
+        typography="UI typography remains outside generated imagery.",
+        palette=["moss", "gold", "stone"],
+        interaction_emphasis="Characters remain distinct.",
+        anti_goals=["text", "scenery"],
+    )
+    payloads = iter((empty_source(), source("#d9a441"), source("#79a94b")))
+    prompts: list[str] = []
+
+    monkeypatch.setattr(module.genai, "Client", lambda **kwargs: object())
+    def generate(client, prompt, **kwargs):
+        del client, kwargs
+        prompts.append(prompt)
+        return SimpleNamespace(candidates=[SimpleNamespace(content=SimpleNamespace(parts=[
+            SimpleNamespace(inline_data=SimpleNamespace(mime_type="image/png", data=next(payloads)))
+        ]))])
+    monkeypatch.setattr(module, "_generate_with_transient_retry", generate)
+    calls: list[int] = []
+
+    asset = generate_sprite_atlas(
+        brief,
+        concept,
+        plan(),
+        on_model_call=lambda: calls.append(1),
+        segment_source=lambda payload: payload,
+    )
+
+    assert asset.path == "assets/sprite-atlas.png"
+    assert len(calls) == 3
+    assert len(prompts) == 3
+    assert "rejected by deterministic normalization" in prompts[1]
+    assert "previous rejected-source issue" not in prompts[2].casefold()
+
+
 def test_segmentation_model_verification_fails_closed_when_weight_is_missing(tmp_path) -> None:
     with pytest.raises(RuntimeError, match="model is missing"):
         verify_sprite_segmentation_model(tmp_path / "isnet-anime.onnx")
