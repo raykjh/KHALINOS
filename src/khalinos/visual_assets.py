@@ -45,7 +45,18 @@ def trusted_png_asset(payload: bytes) -> ArtifactAsset:
     )
 
 
-def asset_prompt(brief: UserBrief, concept: VisualConcept) -> str:
+def asset_prompt(
+    brief: UserBrief,
+    concept: VisualConcept,
+    feedback: tuple[str, ...] = (),
+) -> str:
+    repair = ""
+    if feedback:
+        repair = (
+            "\nThe previous candidate was rejected for these exact gate findings: "
+            + "; ".join(feedback)
+            + ". Correct those findings without changing the approved concept.\n"
+        )
     return f"""
 Create one polished 16:9 supporting environmental illustration for an interactive product.
 
@@ -66,7 +77,10 @@ Do not include runes, inscriptions, carvings, symbols, signage, interface-like g
 decorative markings of any kind, even when they seem abstract or non-linguistic. If the goal
 mentions screens, routes, controls, maps, or labels, do not visualize those elements; generate
 only the unmarked physical environment behind them. Any text-like or interface-like mark makes
-the asset ineligible. Do not add product features or content outside the
+the asset ineligible. Avoid centered emblems, concentric circles, connected nodes, grids,
+selection wheels, diagram-like symmetry, framed panels, or isolated geometric focal objects.
+Prefer an irregular, continuous physical landscape with several natural depth layers and no
+single object that could be mistaken for a control or HUD element.{repair}Do not add product features or content outside the
 approved goal and concept. Return one PNG image.
 """.strip()
 
@@ -96,11 +110,15 @@ def _generate_with_transient_retry(client, prompt: str, *, sleep=time.sleep, asp
     raise AssertionError("unreachable transient retry state")
 
 
-def generate_visual_asset(brief: UserBrief, concept: VisualConcept) -> ArtifactAsset:
+def generate_visual_asset(
+    brief: UserBrief,
+    concept: VisualConcept,
+    feedback: tuple[str, ...] = (),
+) -> ArtifactAsset:
     project = os.environ.get("GOOGLE_CLOUD_PROJECT", "khalinos-agent-20260818")
     location = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
     client = genai.Client(vertexai=True, project=project, location=location)
-    response = _generate_with_transient_retry(client, asset_prompt(brief, concept))
+    response = _generate_with_transient_retry(client, asset_prompt(brief, concept, feedback))
     for candidate in response.candidates or []:
         for part in candidate.content.parts if candidate.content else []:
             if part.inline_data and part.inline_data.mime_type == "image/png":

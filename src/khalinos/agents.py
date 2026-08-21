@@ -566,14 +566,19 @@ class AgentTeam:
         result = await self._run(self.visual_maker, payload, BrowserArtifactBundle)
         return result.to_artifact_bundle()
 
-    async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept) -> ArtifactAsset:
+    async def make_visual_asset(
+        self,
+        brief: UserBrief,
+        concept: VisualConcept,
+        feedback: tuple[str, ...] = (),
+    ) -> ArtifactAsset:
         minimum_interval = float(os.environ.get("KHALINOS_IMAGE_MIN_INTERVAL_SECONDS", "35"))
         async with self._image_lock:
             elapsed = time.monotonic() - self._last_image_call_started
             if self._last_image_call_started and elapsed < minimum_interval:
                 await asyncio.sleep(minimum_interval - elapsed)
             self._last_image_call_started = time.monotonic()
-            asset = await asyncio.to_thread(generate_visual_asset, brief, concept)
+            asset = await asyncio.to_thread(generate_visual_asset, brief, concept, feedback)
             self._record_call(self.visual_maker.name)
             return asset
 

@@ -43,7 +43,7 @@ class GodotSideScrollTeam(Protocol):
 
     async def plan_godot_side_scroll(self, payload: dict) -> GodotSideScrollProjectPlan: ...
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan: ...
-    async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept) -> ArtifactAsset: ...
+    async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept, feedback: tuple[str, ...] = ()) -> ArtifactAsset: ...
     async def verify_visual_asset(
         self, candidate_id: str, asset: ArtifactAsset, concept: VisualConcept
     ) -> VisualAssetGate: ...
@@ -147,6 +147,26 @@ async def execute_godot_side_scroll_run(
                 run_id, f"visuals/{concept.candidate_id}/asset_gate.json",
                 gate.model_dump(mode="json"),
             )
+            if not gate.approved:
+                store.put_bytes(
+                    run_id, f"visuals/{concept.candidate_id}/repair/attempt-0/{asset.path}",
+                    asset.bytes(), asset.media_type,
+                )
+                store.put_json(
+                    run_id, f"visuals/{concept.candidate_id}/repair/attempt-0/asset_gate.json",
+                    gate.model_dump(mode="json"),
+                )
+                asset = await team.make_visual_asset(brief, concept, tuple(gate.issues))
+                asset_digests[concept.candidate_id] = asset.sha256
+                store.put_bytes(
+                    run_id, f"visuals/{concept.candidate_id}/asset/{asset.path}",
+                    asset.bytes(), asset.media_type,
+                )
+                gate = await team.verify_visual_asset(concept.candidate_id, asset, concept)
+                store.put_json(
+                    run_id, f"visuals/{concept.candidate_id}/asset_gate.json",
+                    gate.model_dump(mode="json"),
+                )
             if not gate.approved:
                 evidence_payload[concept.candidate_id] = {"passed": False, "issues": gate.issues}
                 continue

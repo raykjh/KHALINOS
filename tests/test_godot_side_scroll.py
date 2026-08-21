@@ -207,7 +207,8 @@ class StubSideScrollTeam:
             candidates=self.concepts,
         )
 
-    async def make_visual_asset(self, brief, concept):
+    async def make_visual_asset(self, brief, concept, feedback=()):
+        del feedback
         self.record_call("khalinos_visual_candidate_maker")
         return trusted_png_asset(background_png())
 

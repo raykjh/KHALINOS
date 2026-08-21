@@ -146,7 +146,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.8.1"
+    assert binding.version == "1.8.2"
 
 
 async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
@@ -385,7 +385,8 @@ class StubGameplayTeam:
         self.record_call("khalinos_visual_director")
         return VisualConceptPlan(shared_contract="Three distinct readable environmental foundations for the same bounded gameplay loop.", candidates=self.concepts)
 
-    async def make_visual_asset(self, brief, concept):
+    async def make_visual_asset(self, brief, concept, feedback=()):
+        del feedback
         self.record_call("khalinos_visual_candidate_maker")
         return trusted_png_asset(png())
 
