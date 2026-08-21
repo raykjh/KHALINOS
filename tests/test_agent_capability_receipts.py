@@ -113,6 +113,30 @@ def test_trinity_and_side_scroll_rebind_existing_slots_without_creating_agents()
     assert comparison["model_calls_recorded"] == 0
     assert comparison["model_agent_slots_invoked"] == []
 
+    cloud_side_trace = build_agent_capability_trace(
+        profile_id="godot.side-scroll-destination",
+        plan_sha256=side_scroll.plan_sha256,
+        artifact_bundle_sha256=side_scroll.bundle_sha256,
+        evidence_sha256=_sha256({"fixture": "side-scroll-cloud-pass"}),
+        composition=side_composition,
+        profile=GODOT_SIDE_SCROLL_PROFILE,
+        binary_sha256_by_path={side_scroll.asset.path: side_scroll.asset.sha256},
+        model_calls_by_agent={
+            "khalinos_godot_quest_owner": 1,
+            "khalinos_godot_gameplay_owner": 1,
+            "khalinos_visual_candidate_maker": 3,
+        },
+    )
+    assert cloud_side_trace.execution_scope == "cloud_workflow_execution"
+    cloud_comparison = compare_agent_capability_traces(cloud_side_trace, cloud_side_trace)
+    assert cloud_comparison["model_calls_recorded"] == 10
+    assert cloud_comparison["model_agent_slots_invoked"] == [
+        "khalinos_godot_gameplay_owner",
+        "khalinos_godot_quest_owner",
+        "khalinos_visual_candidate_maker",
+    ]
+    assert "actual model-agent invocations" in cloud_comparison["scope_note"]
+
 
 def test_trace_rejects_a_profile_that_does_not_match_the_executed_composition() -> None:
     side_scroll = _fixture_function("test_godot_side_scroll.py", "side_scroll_artifact")()

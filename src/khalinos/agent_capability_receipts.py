@@ -108,7 +108,9 @@ class AgentCapabilityBindingTrace(BaseModel):
     composition_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     artifact_bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     evidence_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    execution_scope: Literal["local_deterministic_profile_execution"] = (
+    execution_scope: Literal[
+        "local_deterministic_profile_execution", "cloud_workflow_execution"
+    ] = (
         "local_deterministic_profile_execution"
     )
     receipts: tuple[AgentCapabilityBindingReceipt, ...] = Field(
@@ -321,6 +323,11 @@ def build_agent_capability_trace(
         composition_sha256=composition_sha,
         artifact_bundle_sha256=artifact_bundle_sha256,
         evidence_sha256=evidence_sha256,
+        execution_scope=(
+            "cloud_workflow_execution"
+            if model_calls_by_agent is not None and sum(calls.values()) > 0
+            else "local_deterministic_profile_execution"
+        ),
         receipts=tuple(receipts),
     )
 
@@ -352,11 +359,13 @@ def compare_agent_capability_traces(
             first.profile_id: {
                 "active_agent_count": len(first.active_agent_ids),
                 "inactive_agent_count": len(first.inactive_agent_ids),
+                "execution_scope": first.execution_scope,
                 "trace_sha256": first.sha256(),
             },
             second.profile_id: {
                 "active_agent_count": len(second.active_agent_ids),
                 "inactive_agent_count": len(second.inactive_agent_ids),
+                "execution_scope": second.execution_scope,
                 "trace_sha256": second.sha256(),
             },
         },
@@ -365,16 +374,19 @@ def compare_agent_capability_traces(
         "only_in_second": sorted(set(second_receipts) - set(first_receipts)),
         "pack_changes_by_agent": pack_changes,
         "new_agent_slots_created": False,
-        "model_agent_slots_invoked": sorted(
+        "model_agent_slots_invoked": sorted({
             receipt.agent_id
             for receipt in (*first.receipts, *second.receipts)
             if receipt.model_invoked
-        ),
+        }),
         "model_calls_recorded": sum(
             receipt.model_calls for receipt in (*first.receipts, *second.receipts)
         ),
         "scope_note": (
-            "These receipts prove fixed-slot authorization and local deterministic profile execution; "
-            "they do not claim that Gemini agents were invoked in this comparison."
+            "These Cloud workflow receipts prove fixed-slot authorization and record actual "
+            "model-agent invocations alongside trusted-host and deterministic execution."
+            if first.execution_scope == second.execution_scope == "cloud_workflow_execution"
+            else "These receipts prove fixed-slot authorization; execution scopes are reported "
+            "per profile and must not be interpreted as broader autonomy."
         ),
     }
