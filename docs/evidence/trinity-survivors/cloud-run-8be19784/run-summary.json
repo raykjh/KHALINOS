@@ -1,0 +1,52 @@
+{
+  "run_id": "8be1978415eb40b99d4dddbe8d143c33",
+  "status": "passed",
+  "message": "Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.",
+  "git_commit": "ad83e20",
+  "cloud": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "build_id": "7ad60fc4-e050-4eef-84e2-f973c1cc19f2",
+    "api_revision": "khalinos-00042-jfb",
+    "job": "khalinos-worker",
+    "job_generation": 41,
+    "execution": "khalinos-worker-x2xfc",
+    "execution_duration_seconds": 578.93,
+    "image_digest": "sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed",
+    "memory": "8Gi",
+    "cpu": 2,
+    "timeout_seconds": 1800,
+    "max_retries": 0
+  },
+  "toolpack": {
+    "id": "godot.gameplay",
+    "version": "1.6.2",
+    "manifest_sha256": "d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426"
+  },
+  "execution": {
+    "gemini_calls": 22,
+    "receipts": 4,
+    "visual_selection_receipt": "VS-3b46edae64ef48c6",
+    "selected_visual": "V3",
+    "quest_receipts": [
+      "QR-69bfcb6fd7b34c41",
+      "QR-8ea904b29d2f4597",
+      "QR-b674409e70544c32"
+    ],
+    "technical_repair_rounds": 0,
+    "deterministic_checks_passed": 44,
+    "deterministic_checks_total": 44,
+    "sprite_gate": "PASS",
+    "issues": 0,
+    "generated_source_files": 9
+  },
+  "sha256": {
+    "artifact": "c4e8cce7780bed950e12f25b3df9419ceb8546b392cfc60a998cd31dc28ee05b",
+    "plan": "8103218adbd29425e5a15348c2e7253cd0aaf3aa37ad9de1c13b6e6c66e87379",
+    "bundle": "4549ce7f7f08d689c3353ee6dac272caf75c711d4fed31dc7d66dddb79c27586",
+    "source_zip": "f91288e2f0eb84afc69f2d6bb6dcecc87eeb6737c2ecc063a79b50bd8b52ed32",
+    "sprite_atlas": "c00399f2436c54c0e93d40f468d364c54748b0a3680f98a57548bfa57f2b58d3",
+    "display_render": "712afde592170d9a84dbed735af029b27f5678e517d9c1ff2926679940fa5e10"
+  },
+  "claim_boundary": "The Verifier is role-, context-, and write-authority-separated inside KHALINOS, not an external audit organization. Temporal mechanics are proven by the typed Godot probe; the retained screenshot proves a display-backed render only."
+}

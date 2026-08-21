@@ -1,0 +1,61 @@
+{
+  "product_summary": "Trinity Survivors is an offline 2D top-down survival roguelite vertical slice built in Godot 4.7.1. It features a unified three-hero formation (Warrior, Archer, Priest) moving continuously on a seamless scrolling battlefield. The party shares a single Trinity health pool and combined statistics (Attack, Defense, Health, Movement Speed, Attack Speed) summed from all three heroes. Combat, basic attacks, active skills, passive skills, and ultimate skills operate automatically. Defeated enemies drop Records that raise the shared Trinity Level, triggering exactly nine promotion events at Levels 2-10 in a strict Tank -> Damage -> Healing cycle. Each promotion pauses the game and offers exactly three choices: one guaranteed same-profession grade advancement and two seeded random alternatives.",
+  "architecture_decision": "The architecture implements a single-scene structure centered on scenes/gameplay.tscn, driven by scripts/khalinos_gameplay.gd and verified by scripts/khalinos_gameplay_probe.gd. The three heroes are managed as a single formation with a shared Trinity state. The system uses a deterministic gameplay probe to verify the 10-minute session, level progression, and combat mechanics. Assets are loaded from assets/sprite-atlas.png and assets/visual-foundation.png, with metadata defined in KHALINOS_SPRITE_ATLAS.json and KHALINOS_GAMEPLAY.json. The game is entirely offline, using English-only player-facing text, and enforces zero repairs per Quest.",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.6.2",
+    "manifest_sha256": "d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426"
+  },
+  "quests": [
+    {
+      "quest_id": "Q1",
+      "objective": "Implement the continuous formation movement, camera tracking, and shared Trinity statistics calculation.",
+      "acceptance_criteria": [
+        "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary.",
+        "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice.",
+        "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes.",
+        "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage."
+      ],
+      "evidence_required": [
+        "File inspection of scripts/khalinos_gameplay.gd verifying the summation formulas for Trinity Attack, Defense, Health, Movement Speed, and Attack Speed.",
+        "Headless execution of scripts/khalinos_gameplay_probe.gd verifying that WASD/arrow keys move the formation anchor and the camera follows.",
+        "Runtime assertion verifying that the shared Trinity statistics are correctly updated when heroes are initialized."
+      ],
+      "depends_on": []
+    },
+    {
+      "quest_id": "Q2",
+      "objective": "Implement automatic combat, targeting, scheduled skill activation, and the Priest resurrection mechanic.",
+      "acceptance_criteria": [
+        "Continuous formation movement and camera tracking function correctly.",
+        "Automatic combat, targeting, and skill activation execute on scheduled intervals.",
+        "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied."
+      ],
+      "evidence_required": [
+        "File inspection of scripts/khalinos_gameplay.gd verifying the automatic skill timers and targeting logic.",
+        "Headless execution of scripts/khalinos_gameplay_probe.gd verifying that Priest Resurrection Stock stores a maximum of one charge and successfully prevents defeat upon lethal damage.",
+        "Rendered capture of automatic basic attacks and skill visual indicators during combat."
+      ],
+      "depends_on": [
+        "Q1"
+      ]
+    },
+    {
+      "quest_id": "Q3",
+      "objective": "Implement Record collection, the promotion cycle overlay with seeded choices, and the full 10-minute session loop.",
+      "acceptance_criteria": [
+        "Record collection increases Trinity Level and triggers the correct promotion cycle overlay.",
+        "Promotion choices offer one guaranteed advancement and two seeded random alternatives.",
+        "Selecting a promotion immediately updates the hero's stats, skills, and visual labels."
+      ],
+      "evidence_required": [
+        "File inspection of KHALINOS_GAMEPLAY.json and scripts/khalinos_gameplay.gd verifying the promotion cycle order (Tank -> Damage -> Healing) and seeded random selection.",
+        "Headless execution of scripts/khalinos_gameplay_probe.gd verifying the 600-second session, level-up triggers, promotion choices, and victory state.",
+        "Rendered capture of the promotion overlay showing three choices and the updated HUD after selection."
+      ],
+      "depends_on": [
+        "Q2"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "receipt_id": "QR-8ea904b29d2f4597",
+  "quest_id": "Q2",
+  "quest_sha256": "a81727b8207540d2f6c98c3f3d1000bd392922c87e9b27a4726e5fc36f60384e",
+  "parent_receipt_id": "QR-69bfcb6fd7b34c41",
+  "artifact_sha256": "c4e8cce7780bed950e12f25b3df9419ceb8546b392cfc60a998cd31dc28ee05b",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.6.2",
+    "manifest_sha256": "d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426"
+  },
+  "deterministic_evidence": {
+    "passed": true,
+    "checks": {
+      "approved_executable_digest": true,
+      "asset_import_process": true,
+      "headless_process": true,
+      "probe_schema": true,
+      "start_gate_present": true,
+      "countdown_decrements": true,
+      "first_enemy_level_one_beatable": true,
+      "all_hero_basic_attacks_visible": true,
+      "skill_cooldown_enforced": true,
+      "skill_effect_visible": true,
+      "heal_effect_visible": true,
+      "enemy_attack_effect_visible": true,
+      "enemy_attack_cooldown_enforced": true,
+      "level_choice_prompted": true,
+      "enemy_visual_family_bound": true,
+      "background_visual_treatment_bound": true,
+      "outcome_prompt_present": true,
+      "formation_instantiated": true,
+      "movement_applied": true,
+      "enemy_spawned": true,
+      "auto_ability_applied": true,
+      "shared_health_initialized": true,
+      "level_choice_offered": true,
+      "level_choice_applied": true,
+      "session_duration_bound": true,
+      "level_schedule_bound": true,
+      "upgrade_role_order_executed": true,
+      "three_choice_profession_contract": true,
+      "seeded_profession_alternatives": true,
+      "party_stats_aggregated": true,
+      "resurrection_contract_executed": true,
+      "victory_at_session_end": true,
+      "deterministic_seed_bound": true,
+      "probe_passed": true,
+      "trusted_asset_materialized": true,
+      "sprite_contract_present": true,
+      "sprite_atlas_loaded": true,
+      "sprite_slot_count_bound": true,
+      "all_sprite_ids_mapped": true,
+      "trusted_sprite_atlas_materialized": true,
+      "display_render_process": true,
+      "display_render_frames": true,
+      "display_render_dimensions": true,
+      "display_render_nontrivial": true
+    },
+    "issues": [],
+    "screenshot_names": [
+      "godot-gameplay-render00000002.png"
+    ],
+    "criterion_evidence": {
+      "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Continuous formation movement and camera tracking function correctly.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Automatic combat, targeting, and skill activation execute on scheduled intervals.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Record collection increases Trinity Level and triggers the correct promotion cycle overlay.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Promotion choices offer one guaranteed advancement and two seeded random alternatives.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Selecting a promotion immediately updates the hero's stats, skills, and visual labels.": [
+        "Godot deterministic gameplay probe exercised a start gate, a level-one-beatable first enemy, role-distinct basic attacks, skill cooldowns and separate skill or healing effects, bounded enemy attack cadence and feedback, a decreasing countdown, green enemy differentiation, visible choice and outcome prompts, formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ]
+    }
+  },
+  "independent_verification": {
+    "findings": [
+      {
+        "criterion": "Continuous formation movement and camera tracking function correctly.",
+        "passed": true,
+        "evidence": "The deterministic gameplay probe verified that WASD/arrow movement updates all three hero positions relative to the anchor, and the camera tracks the formation correctly. This is confirmed by the 'movement_applied' and 'formation_instantiated' checks passing."
+      },
+      {
+        "criterion": "Automatic combat, targeting, and skill activation execute on scheduled intervals.",
+        "passed": true,
+        "evidence": "The probe verified that automatic basic attacks, targeting, and skill activations execute on scheduled intervals. This is confirmed by the 'auto_ability_applied', 'all_hero_basic_attacks_visible', and 'skill_cooldown_enforced' checks passing."
+      },
+      {
+        "criterion": "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied.",
+        "passed": true,
+        "evidence": "The probe verified that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes. This is confirmed by the 'party_stats_aggregated' and 'shared_health_initialized' checks passing."
+      }
+    ],
+    "verdict": "PASS",
+    "repair_instructions": []
+  },
+  "repair_rounds": 0,
+  "state": "passed",
+  "created_at": "2026-08-21T10:02:58.191584+00:00"
+}

@@ -81,7 +81,7 @@ The separate Godot visual-prototype path passed isolated Cloud qualification on 
 
 The separate Godot gameplay path passed its expanded isolated Cloud qualification in execution `khalinos-godot-toolpack-staging-wdz9v`. ToolPack `godot.gameplay` 1.3.0 executed all 29 deterministic mechanics, asset, and display checks with zero issues, including the 600-second session boundary, ten-level cadence, ordered three-option profession choices, summed party statistics, and bounded stored resurrection. The approved Linux Godot runtime also produced a real 1280x720 gameplay frame. The qualification receipt is preserved in `docs/evidence/toolpack-restoration/godot-gameplay-explicit-contract-cloud.json`.
 
-The unified Browser + Godot runtime is deployed from code commit `c22f755` to Cloud Run revision `khalinos-00025-ksn` and Worker generation `23`. Both use image digest `sha256:493aa3fbc96f473950838b7c829a1037724e25128de2f49937fba9b5523455a2`. An exact single ToolPack fit is now bound automatically before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous/bounded decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. At this code checkpoint, the approved manifest SHA-256 values are Browser `596916ff50206fab3be9056d333937ffd5e821a42aee5aafee89dbae4b88e54b`, Godot gameplay `c3117d61e6045580218fe7af9a8025448409c70e5da5093ae98c3466100c9c44`, Godot topology `1b96c6114f85911b4a02933f87994dea5d8fb4fd675aec7a6a8376b84ac0c578`, and Godot visual prototype `74dc44c2baf3c9156ecbc3b3480b9ea75c5b30b0bcd26058d3dde36bc68dde33`.
+The unified Browser + Godot runtime is deployed from code commit `ad83e20` to Cloud Run revision `khalinos-00042-jfb` and Worker generation `41`. Both use image digest `sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed`. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous/bounded decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. At this code checkpoint, the approved manifest SHA-256 values are Browser `cdcef5c3e3e960200fcdc916a0f63d0b1598c587e67aebe1fc6c203dad9ce1f2`, Godot gameplay `d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426`, Godot topology `77d2c8b9d7200bb451390d40cc705172e96738a13f1861bbdd08bae8583367d6`, and Godot visual prototype `172423ff3b7403e412b222782d824a50de6acee075b9eeb196fa041dbaa28889`.
 
 ## Local setup
 
@@ -166,22 +166,40 @@ Grant the API identity permission to run the fixed worker Job and act as its ide
 
 ## Trinity Survivors: verified Godot proof
 
-Trinity Survivors is a proof output, not KHALINOS's product boundary. One authorized KHALINOS run converted the uploaded game rules and a natural-language brief into a playable Godot 4.7 vertical slice, executed the real mechanics and display runtimes, and completed only after independent verification passed.
+Trinity Survivors is a proof output, not KHALINOS's product boundary. The current bounded `godot.gameplay` ToolPack converted one immutable game brief into a playable Godot 4.7 vertical slice, executed its real mechanics and display runtimes, and completed only after deterministic checks and the role-separated Verifier passed. The Verifier is separated from planning and making inside KHALINOS; this is not a claim of an external audit organization.
 
-- Run ID: `5f0964c8e3a0443197ab5b7e05b1a468`
+- Run ID: `8be1978415eb40b99d4dddbe8d143c33`
 - Result: `PASS` — `Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.`
-- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, API revision `khalinos-00036-9nw`, Job `khalinos-worker`
-- Worker image: `sha256:b27dee167b5fda28827136266ade1e9d39a53ead234f91ef9c4bef1626ea69dd`
-- Agent work: 21 Gemini calls; four immutable receipts (one Visual Selection and three Quest receipts)
-- Runtime proof: 31 deterministic Godot mechanics, asset, sprite-atlas, and display checks passed; zero issues
-- Artifact SHA-256: `5eb440e336e7356123980266fd8ff3355904bddab93c8d9bf7d41bb437064da2`
-- Bundle SHA-256: `85413af749609a370e6b643b9b72fd4f62b3a4599b6d6b546364f3da326929fe`
+- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, API revision `khalinos-00042-jfb`, Job `khalinos-worker`, execution `khalinos-worker-x2xfc`
+- Worker image: `sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed`
+- ToolPack: `godot.gameplay` 1.6.2, manifest SHA-256 `d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426`
+- Agent work: 22 Gemini calls; four immutable receipts (one Visual Selection and three Quest receipts)
+- Runtime proof: 44 deterministic Godot mechanics, asset, sprite-atlas, and display checks passed; Sprite Gate passed; zero issues
+- Artifact SHA-256: `c4e8cce7780bed950e12f25b3df9419ceb8546b392cfc60a998cd31dc28ee05b`
+- Bundle SHA-256: `4549ce7f7f08d689c3353ee6dac272caf75c711d4fed31dc7d66dddb79c27586`
+- Source ZIP SHA-256: `f91288e2f0eb84afc69f2d6bb6dcecc87eeb6737c2ecc063a79b50bd8b52ed32`
+- Sprite atlas SHA-256: `c00399f2436c54c0e93d40f468d364c54748b0a3680f98a57548bfa57f2b58d3`
 
-![Trinity Survivors real Godot render](docs/evidence/trinity-survivors/cloud-run-5f0964c8/godot-gameplay-render.png)
+![Trinity Survivors real Godot render](docs/evidence/trinity-survivors/cloud-run-8be19784/godot-gameplay-render.png)
 
 The immutable brief, Quest plan, Visual Selection receipt, three Quest receipts, final artifact manifest, Sprite Gate result, deterministic evidence, raw Godot probe receipt, and rendered frame are preserved in [`docs/evidence/trinity-survivors`](docs/evidence/trinity-survivors).
 
-Two later general ToolPack revisions improved the generated game's start/readability feedback and added role-distinct basic attacks, skill cooldown presentation, healing feedback, bounded enemy attacks, and a level-one-beatable first enemy. Those revisions were validated locally with the approved Godot 4.7.1 runtime and the full repository suite (`151 passed`); they are deliberately labeled as post-run evidence rather than retroactively attributed to the immutable Cloud run.
+### Measured execution utility
+
+These are direct log and artifact measurements, not estimated labor or cost savings.
+
+| Measure | Observed value |
+| --- | ---: |
+| Human interventions after immutable authorization | 0 |
+| Cloud Run Job duration | 9m 38.93s |
+| Gemini calls | 22 |
+| Generated source files | 9 |
+| Deterministic checks | 44/44 PASS |
+| Role-separated receipts | 4 |
+| Technical Repair rounds | 0 |
+| Final runtime issues | 0 |
+
+The evidence proves a bounded vertical slice with executable mechanics, rendering, and receipt-gated verification. It does not prove general-purpose repository autonomy, production-scale reliability, external organizational independence, or polished commercial game quality. The single retained display capture is a real runtime frame, but the temporal mechanics are proven by the typed Godot probe rather than by claiming that one screenshot shows every state. The failure-and-recovery ledger is preserved beside the run evidence.
 
 ## Earlier verified Browser proof
 

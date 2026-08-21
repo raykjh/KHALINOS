@@ -1,0 +1,78 @@
+{
+  "receipt_id": "VS-3b46edae64ef48c6",
+  "plan_sha256": "e80af0f33eda14308df3105c080caf1b29002fde391192e2857e2bcc55734741",
+  "selected_candidate_id": "V3",
+  "selected_artifact_sha256": "d3d4fdf9923ebdcf56f8754629240f26ad4b3f717c43b1c8449fdf190b33bf09",
+  "eligible_candidate_ids": [
+    "V1",
+    "V2",
+    "V3"
+  ],
+  "screenshot_paths": {
+    "V1": "gs://khalinos-agent-20260818-runs/runs/8be1978415eb40b99d4dddbe8d143c33/visuals/V1/evidence/godot-gameplay-render00000002.png",
+    "V2": "gs://khalinos-agent-20260818-runs/runs/8be1978415eb40b99d4dddbe8d143c33/visuals/V2/evidence/godot-gameplay-render00000002.png",
+    "V3": "gs://khalinos-agent-20260818-runs/runs/8be1978415eb40b99d4dddbe8d143c33/visuals/V3/evidence/godot-gameplay-render00000002.png"
+  },
+  "asset_sha256_by_candidate": {
+    "V1": "7600d47a14de937afd907fb6ad99b257d4694f31457a0dc7eda807750bde495f",
+    "V2": "1ca98679570bc7ee9da1da23a1b95c2279dcd1859b65d2cd300cfa6d7a45c158",
+    "V3": "0c36d7bd1deb523a86e6b2b9f7fed01327027cb4cf3f40940613af8fc09cfc2a"
+  },
+  "selection": {
+    "assessments": [
+      {
+        "candidate_id": "V1",
+        "contract_alignment": 8,
+        "visual_hierarchy": 8,
+        "distinctiveness": 6,
+        "interaction_clarity": 8,
+        "craft_and_cohesion": 7,
+        "strengths": [
+          "Clear, readable HUD layout with distinct sections for HP, Time, Level, and Skill Cooldowns.",
+          "Clean typography and high-contrast start panel.",
+          "Grid overlay provides a structured sense of space."
+        ],
+        "weaknesses": [
+          "The background artwork is somewhat generic and does not strongly evoke the 'Subterranean Codex' manuscript/ink thesis.",
+          "The UI elements use standard modern boxes rather than illuminated manuscript borders."
+        ]
+      },
+      {
+        "candidate_id": "V2",
+        "contract_alignment": 8,
+        "visual_hierarchy": 8,
+        "distinctiveness": 7,
+        "interaction_clarity": 8,
+        "craft_and_cohesion": 8,
+        "strengths": [
+          "The background features stylized basalt pillars and a moon, aligning well with the 'Memory Vault' theme.",
+          "Excellent contrast between the dark background, grid lines, and the central start panel.",
+          "Consistent, clean layout with clear visual hierarchy."
+        ],
+        "weaknesses": [
+          "The UI panels are standard flat boxes rather than glass-morphic overlays as described in the thesis."
+        ]
+      },
+      {
+        "candidate_id": "V3",
+        "contract_alignment": 9,
+        "visual_hierarchy": 9,
+        "distinctiveness": 9,
+        "interaction_clarity": 8,
+        "craft_and_cohesion": 9,
+        "strengths": [
+          "Beautiful, highly detailed subterranean cave background with glowing crystals and stylized plants.",
+          "The background art perfectly matches the 'Chamber of Records' subterranean archive/ruined memory vault theme.",
+          "Excellent color contrast and vibrant palette that makes the scene feel alive and polished.",
+          "Superb integration of the grid overlay with the organic cave floor."
+        ],
+        "weaknesses": [
+          "The UI panels themselves do not yet feature the leaded-glass frame styling mentioned in the thesis, though the overall aesthetic is highly cohesive."
+        ]
+      }
+    ],
+    "selected_candidate_id": "V3",
+    "rationale": "V3 is selected because it features the most visually distinctive and beautifully crafted background environment. The glowing crystals, subterranean flora, and rich color palette perfectly capture the 'Chamber of Records' theme and the 'ancient subterranean archive' visual direction specified in the brief. It avoids generic flat textures and provides a highly polished, atmospheric backdrop for the gameplay loop while maintaining excellent UI readability."
+  },
+  "created_at": "2026-08-21T09:55:40.337547+00:00"
+}
