@@ -28,6 +28,7 @@ def test_route_validation_accepts_only_approved_candidates_and_prefers_exact() -
         candidates=[
             assessment("browser.product", "exact"),
             assessment("godot.gameplay", "bounded_alternative"),
+            assessment("godot.side-scroll-experiment", "incompatible"),
             assessment("godot.topology", "bounded_alternative"),
             assessment("godot.visual-prototype", "bounded_alternative"),
         ],
@@ -52,6 +53,7 @@ def test_route_validation_cannot_prefer_bounded_over_exact() -> None:
         candidates=[
             assessment("browser.product", "exact"),
             assessment("godot.gameplay", "bounded_alternative"),
+            assessment("godot.side-scroll-experiment", "incompatible"),
             assessment("godot.topology", "bounded_alternative"),
             assessment("godot.visual-prototype", "bounded_alternative"),
         ],
@@ -66,6 +68,7 @@ def test_route_validation_allows_truthful_unsupported_result() -> None:
         candidates=[
             assessment("browser.product", "incompatible"),
             assessment("godot.gameplay", "incompatible"),
+            assessment("godot.side-scroll-experiment", "incompatible"),
             assessment("godot.topology", "incompatible"),
             assessment("godot.visual-prototype", "incompatible"),
         ],
@@ -80,6 +83,7 @@ def test_explicit_playable_godot_goal_cannot_be_routed_to_topology() -> None:
         candidates=[
             assessment("browser.product", "incompatible"),
             assessment("godot.gameplay", "bounded_alternative"),
+            assessment("godot.side-scroll-experiment", "incompatible"),
             assessment("godot.topology", "exact"),
             assessment("godot.visual-prototype", "bounded_alternative"),
         ],
@@ -108,6 +112,7 @@ def test_non_gameplay_godot_goal_keeps_the_model_recommendation() -> None:
         candidates=[
             assessment("browser.product", "bounded_alternative"),
             assessment("godot.gameplay", "bounded_alternative"),
+            assessment("godot.side-scroll-experiment", "incompatible"),
             assessment("godot.topology", "exact"),
             assessment("godot.visual-prototype", "bounded_alternative"),
         ],
@@ -118,3 +123,33 @@ def test_non_gameplay_godot_goal_keeps_the_model_recommendation() -> None:
     )
 
     assert enforce_required_route(route, candidates(), request) == route
+
+
+def test_explicit_side_scroll_goal_rebinds_the_gameplay_route() -> None:
+    route = RouteRecommendation(
+        status="recommended",
+        recommended_toolpack_id="godot.gameplay",
+        candidates=[
+            assessment("browser.product", "incompatible"),
+            assessment("godot.gameplay", "exact"),
+            assessment("godot.side-scroll-experiment", "bounded_alternative"),
+            assessment("godot.topology", "bounded_alternative"),
+            assessment("godot.visual-prototype", "bounded_alternative"),
+        ],
+    )
+    request = RouteRecommendationRequest(
+        project_name="Roadbound Heroes",
+        goal=(
+            "Create a playable Godot side-scrolling horizontal auto-combat game where "
+            "the party defeats enemies while moving left to right toward a destination."
+        ),
+    )
+
+    corrected = enforce_required_route(route, candidates(), request)
+
+    assert corrected.recommended_toolpack_id == "godot.side-scroll-experiment"
+    assert next(
+        item.fit for item in corrected.candidates
+        if item.toolpack_id == "godot.gameplay"
+    ) == "bounded_alternative"
+    assert validate_route_recommendation(corrected, candidates()) == corrected

@@ -226,22 +226,26 @@ class GodotSideScrollEvidenceAdapter:
 
 
 GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES = (
+    "agent_capability_receipts.py",
+    "agents.py",
     "godot_capability_packs.py",
     "godot_side_scroll.py",
     "godot_side_scroll_toolpack.py",
+    "godot_side_scroll_workflow.py",
+    "run_router.py",
     "toolpacks.py",
     "visual_assets.py",
 )
 
 GODOT_SIDE_SCROLL_MANIFEST = ToolPackManifest(
     toolpack_id="godot.side-scroll-experiment",
-    version="0.1.1",
+    version="0.3.0",
     display_name="Godot Side-scroll Composition Experiment",
     description="Composes a bounded horizontal auto-combat journey from reusable Godot Capability Packs and verifies mechanics in the approved runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES),
     execution_adapter_id=GodotSideScrollExecutionAdapter.adapter_id,
     project_kinds=("godot",),
-    work_modes=("composition_experiment",),
+    work_modes=("new_product_build",),
     capabilities=(
         CapabilityDeclaration(
             capability_id="godot.side-scroll.control",

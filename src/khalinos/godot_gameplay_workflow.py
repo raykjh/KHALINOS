@@ -9,9 +9,12 @@ from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
+from khalinos.agent_capability_receipts import build_agent_capability_trace
 from khalinos.godot_gameplay import (
+    GODOT_GAMEPLAY_SPRITE_PROFILE,
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
+    compose_godot_gameplay_capabilities,
     derive_sprite_atlas_plan,
     validate_gameplay_plan_requirements,
 )
@@ -29,6 +32,7 @@ from khalinos.workflow import _bind_plan_authority, _enforce_verification_contra
 
 class GodotGameplayTeam(Protocol):
     call_count: int
+    call_count_by_agent: dict[str, int]
     async def plan_godot_gameplay(self, payload: dict) -> GodotGameplayProjectPlan: ...
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan: ...
     async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept) -> ArtifactAsset: ...
@@ -358,6 +362,27 @@ async def execute_godot_gameplay_run(
             receipt_ids.append(receipt.receipt_id)
             parent_receipt_id = receipt.receipt_id
 
+        capability_trace = build_agent_capability_trace(
+            profile_id="godot.trinity-top-down",
+            plan_sha256=artifact.plan_sha256,
+            artifact_bundle_sha256=artifact.bundle_sha256,
+            evidence_sha256=canonical_sha256(deterministic),
+            composition=compose_godot_gameplay_capabilities(
+                artifact.gameplay, artifact.sprite_plan
+            ),
+            profile=GODOT_GAMEPLAY_SPRITE_PROFILE,
+            binary_sha256_by_path={
+                artifact.asset.path: artifact.asset.sha256,
+                artifact.sprite_atlas.path: artifact.sprite_atlas.sha256,
+            },
+            model_calls_by_agent=getattr(team, "call_count_by_agent", {}),
+        )
+        capability_trace_uri = store.put_json(
+            run_id,
+            "final/agent-capability-trace.json",
+            capability_trace.model_dump(mode="json"),
+        )
+
         with tempfile.TemporaryDirectory(prefix=f"khalinos-gameplay-final-{run_id}-") as temporary:
             archive = Path(temporary) / "source.zip"
             with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
@@ -376,6 +401,8 @@ async def execute_godot_gameplay_run(
             "sprite_atlas_gate_sha256": canonical_sha256(sprite_gate),
             "sprite_segmentation_contract_sha256": artifact.sprite_segmentation_contract_sha256,
             "toolpack_binding": binding.model_dump(mode="json"),
+            "agent_capability_trace_sha256": capability_trace.sha256(),
+            "agent_capability_trace": capability_trace_uri,
             "files": sorted([*artifact.files, artifact.asset.path, *([artifact.sprite_atlas.path] if artifact.sprite_atlas else [])]),
             "receipt_ids": receipt_ids,
             "source_archive": archive_uri,

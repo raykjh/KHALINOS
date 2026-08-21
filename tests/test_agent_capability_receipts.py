@@ -80,8 +80,8 @@ def test_trinity_and_side_scroll_rebind_existing_slots_without_creating_agents()
     )
 
     assert trinity_trace.max_agent_slots == side_trace.max_agent_slots == 13
-    assert len(trinity_trace.active_agent_ids) == 5
-    assert len(side_trace.active_agent_ids) == 4
+    assert len(trinity_trace.active_agent_ids) == 9
+    assert len(side_trace.active_agent_ids) == 8
     assert set(side_trace.active_agent_ids) < set(trinity_trace.active_agent_ids)
     assert set(trinity_trace.active_agent_ids) - set(side_trace.active_agent_ids) == {
         "khalinos_sprite_atlas_verifier"

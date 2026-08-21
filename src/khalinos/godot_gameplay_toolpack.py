@@ -317,14 +317,15 @@ class GodotGameplayEvidenceAdapter:
 
 
 GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
-    "agents.py", "godot_capability_packs.py", "godot_gameplay.py", "godot_gameplay_toolpack.py",
+    "agent_capability_receipts.py", "agents.py", "godot_capability_packs.py",
+    "godot_gameplay.py", "godot_gameplay_toolpack.py",
     "godot_gameplay_workflow.py", "run_router.py", "sprite_assets.py", "toolpacks.py",
     "visual_assets.py",
 )
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="1.7.2",
+    version="1.8.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),

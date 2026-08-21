@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import struct
 import zlib
 import io
@@ -143,7 +144,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.7.2"
+    assert binding.version == "1.8.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
@@ -286,6 +287,7 @@ class StubGameplayEvidenceAdapter:
 class StubGameplayTeam:
     def __init__(self) -> None:
         self.call_count = 0
+        self.call_count_by_agent: dict[str, int] = {}
         self.sprite_feedback: list[tuple[str, ...]] = []
         self.sprite_gate_calls = 0
         self.reject_first_sprite_gate = False
@@ -310,8 +312,13 @@ class StubGameplayTeam:
             ], start=1)
         ]
 
+    def record_call(self, agent_id: str, count: int = 1) -> None:
+        self.call_count += count
+        self.call_count_by_agent[agent_id] = self.call_count_by_agent.get(agent_id, 0) + count
+
     async def plan_godot_gameplay(self, payload):
-        self.call_count += 2
+        self.record_call("khalinos_godot_quest_owner")
+        self.record_call("khalinos_godot_gameplay_owner")
         criteria = payload["approved_brief"]["acceptance_criteria"]
         return GodotGameplayProjectPlan(
             quest_plan=QuestPlan(
@@ -326,24 +333,24 @@ class StubGameplayTeam:
         )
 
     async def plan_visuals(self, payload):
-        self.call_count += 1
+        self.record_call("khalinos_visual_director")
         return VisualConceptPlan(shared_contract="Three distinct readable environmental foundations for the same bounded gameplay loop.", candidates=self.concepts)
 
     async def make_visual_asset(self, brief, concept):
-        self.call_count += 1
+        self.record_call("khalinos_visual_candidate_maker")
         return trusted_png_asset(png())
 
     async def verify_visual_asset(self, candidate_id, asset, concept):
-        self.call_count += 1
+        self.record_call("khalinos_visual_asset_verifier")
         return VisualAssetGate(candidate_id=candidate_id, approved=True, contains_text_or_glyphs=False, contains_interface_elements=False, contains_logo_or_watermark=False, rationale="The image is a clean environmental foundation without text or interface elements.")
 
     async def make_sprite_atlas(self, brief, concept, plan, feedback=()):
-        self.call_count += 1
+        self.record_call("khalinos_visual_candidate_maker")
         self.sprite_feedback.append(tuple(feedback))
         return sprite_asset(plan)
 
     async def verify_sprite_atlas(self, plan, asset, concept):
-        self.call_count += 1
+        self.record_call("khalinos_sprite_atlas_verifier")
         self.sprite_gate_calls += 1
         approved = not (self.reject_first_sprite_gate and self.sprite_gate_calls == 1)
         return SpriteAtlasGate(
@@ -377,7 +384,7 @@ class StubGameplayTeam:
         )
 
     async def select_visual(self, payload, screenshots):
-        self.call_count += 1
+        self.record_call("khalinos_visual_verifier")
         assessments = [
             VisualAssessment(candidate_id=candidate_id, contract_alignment=score, visual_hierarchy=score, distinctiveness=score, interaction_clarity=score, craft_and_cohesion=score, strengths=["Clear gameplay field."])
             for candidate_id, score in [("V1", 10), ("V2", 9), ("V3", 8)]
@@ -385,7 +392,7 @@ class StubGameplayTeam:
         return VisualSelection(assessments=assessments, selected_candidate_id="V1", rationale="V1 has the strongest readable hierarchy and contract alignment for this gameplay slice.")
 
     async def verify_godot(self, payload):
-        self.call_count += 1
+        self.record_call("khalinos_godot_independent_verifier")
         self.verification_calls += 1
         self.verification_payloads.append(payload)
         if self.reject_first_verification_shape and self.verification_calls == 1:
@@ -432,4 +439,12 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     assert len(result.completed_receipt_ids) == 3
     assert (tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").is_file()
     assert (tmp_path / "runs" / run_id / "final" / "source.zip").is_file()
+    trace_path = tmp_path / "runs" / run_id / "final" / "agent-capability-trace.json"
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    assert trace["profile_id"] == "godot.trinity-top-down"
+    calls = {item["agent_id"]: item["model_calls"] for item in trace["receipts"]}
+    assert calls["khalinos_godot_gameplay_owner"] == 1
+    assert calls["khalinos_visual_candidate_maker"] == 5
+    assert calls["khalinos_sprite_atlas_verifier"] == 2
+    assert calls["khalinos_godot_independent_verifier"] == 3
     assert (tmp_path / "runs" / run_id / "sprites" / "final" / "deterministic_evidence.json").is_file()

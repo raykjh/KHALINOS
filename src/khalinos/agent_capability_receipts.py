@@ -43,9 +43,13 @@ class AgentCapabilityBindingReceipt(BaseModel):
     )
     agent_id: str = Field(pattern=r"^khalinos_[a-z0-9_]{3,63}$")
     role: Literal[
+        "quest_owner",
         "profile_owner",
         "artifact_maker",
+        "visual_director",
         "visual_maker",
+        "visual_gate",
+        "visual_selector",
         "sprite_gate",
         "runtime_verifier",
     ]
@@ -174,6 +178,7 @@ def build_agent_capability_trace(
     composition: CapabilityComposition,
     profile: tuple[CapabilityPackManifest, ...],
     binary_sha256_by_path: dict[str, str],
+    model_calls_by_agent: dict[str, int] | None = None,
 ) -> AgentCapabilityBindingTrace:
     """Bind one approved profile to existing slots; no new agent is created here."""
 
@@ -201,7 +206,30 @@ def build_agent_capability_trace(
     visual_manifests = tuple(by_id[pack_id] for pack_id in visual_ids)
     verifier_manifest = by_id[verifier_id]
     composition_sha = composition.sha256()
+    calls = model_calls_by_agent or {}
+
+    def execution(agent_id: str, *, fallback: str = "not_invoked") -> dict[str, object]:
+        count = calls.get(agent_id, 0)
+        return {
+            "binding_state": "consumed" if count else ("consumed" if fallback != "not_invoked" else "bound"),
+            "execution_actor": "model_agent" if count else fallback,
+            "model_invoked": bool(count),
+            "model_calls": count,
+        }
+
+    visual_output_sha = _authority_output_sha256(
+        visual_manifests, composition, binary_sha256_by_path
+    )
     receipts = [
+        AgentCapabilityBindingReceipt(
+            agent_id="khalinos_godot_quest_owner",
+            role="quest_owner",
+            operations=("authorize", "plan"),
+            capability_pack_bindings=all_bindings,
+            input_sha256=plan_sha256,
+            output_sha256=composition_sha,
+            **execution("khalinos_godot_quest_owner"),
+        ),
         AgentCapabilityBindingReceipt(
             agent_id="khalinos_godot_gameplay_owner",
             role="profile_owner",
@@ -209,8 +237,7 @@ def build_agent_capability_trace(
             capability_pack_bindings=all_bindings,
             input_sha256=plan_sha256,
             output_sha256=composition_sha,
-            binding_state="consumed",
-            execution_actor="trusted_host",
+            **execution("khalinos_godot_gameplay_owner"),
         ),
         AgentCapabilityBindingReceipt(
             agent_id="khalinos_accountable_maker",
@@ -221,8 +248,16 @@ def build_agent_capability_trace(
             output_sha256=_authority_output_sha256(
                 maker_manifests, composition, binary_sha256_by_path
             ),
-            binding_state="consumed",
-            execution_actor="trusted_host",
+            **execution("khalinos_accountable_maker", fallback="trusted_host"),
+        ),
+        AgentCapabilityBindingReceipt(
+            agent_id="khalinos_visual_director",
+            role="visual_director",
+            operations=("plan",),
+            capability_pack_bindings=tuple(_binding(item) for item in visual_manifests),
+            input_sha256=composition_sha,
+            output_sha256=visual_output_sha,
+            **execution("khalinos_visual_director"),
         ),
         AgentCapabilityBindingReceipt(
             agent_id="khalinos_visual_candidate_maker",
@@ -230,11 +265,26 @@ def build_agent_capability_trace(
             operations=("generate", "materialize"),
             capability_pack_bindings=tuple(_binding(item) for item in visual_manifests),
             input_sha256=composition_sha,
-            output_sha256=_authority_output_sha256(
-                visual_manifests, composition, binary_sha256_by_path
-            ),
-            binding_state="consumed",
-            execution_actor="trusted_host",
+            output_sha256=visual_output_sha,
+            **execution("khalinos_visual_candidate_maker", fallback="trusted_host"),
+        ),
+        AgentCapabilityBindingReceipt(
+            agent_id="khalinos_visual_asset_verifier",
+            role="visual_gate",
+            operations=("observe", "verify"),
+            capability_pack_bindings=(_binding(by_id["godot.visual-foundation"]),),
+            input_sha256=visual_output_sha,
+            output_sha256=visual_output_sha,
+            **execution("khalinos_visual_asset_verifier"),
+        ),
+        AgentCapabilityBindingReceipt(
+            agent_id="khalinos_visual_verifier",
+            role="visual_selector",
+            operations=("observe", "select"),
+            capability_pack_bindings=(_binding(by_id["godot.visual-foundation"]),),
+            input_sha256=visual_output_sha,
+            output_sha256=visual_output_sha,
+            **execution("khalinos_visual_verifier"),
         ),
         AgentCapabilityBindingReceipt(
             agent_id="khalinos_godot_independent_verifier",
@@ -243,8 +293,10 @@ def build_agent_capability_trace(
             capability_pack_bindings=(_binding(verifier_manifest),),
             input_sha256=artifact_bundle_sha256,
             output_sha256=evidence_sha256,
-            binding_state="consumed",
-            execution_actor="deterministic_verifier",
+            **execution(
+                "khalinos_godot_independent_verifier",
+                fallback="deterministic_verifier",
+            ),
         ),
     ]
     if include_sprite_gate:
@@ -257,8 +309,7 @@ def build_agent_capability_trace(
             capability_pack_bindings=(_binding(sprite_manifest),),
             input_sha256=sprite_sha,
             output_sha256=sprite_sha,
-            binding_state="bound",
-            execution_actor="not_invoked",
+            **execution("khalinos_sprite_atlas_verifier"),
         ))
     receipts.sort(key=lambda item: item.agent_id)
     active = tuple(receipt.agent_id for receipt in receipts)

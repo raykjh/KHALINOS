@@ -14,7 +14,7 @@ from khalinos.godot_capability_packs import (
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
-from khalinos.models import ArtifactAsset, VisualConcept
+from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
 from khalinos.toolpacks import (
     CapabilityComposition,
     CapabilityPackManifest,
@@ -195,6 +195,16 @@ class GodotSideScrollPlan(BaseModel):
     enemy_speed: float = Field(default=135, ge=10, le=300)
     enemy_spawn_interval: float = Field(default=1.8, ge=0.2, le=8)
     deterministic_seed: int = Field(default=73, ge=1, le=2_147_483_647)
+
+
+class GodotSideScrollProjectPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: Literal["khalinos-godot-side-scroll-project-plan-v1"] = (
+        "khalinos-godot-side-scroll-project-plan-v1"
+    )
+    quest_plan: QuestPlan
+    gameplay: GodotSideScrollPlan
 
 
 class CompiledGodotSideScroll(BaseModel):

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from khalinos.browser_artifacts import BrowserArtifactBundle
 from khalinos.godot_gameplay import GodotGameplayPlan, GodotGameplayProjectPlan
+from khalinos.godot_side_scroll import GodotSideScrollPlan, GodotSideScrollProjectPlan
 from khalinos.godot_topology import GodotProjectPlan, GodotTopologyPlan
 from khalinos.models import (
     AgentVerification,
@@ -329,6 +330,17 @@ criteria or broaden authority. Return only the required schema.
 """.strip()
 
 
+GODOT_SIDE_SCROLL_OWNER_INSTRUCTION = """
+You are the existing KHALINOS Godot Gameplay Owner slot temporarily rebound to the approved
+side-scroll profile. Materialize only the bounded structured plan requested by the immutable
+brief and approved Quest plan. The party advances left-to-right on one horizontal lane,
+attacks automatically, encounters bounded enemies, and wins at one declared destination.
+Do not add platform jumping, arbitrary scripts, multiplayer, inventory, backend services,
+or production-game claims. Keep every numeric value within the supplied schema and preserve
+the approved project name exactly. Return only the required schema.
+""".strip()
+
+
 def _agent(
     name: str,
     instruction: str,
@@ -436,8 +448,13 @@ class AgentTeam:
             temperature=0.0,
         )
         self.call_count = 0
+        self.call_count_by_agent: dict[str, int] = {}
         self._image_lock = asyncio.Lock()
         self._last_image_call_started = 0.0
+
+    def _record_call(self, agent_id: str) -> None:
+        self.call_count += 1
+        self.call_count_by_agent[agent_id] = self.call_count_by_agent.get(agent_id, 0) + 1
 
     async def _run(
         self,
@@ -460,7 +477,7 @@ class AgentTeam:
         async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=message):
             if event.is_final_response() and event.content and event.content.parts:
                 final_text = "".join(part.text or "" for part in event.content.parts)
-        self.call_count += 1
+        self._record_call(agent.name)
         if not final_text:
             raise RuntimeError(f"{agent.name} returned no structured response")
         result = normalize_structured_result(schema, json.loads(final_text))
@@ -486,6 +503,24 @@ class AgentTeam:
             GodotGameplayPlan,
         )
         return GodotGameplayProjectPlan(quest_plan=quest_plan, gameplay=gameplay)
+
+    async def plan_godot_side_scroll(self, payload: dict) -> GodotSideScrollProjectPlan:
+        """Reuse the existing gameplay-owner slot with a side-scroll output contract."""
+
+        quest_plan = await self._run(self.godot_quest_owner, payload, QuestPlan)
+        rebound_owner = _agent(
+            self.godot_gameplay_owner.name,
+            GODOT_SIDE_SCROLL_OWNER_INSTRUCTION,
+            GodotSideScrollPlan,
+            temperature=0.1,
+            compact_json_schema=True,
+        )
+        gameplay = await self._run(
+            rebound_owner,
+            {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")},
+            GodotSideScrollPlan,
+        )
+        return GodotSideScrollProjectPlan(quest_plan=quest_plan, gameplay=gameplay)
 
     async def make(self, payload: dict) -> ArtifactBundle:
         result = await self._run(self.maker, payload, BrowserArtifactBundle)
@@ -516,7 +551,7 @@ class AgentTeam:
                 await asyncio.sleep(minimum_interval - elapsed)
             self._last_image_call_started = time.monotonic()
             asset = await asyncio.to_thread(generate_visual_asset, brief, concept)
-            self.call_count += 1
+            self._record_call(self.visual_maker.name)
             return asset
 
     async def verify_visual_asset(
@@ -555,7 +590,7 @@ class AgentTeam:
                 if self._last_image_call_started and elapsed < minimum_interval:
                     time.sleep(minimum_interval - elapsed)
                 self._last_image_call_started = time.monotonic()
-                self.call_count += 1
+                self._record_call(self.visual_maker.name)
 
             return await asyncio.to_thread(
                 generate_sprite_atlas,

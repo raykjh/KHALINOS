@@ -55,6 +55,26 @@ _NON_GAMEPLAY_GODOT_ROUTES = {
     "godot.visual-prototype",
 }
 
+_SIDE_SCROLL_SIGNALS = (
+    "side-scroll",
+    "side scroll",
+    "side-scrolling",
+    "horizontal",
+    "left to right",
+    "destination",
+)
+
+
+def requires_godot_side_scroll(request: RouteRecommendationRequest) -> bool:
+    """Recognize the exact bounded horizontal journey profile."""
+
+    text = f"{request.project_name}\n{request.goal}".lower()
+    return (
+        "godot" in text
+        and any(signal in text for signal in _SIDE_SCROLL_SIGNALS)
+        and any(signal in text for signal in ("combat", "attack", "enemy", "enemies"))
+    )
+
 
 def requires_godot_gameplay(request: RouteRecommendationRequest) -> bool:
     """Recognize an explicit playable Godot outcome without asking a model to grant scope."""
@@ -73,9 +93,27 @@ def enforce_required_route(
 ) -> RouteRecommendation:
     """Prevent a narrower prototype route from replacing required playable mechanics."""
 
+    approved_ids = {item.toolpack_id for item in candidates}
+    if requires_godot_side_scroll(request) and "godot.side-scroll-experiment" in approved_ids:
+        by_id = {item.toolpack_id: item for item in recommendation.candidates}
+        side_scroll = by_id.get("godot.side-scroll-experiment")
+        if side_scroll is None or side_scroll.fit == "incompatible":
+            raise ValueError(
+                "the approved Godot side-scroll route must remain usable for an explicit horizontal journey"
+            )
+        corrected = [
+            item.model_copy(update={"fit": "bounded_alternative"})
+            if item.toolpack_id != "godot.side-scroll-experiment" and item.fit == "exact"
+            else item
+            for item in recommendation.candidates
+        ]
+        return recommendation.model_copy(update={
+            "status": "recommended",
+            "recommended_toolpack_id": "godot.side-scroll-experiment",
+            "candidates": corrected,
+        })
     if not requires_godot_gameplay(request):
         return recommendation
-    approved_ids = {item.toolpack_id for item in candidates}
     if "godot.gameplay" not in approved_ids:
         return recommendation
     by_id = {item.toolpack_id: item for item in recommendation.candidates}
