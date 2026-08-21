@@ -226,7 +226,10 @@ Do not use #FF00FF on the character. Keep the selected concept's scale, outline 
 lighting, and materials so separately generated characters form one coherent roster. Do not
 add text, letters, numbers, labels, logos, icons, HUD, cards, frames, watermarks, signatures,
 extra characters, scenery, ground, detached equipment, animation frames, or cropped body
-parts. Return one square PNG and nothing else.{repair}
+parts. Render the character body and equipment as solid opaque materials: never draw a
+transparency checkerboard, checker/grid texture, cutout mosaic, see-through body surface,
+floor shadow, magic circle, halo, platform, base, or ring beneath the feet. Return one square
+PNG and nothing else.{repair}
 """.strip()
 
 

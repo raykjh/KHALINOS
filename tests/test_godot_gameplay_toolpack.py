@@ -238,6 +238,9 @@ class StubGameplayEvidenceAdapter:
 class StubGameplayTeam:
     def __init__(self) -> None:
         self.call_count = 0
+        self.sprite_feedback: list[tuple[str, ...]] = []
+        self.sprite_gate_calls = 0
+        self.reject_first_sprite_gate = False
         self.concepts = [
             VisualConcept(
                 candidate_id=f"V{index}",
@@ -285,12 +288,15 @@ class StubGameplayTeam:
 
     async def make_sprite_atlas(self, brief, concept, plan, feedback=()):
         self.call_count += 1
+        self.sprite_feedback.append(tuple(feedback))
         return sprite_asset(plan)
 
     async def verify_sprite_atlas(self, plan, asset, concept):
         self.call_count += 1
+        self.sprite_gate_calls += 1
+        approved = not (self.reject_first_sprite_gate and self.sprite_gate_calls == 1)
         return SpriteAtlasGate(
-            approved=True,
+            approved=approved,
             slot_count_matches=True,
             roles_are_distinguishable=True,
             style_is_consistent=True,
@@ -300,18 +306,22 @@ class StubGameplayTeam:
             has_clipped_or_overlapping_sprites=False,
             all_characters_complete=True,
             all_required_equipment_preserved=True,
-            background_residue_absent=True,
+            background_residue_absent=approved,
             slot_findings=[
                 SpriteSlotVisualFinding(
                     sprite_id=slot.sprite_id,
                     complete_full_body=True,
                     required_equipment_preserved=True,
-                    background_residue_absent=True,
+                    background_residue_absent=approved,
                     role_is_readable=True,
                 )
                 for slot in plan.slots
             ],
-            rationale="Every planned character occupies one distinct and coherent sprite slot without forbidden content.",
+            issues=[] if approved else ["Remove checker patterns and platforms from every sprite."],
+            rationale=(
+                "Every planned character occupies one distinct and coherent sprite slot without forbidden content."
+                if approved else "The first atlas contains a repeated forbidden background artifact."
+            ),
         )
 
     async def select_visual(self, payload, screenshots):
@@ -350,8 +360,14 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     run_id = "f" * 32
     store = LocalRunStore(tmp_path)
     store.create(RunRecord(run_id=run_id, status=RunStatus.QUEUED, brief_sha256=canonical_sha256(brief), toolpack_binding=binding, message="Queued.", work_mode="new_product_build"), brief)
-    result = await execute_godot_gameplay_run(run_id, store=store, team=StubGameplayTeam(), registry=ToolPackRegistry([toolpack]))
+    team = StubGameplayTeam()
+    team.reject_first_sprite_gate = True
+    result = await execute_godot_gameplay_run(run_id, store=store, team=team, registry=ToolPackRegistry([toolpack]))
     assert result.status == RunStatus.PASSED
+    assert team.sprite_gate_calls == 2
+    assert team.sprite_feedback == [(), ("Remove checker patterns and platforms from every sprite.",)]
+    assert (tmp_path / "runs" / run_id / "sprites" / "attempts" / "1" / "gate.json").is_file()
+    assert (tmp_path / "runs" / run_id / "sprites" / "attempts" / "2" / "gate.json").is_file()
     assert len(result.completed_receipt_ids) == 3
     assert (tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").is_file()
     assert (tmp_path / "runs" / run_id / "final" / "source.zip").is_file()

@@ -219,11 +219,36 @@ async def execute_godot_gameplay_run(
                 "issues": [f"{type(exc).__name__}: {exc}"],
             })
             raise RuntimeError("an isolated sprite source failed its bounded normalization") from exc
-        store.put_bytes(run_id, f"sprites/composed/{sprite_atlas.path}", sprite_atlas.bytes(), sprite_atlas.media_type)
+        store.put_bytes(run_id, f"sprites/attempts/1/{sprite_atlas.path}", sprite_atlas.bytes(), sprite_atlas.media_type)
         sprite_gate = await team.verify_sprite_atlas(sprite_plan, sprite_atlas, artifact.concept)
-        store.put_json(run_id, "sprites/composed/gate.json", sprite_gate.model_dump(mode="json"))
+        store.put_json(run_id, "sprites/attempts/1/gate.json", sprite_gate.model_dump(mode="json"))
+        if not sprite_gate.approved:
+            record = record.model_copy(update={
+                "status": RunStatus.VISUALIZING,
+                "message": "Sprite Atlas Gate requested one bounded whole-atlas refinement.",
+                "model_calls": team.call_count,
+            })
+            store.update(record)
+            try:
+                sprite_atlas = await team.make_sprite_atlas(
+                    brief,
+                    artifact.concept,
+                    sprite_plan,
+                    tuple(sprite_gate.issues),
+                )
+            except Exception as exc:
+                store.put_json(run_id, "sprites/generation_failure.json", {
+                    "attempt": 2,
+                    "issues": [f"{type(exc).__name__}: {exc}"],
+                })
+                raise RuntimeError("the one bounded sprite-atlas refinement failed normalization") from exc
+            store.put_bytes(run_id, f"sprites/attempts/2/{sprite_atlas.path}", sprite_atlas.bytes(), sprite_atlas.media_type)
+            sprite_gate = await team.verify_sprite_atlas(sprite_plan, sprite_atlas, artifact.concept)
+            store.put_json(run_id, "sprites/attempts/2/gate.json", sprite_gate.model_dump(mode="json"))
         if not sprite_gate.approved:
             raise RuntimeError("the deterministically composed sprite atlas failed its independent semantic gate")
+        store.put_bytes(run_id, f"sprites/composed/{sprite_atlas.path}", sprite_atlas.bytes(), sprite_atlas.media_type)
+        store.put_json(run_id, "sprites/composed/gate.json", sprite_gate.model_dump(mode="json"))
 
         artifact = compile_godot_gameplay(
             decision.gameplay,
