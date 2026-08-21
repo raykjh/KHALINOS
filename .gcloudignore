@@ -1,0 +1,16 @@
+.gcloudignore
+.git
+.gitignore
+.venv/
+__pycache__/
+.pytest_cache/
+.khalinos-local/
+.test-tmp/
+.gcloud-tmp*/
+smoke-input/
+docs/test-projects/
+tests/
+*.py[cod]
+*.egg-info/
+build/
+dist/

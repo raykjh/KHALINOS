@@ -9,12 +9,19 @@ WEB = Path(__file__).parents[1] / "src" / "khalinos" / "web" / "index.html"
 
 def test_materials_precede_goal_and_sixsense() -> None:
     html = WEB.read_text(encoding="utf-8")
-    assert html.index('id="materialsStep"') < html.index('id="goalStep"') < html.index('id="sensesStep"')
+    assert html.index('id="materialsStep"') < html.index('id="goalStep"') < html.index('id="routeStep"') < html.index('id="sensesStep"')
     assert "Where should KHALINOS begin?" in html
     assert "Tell KHALINOS the goal, requirements, and constraints." in html
     assert "/api/materials/inspect" in html
     assert "New project" in html
     assert "Improve an existing project" in html
+    assert "Route recommendation" in html
+    assert "/api/routes/recommend" in html
+    assert "approved ToolPacks" in html
+    assert 'id="routeOptions"' in html
+    assert 'data-phase="route" hidden' in html
+    assert "exact.length===1" in html
+    assert "requestedToolpackId=exact[0].toolpack.toolpack_id;await startSixSense()" in html
     assert "Load Judge Demo inputs" in html
     assert "Choose from Project Library" in html
     assert "External project ZIP" in html
@@ -22,6 +29,8 @@ def test_materials_precede_goal_and_sixsense() -> None:
     assert 'id="toggleZip"' in html
     assert 'data-file-target="materials"' in html
     assert "No files selected" in html
+    assert "'zip':'application/zip'" in html
+    assert "txt|md|json|zip|png" in html
 
 
 def test_intake_ui_explains_static_detection_and_executable_limit() -> None:
@@ -50,7 +59,7 @@ def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
     assert "Deterministic gate" in html
     assert "Verified deliverable" in html
     assert "[hidden] { display:none!important; }" in html
-    assert "record.status==='passed'&&record.project_id" in html
+    assert "record.status==='passed'&&record.project_id&&!godot" in html
     assert "actual cost" not in html.lower()
 
 
@@ -61,6 +70,17 @@ def test_project_mode_can_switch_cleanly_before_goal_entry() -> None:
     assert "function clearWorkingMaterial()" in html
     assert "chooseWork('new')" in html
     assert "chooseWork('existing')" in html
+    assert "function renderRoute()" in html
+    assert "if(routeRecommendation){renderRoute();return;}" in html
+    assert "intake=null" not in re.search(r"\$\('#changeRoute'\).*?;\}\);", html).group(0)
+    assert "async function continueFromRoute()" in html
+    assert "/reroute`" in html
+    assert "previous.manifest_sha256===binding.manifest_sha256" in html
+    assert "$('#changeRoute').addEventListener" in html
+    assert "function startSixSense()" in html
+    assert "requested_project_kind" in html
+    assert "requested_toolpack_id" in html
+    assert "requested_work_mode" in html
     assert "Outcome discovery · autonomous execution" not in html
     assert "SixSense resolves what matters" not in html
 

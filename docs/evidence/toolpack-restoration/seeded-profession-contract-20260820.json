@@ -1,0 +1,42 @@
+{
+  "schema_version": "khalinos-qualification-receipt-v1",
+  "qualified_at": "2026-08-20T07:19:18Z",
+  "commit": "6bdbe2772b5d8f9837585d6f6f8566458172dd4a",
+  "build_id": "22fea684-8b6c-40bc-9205-56ddbb7f3f85",
+  "image": "asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/worker@sha256:f17c20a52ec73f7c8f647407aa177623fef98bf30444d51cb553859eda8dbd31",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.4.0",
+    "manifest_sha256": "3f6a0489a01fd0e8d650cbbb488a8c27e812733a28be00bc2e9629b26e1a623d"
+  },
+  "cloud_execution": "khalinos-godot-toolpack-staging-zv6zb",
+  "artifact_sha256": "dc49657d0ed31b57c943ea6978fe30851e00f54b27d1e8cd34ebd2bd502f8157",
+  "passed": true,
+  "issues": [],
+  "required_checks": {
+    "seeded_profession_alternatives": true,
+    "three_choice_profession_contract": true,
+    "upgrade_role_order_executed": true,
+    "deterministic_seed_bound": true,
+    "probe_schema": true,
+    "probe_passed": true,
+    "display_render_process": true,
+    "display_render_frames": true,
+    "display_render_dimensions": true,
+    "display_render_nontrivial": true,
+    "sprite_segmentation_inference": true,
+    "all_sprite_ids_mapped": true
+  },
+  "deployment": {
+    "service_revision": "khalinos-00032-hbc",
+    "service_traffic_percent": 100,
+    "worker_max_retries": 0,
+    "worker_timeout_seconds": 1800,
+    "health_http_status": 200
+  },
+  "local_verification": {
+    "focused_contract_tests": "16 passed",
+    "real_godot_4_7_1_probe": "passed",
+    "full_suite_observation": "125 passed; 22 tests were blocked by this Windows sandbox denying child-process temporary directories. The affected browser, generic workflow, and legacy Godot tests did not report assertion regressions in the changed contract."
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": "khalinos-sprite-isnet-cloud-qualification-v1",
+  "captured_at": "2026-08-19T16:21:40Z",
+  "cloud": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "job": "khalinos-godot-toolpack-staging",
+    "execution": "khalinos-godot-toolpack-staging-5lqm8",
+    "duration_seconds": 143.09,
+    "max_retries": 0,
+    "build_id": "811600ab-7e60-4ac3-9246-076a6a36c99e",
+    "container_image_digest": "sha256:e56694534228eae0b5b3615a5bba1682e695c061c3929de2cebafa9cf4e9ee92"
+  },
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.2.0",
+    "manifest_sha256": "3d8972e2f0b651e59ce80d1d58bbc7ff1c7bcb211f41076c2b6b90c141dbd06a"
+  },
+  "sprite_contract": {
+    "segmentation_contract_sha256": "16989e9fe363c23cf7b1305c66d612db5dc57e83b3d826e5e2721a0c186a5dea",
+    "isnet_anime_model_sha256": "f15622d853e8260172812b657053460e20806f04b9e05147d49af7bed31a6e99",
+    "sprite_atlas_sha256": "8d874b8aaf7a6d136059d1d0350657406f9747367fe7504cc0a9c6c2aee9d2a4",
+    "artifact_sha256": "e5669c0dc3c3460ab425d68807b931d69e29cf6ced0d09ca638d449d8f9fece5"
+  },
+  "model_calls": {
+    "nano_banana_sprite_sources": 2,
+    "independent_sprite_gate": 1,
+    "total": 3
+  },
+  "visual_gate": {
+    "approved": true,
+    "slot_count_matches": true,
+    "roles_are_distinguishable": true,
+    "style_is_consistent": true,
+    "all_characters_complete": true,
+    "all_required_equipment_preserved": true,
+    "background_residue_absent": true,
+    "contains_text_or_glyphs": false,
+    "contains_interface_elements": false,
+    "contains_logo_or_watermark": false,
+    "has_clipped_or_overlapping_sprites": false,
+    "issues": []
+  },
+  "runtime": {
+    "passed": true,
+    "check_count": 23,
+    "all_checks_passed": true,
+    "screenshot": "godot-gameplay-render00000002.png"
+  },
+  "preflight_failures": [
+    {
+      "execution": "khalinos-godot-toolpack-staging-zxcgt",
+      "model_calls_started": 0,
+      "cause": "Qualification fixture supplied one acceptance criterion while UserBrief requires at least two; the Cloud Run env list was also passed as one malformed value.",
+      "resolution": "Corrected only the qualification fixture and deployment argument quoting. No Sprite contract or verification threshold was weakened."
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 # KHALINOS
 
-KHALINOS turns a plain-language goal into an approved outcome contract and then into a verified browser micro-application without step-by-step human guidance. SixSense inspects six project dimensions, asks only material unanswered questions, and proposes editable professional defaults. After authorization, a Gemini Project Owner issues an incremental Quest chain. A Visual Director then commissions three distinct implementations, deterministic Chromium checks establish which ones are eligible, and an independent multimodal Visual Verifier selects the strongest rendered candidate. Separate Maker, Verifier, and Technical Repair agents build from that selected foundation. A Quest advances only after an isolated Chromium run and an independent verification receipt both pass.
+**KHALINOS is an evidence-gated autonomous production agent for bounded interactive prototypes: it turns a user's goal and authoritative materials into an immutable outcome contract, then plans, builds, runs, and verifies approved Browser or Godot outcomes on Google Cloud. Only results backed by real runtime evidence are marked complete.**
+
+> If it is not proven, it is not complete.
+
+KHALINOS is not a general-purpose coding chatbot and does not promise arbitrary repository completion. It separates authority, production, runtime verification, and judgment so the user does not become the hidden workflow engine. For a new project, a bounded Route Advisor compares the goal only with statically approved ToolPack manifests, explains exact fits, bounded alternatives, and incompatible routes, and waits for the user's confirmation. SixSense then inspects six project dimensions inside that selected capability boundary, asking only material unanswered questions. After authorization, a Gemini Project Owner issues an incremental Quest chain. Maker, deterministic Runtime Check, a separation-of-duties Verifier, and bounded Technical Repair remain separated by permissions and receipts. Browser products use multimodal visual selection; Godot has separate topology, Nano Banana visual-prototype, and bounded 2D gameplay vertical-slice profiles.
 
 The public entrance separates a no-sign-in Judge Demo from private work. Google OpenID Connect uses only `openid`, `email`, and `profile`; the verified Google subject is the owner boundary for uploads, intakes, runs, and Project Library records. A passed run registers its artifact digest, immutable source ZIP snapshot, and receipt chain as the project's latest verified checkpoint. External browser projects enter through an owner-bound Cloud Storage resumable session and deterministic ZIP admission before SixSense can reference them.
 
@@ -23,7 +27,7 @@ SixSense is not a fixed six-question survey. It always checks six dimensions but
 5. Completion and quality standard
 6. Authority, budget, and delivery
 
-The user first supplies working material, then states the goal. Material may describe an existing project location, source folder structure, runnable build, or ordinary text and image references. KHALINOS classifies it statically without executing untrusted files and proposes new-build, existing-project, reproduce-and-repair, executable-only diagnosis, or reference-guided work. Each necessary SixSense question then appears separately with a complete recommended answer already placed in an editable field. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, material mode, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Revise outcome** carries confirmed decisions, material inspection, and sources into a fresh SixSense pass.
+The user first supplies working material, then states the goal. Material may describe an existing project location, source folder structure, runnable build, or ordinary text and image references. KHALINOS classifies it statically without executing untrusted files. For a new project it next shows a Route recommendation: semantic fit is produced by Gemini, but the candidate set, compatibility filter, project kind, manifest digest, and final execution binding remain host-controlled. The user confirms one compatible route before SixSense begins. Each necessary SixSense question offers short, genuinely user-owned choices plus a free-form alternative; professional defaults remain KHALINOS decisions. When the six dimensions are sufficiently resolved, KHALINOS presents the expected final result, material mode, visual direction, boundaries, evidence standard, Quest estimate, cost, and duration. Execution begins only after explicit authorization. Choosing **Change route** discards the unresolved intake and returns to the goal; choosing **Revise outcome** keeps the confirmed route and carries the other confirmed decisions and sources into a fresh SixSense pass.
 
 For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example without authentication or paid execution. **Choose a KHALINOS project**, persistent intake, run status, and authorization require a verified Google identity. When no OAuth Web Client ID is configured, the interface says so explicitly and leaves only the public Judge Demo available.
 
@@ -31,7 +35,8 @@ For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example with
 
 ## Google technology
 
-- **Gemini 3.5 Flash on Vertex AI** performs Project Owner, Visual Director, Visual Candidate Maker, multimodal Visual Verifier, Maker, independent Quest Verifier, and Technical Repair decisions.
+- **Gemini 3.5 Flash on Vertex AI** performs Project Owner, Visual Director, Visual Candidate Maker, multimodal Visual Verifier, Maker, separation-of-duties Quest Verifier, and Technical Repair decisions.
+- **Nano Banana (`gemini-3.1-flash-lite-image`) on Vertex AI** generates one bounded environmental PNG per Browser or Godot visual concept. A separate multimodal gate inspects the raw image before any trusted compiler or rendered verifier can use it.
 - **Google Agent Development Kit 2.6.2** runs every role as a schema-bound `LlmAgent`.
 - **Cloud Run service** accepts an immutable brief and displays live status.
 - **Cloud Run Job** performs the asynchronous long-running workflow.
@@ -41,59 +46,42 @@ For judging, **Try Judge Demo** loads a bounded PUZZLE input-repair example with
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    U["Materials first + user goal"] --> API["KHALINOS Cloud Run service"]
-    U -->|"External browser ZIP"| UPLOAD["Owner-bound GCS resumable session"]
-    UPLOAD --> ADMIT["Path, size, ratio, file-set, digest + generation admission"]
-    ADMIT --> API
-    API --> SENSE["Gemini 3.5 SixSense via ADK"]
-    SENSE -->|"Only material gaps"| QUESTION["Sequential question + editable recommendation"]
-    QUESTION --> SENSE
-    SENSE --> PREVIEW["Outcome Preview + estimate"]
-    PREVIEW -->|"User authorization"| BRIEF["Immutable execution brief"]
-    API --> FS["Firestore run state"]
-    API --> GCS["Cloud Storage sources and evidence"]
-    BRIEF --> JOB["Cloud Run Job"]
-    JOB --> OWNER["Gemini 3.5 Project Owner via ADK"]
-    OWNER --> MODE{"New build or existing repair?"}
-    MODE -->|"New"| VD["Gemini 3.5 Visual Director via ADK"]
-    VD --> V1["Visual candidates V1–V3"]
-    V1 --> VRT["Isolated Chromium eligibility checks"]
-    VRT --> VV["Multimodal Visual Verifier"]
-    VV --> MAKER["Gemini 3.5 Accountable Maker via ADK"]
-    MODE -->|"Existing verified snapshot"| REPAIR
-    MAKER --> RUNTIME["Network-isolated Chromium verifier"]
-    RUNTIME --> VERIFIER["Gemini 3.5 Independent Verifier via ADK"]
-    VERIFIER -->|"REPAIR, max 2"| REPAIR["Gemini 3.5 Technical Repair via ADK"]
-    REPAIR --> RUNTIME
-    VERIFIER -->|"PASS receipt"| NEXT{"More Quests?"}
-    NEXT -->|"Yes"| MAKER
-    NEXT -->|"No"| RESULT["Verified artifact + unbroken receipt chain"]
-    JOB --> FS
-    JOB --> GCS
-```
+[![KHALINOS architecture: authority to verified result](docs/architecture/khalinos-architecture.svg)](docs/architecture/khalinos-architecture.svg)
+
+The standalone diagram shows the full authority boundary, Gemini/ADK orchestration, trusted ToolPack execution, deterministic and separation-of-duties evidence gates, bounded repair loop, and Google Cloud state/evidence plane. A 1600×900 [PNG export](docs/architecture/khalinos-architecture.png) is included for the Devpost page and demo video.
 
 ## Safety and autonomy contract
 
 - The user authorizes one fixed five-file output surface and hard Quest/repair limits.
 - External ZIP admission currently accepts only that exact bounded browser profile. Godot, Unity, executables, symlinks, encrypted entries, traversal paths, extra files, oversized text, and high-ratio archives are rejected before execution.
 - The 30-minute setting is a per-execution runaway safety slice, not a general project deadline. The current browser micro-app profile is intentionally non-resumable, so an authorized run must fit one slice.
-- Visual selection requires at least two deterministically renderable candidates and records the concept plan, screenshots, rubric scores, selected artifact digest, and selection receipt.
-- Generated products cannot use external URLs, network calls, dynamic code loading, or additional files.
+- Browser new-product visual selection requires at least two deterministically renderable candidates and records raw-asset gate receipts, asset digests, the concept plan, screenshots, rubric scores, selected artifact digest, and selection receipt.
+- Godot visual-prototype selection has the same two-candidate minimum, but the host compiles every accepted PNG into bounded Godot scenes, imports the texture, proves scene loading and translucent composition, and captures three real 1280×720 frames through an isolated Xvfb display before multimodal selection.
+- Godot gameplay selection compiles a structured 2D top-down plan into a trusted scene and script. Its deterministic runtime probe must execute movement, enemy spawning, automatic abilities, shared health, and level choice before the separation-of-duties verifier can PASS; a real rendered gameplay frame and trusted visual-asset digest are also required.
+- The model never emits binary asset fields. The trusted host validates and attaches exactly one `assets/visual-foundation.png` sidecar, while Makers receive only its path, digest, and dimensions.
+- Image generation retries only transient 429/5xx responses, at most twice with backoff. Content rejection, invalid output, and non-transient client errors stop immediately.
+- Generated Browser products cannot use external URLs, network calls, dynamic code loading, or files outside the five text files plus the one approved PNG. Prohibited external CSS imports are removed at the trusted promotion boundary before verification.
 - Browser verification blocks every request except the local isolated product server.
 - The Maker cannot approve its own work.
 - The Verifier cannot modify the artifact.
+- The Verifier is independent from the Maker by role, context, and write authority inside the KHALINOS trust boundary; it is not represented as an external audit organization.
+- A transactional execution claim admits only one Worker for a queued run; duplicate or terminal dispatches are idempotent no-ops.
 - A failed Quest receives at most two Technical Repair rounds and then stops as `blocked`.
 - No previous PASS receipt is rewritten or silently weakened.
 
 ## Runtime evidence contract
 
-Every active acceptance criterion must be exercised by its own browser journey and backed by at least one runtime assertion. The trusted verifier supports bounded waits, click/right-click/key input, deterministic random seeds, and assertions over text, element count, attributes, classes, and browser state. A criterion that requires execution evidence cannot pass from source inspection alone.
+Every active acceptance criterion must be exercised by its own browser journey and backed by at least one runtime assertion. The trusted verifier supports bounded waits, click/right-click/key input, deterministic random seeds, and assertions over text, element count, attributes, classes, and browser state. Criterion-bound text evidence must name a CSS selector, so unrelated page copy cannot create a false PASS. A criterion that requires execution evidence cannot pass from source inspection alone.
 
-The Project Owner must preserve the exact acceptance-criterion set from the approved brief. It cannot promote verification files, logs, or implementation conveniences into new product requirements. Independent Verifier findings are host-bound back to the immutable ordered criteria, so model wording drift cannot lose or broaden the user's contract.
+The Project Owner cannot promote verification files, logs, or implementation conveniences into new product requirements. Quest boundaries and objectives may be model-proposed, but the trusted host binds the immutable ordered acceptance criteria verbatim before execution. Verifier findings are bound back to the same criteria, so model wording drift cannot lose or broaden the user's contract.
 
-The current worker baseline is commit `eb51a745b5efeab0a96cd1dd93dcfb029e5239eb`. Its regression suite passes 52 tests. The worker image is `verifier-binding-eb51a74` with digest `sha256:73d933d307f4313fe44ef88c0902357e0fc52cf651dedae65f67a9627050a0c9`. This final host-binding revision has been deployed, but a new paid end-to-end holdout has not yet been run after that deployment; the repository does not claim that final Cloud proof yet.
+The Browser visual-asset path passed an isolated production qualification on run `708ec62505e544ca85bbfa898343704b`. Two raw-gated candidates rendered successfully under network isolation; the independent Visual Verifier selected V2, and both Quest receipts preserved cumulative selector-bound runtime evidence. The qualified Browser ToolPack manifest SHA-256 is `162bd5734bdc4dab9810ce1e127b9110ec0400d30b36c7d83ea5d381009f2f8a`.
+
+The separate Godot visual-prototype path passed isolated Cloud qualification on run `5ac8abad53dd4919bca5708557421c3c`. All three Nano Banana assets passed the strict no-text/no-glyph/no-interface gate, all three produced real 1280×720 Godot renders, the independent multimodal Visual Verifier selected V2, and two Quest receipts plus the final source ZIP were stored in Cloud Storage. The qualification used 12 model calls and completed in 2 minutes 7 seconds. The qualified `godot.visual-prototype` manifest SHA-256 is `de20c1d17ea546e69d6b40098f0c5c2acb9363a95a74aca9bb5fe8e08224286d`.
+
+The separate Godot gameplay path passed its expanded isolated Cloud qualification in execution `khalinos-godot-toolpack-staging-wdz9v`. ToolPack `godot.gameplay` 1.3.0 executed all 29 deterministic mechanics, asset, and display checks with zero issues, including the 600-second session boundary, ten-level cadence, ordered three-option profession choices, summed party statistics, and bounded stored resurrection. The approved Linux Godot runtime also produced a real 1280x720 gameplay frame. The qualification receipt is preserved in `docs/evidence/toolpack-restoration/godot-gameplay-explicit-contract-cloud.json`.
+
+The unified Browser + Godot runtime is deployed from code commit `ad83e20` to Cloud Run revision `khalinos-00042-jfb` and Worker generation `41`. Both use image digest `sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed`. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous/bounded decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. At this code checkpoint, the approved manifest SHA-256 values are Browser `cdcef5c3e3e960200fcdc916a0f63d0b1598c587e67aebe1fc6c203dad9ce1f2`, Godot gameplay `d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426`, Godot topology `77d2c8b9d7200bb451390d40cc705172e96738a13f1861bbdd08bae8583367d6`, and Godot visual prototype `172423ff3b7403e412b222782d824a50de6acee075b9eeb196fa041dbaa28889`.
 
 ## Local setup
 
@@ -119,7 +107,7 @@ Set a unique project and bucket name, then enable the required services:
 $env:KHALINOS_PROJECT="YOUR_PROJECT_ID"
 $env:KHALINOS_REGION="asia-northeast3"
 $env:KHALINOS_BUCKET="$env:KHALINOS_PROJECT-runs"
-$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.5.0"
+$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.6.0"
 
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com firestore.googleapis.com storage.googleapis.com --project=$env:KHALINOS_PROJECT
 gcloud artifacts repositories create khalinos --repository-format=docker --location=$env:KHALINOS_REGION --project=$env:KHALINOS_PROJECT
@@ -176,7 +164,44 @@ Grant the API identity permission to run the fixed worker Job and act as its ide
 6. Show Cloud Storage screenshots and every Quest receipt.
 7. Open the final generated application and its final manifest.
 
-## Verified Google Cloud run
+## Trinity Survivors: verified Godot proof
+
+Trinity Survivors is a proof output, not KHALINOS's product boundary. The current bounded `godot.gameplay` ToolPack converted one immutable game brief into a playable Godot 4.7 vertical slice, executed its real mechanics and display runtimes, and completed only after deterministic checks and the role-separated Verifier passed. The Verifier is separated from planning and making inside KHALINOS; this is not a claim of an external audit organization.
+
+- Run ID: `8be1978415eb40b99d4dddbe8d143c33`
+- Result: `PASS` — `Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.`
+- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, API revision `khalinos-00042-jfb`, Job `khalinos-worker`, execution `khalinos-worker-x2xfc`
+- Worker image: `sha256:3ad7602ca48d0baebd53c04064cffe582984c7ed21e85be63c4e21bd36d419ed`
+- ToolPack: `godot.gameplay` 1.6.2, manifest SHA-256 `d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426`
+- Agent work: 22 Gemini calls; four immutable receipts (one Visual Selection and three Quest receipts)
+- Runtime proof: 44 deterministic Godot mechanics, asset, sprite-atlas, and display checks passed; Sprite Gate passed; zero issues
+- Artifact SHA-256: `c4e8cce7780bed950e12f25b3df9419ceb8546b392cfc60a998cd31dc28ee05b`
+- Bundle SHA-256: `4549ce7f7f08d689c3353ee6dac272caf75c711d4fed31dc7d66dddb79c27586`
+- Source ZIP SHA-256: `f91288e2f0eb84afc69f2d6bb6dcecc87eeb6737c2ecc063a79b50bd8b52ed32`
+- Sprite atlas SHA-256: `c00399f2436c54c0e93d40f468d364c54748b0a3680f98a57548bfa57f2b58d3`
+
+![Trinity Survivors real Godot render](docs/evidence/trinity-survivors/cloud-run-8be19784/godot-gameplay-render.png)
+
+The immutable brief, Quest plan, Visual Selection receipt, three Quest receipts, final artifact manifest, Sprite Gate result, deterministic evidence, raw Godot probe receipt, and rendered frame are preserved in [`docs/evidence/trinity-survivors`](docs/evidence/trinity-survivors).
+
+### Measured execution utility
+
+These are direct log and artifact measurements, not estimated labor or cost savings.
+
+| Measure | Observed value |
+| --- | ---: |
+| Human interventions after immutable authorization | 0 |
+| Cloud Run Job duration | 9m 38.93s |
+| Gemini calls | 22 |
+| Generated source files | 9 |
+| Deterministic checks | 44/44 PASS |
+| Role-separated receipts | 4 |
+| Technical Repair rounds | 0 |
+| Final runtime issues | 0 |
+
+The evidence proves a bounded vertical slice with executable mechanics, rendering, and receipt-gated verification. It does not prove general-purpose repository autonomy, production-scale reliability, external organizational independence, or polished commercial game quality. The single retained display capture is a real runtime frame, but the temporal mechanics are proven by the typed Godot probe rather than by claiming that one screenshot shows every state. The failure-and-recovery ledger is preserved beside the run evidence.
+
+## Earlier verified Browser proof
 
 The repository includes evidence from a fresh autonomous run made after deployment:
 

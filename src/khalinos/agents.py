@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import time
 from typing import TypeVar
 from uuid import uuid4
 
@@ -13,17 +15,111 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel
 
+from khalinos.browser_artifacts import BrowserArtifactBundle
+from khalinos.godot_gameplay import GodotGameplayPlan, GodotGameplayProjectPlan
+from khalinos.godot_topology import GodotProjectPlan, GodotTopologyPlan
 from khalinos.models import (
     AgentVerification,
+    ArtifactAsset,
     ArtifactBundle,
     QuestPlan,
+    UserBrief,
+    VisualConcept,
+    VisualAssetGate,
+    SpriteAtlasGate,
     VisualConceptPlan,
     VisualSelection,
 )
+from khalinos.visual_assets import generate_visual_asset
+from khalinos.sprite_assets import SpriteAtlasPlan, generate_sprite_atlas
 
 
 MODEL = os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash")
 T = TypeVar("T", bound=BaseModel)
+
+
+def compact_vertex_json_schema(schema: type[BaseModel]) -> dict[str, object]:
+    """Return the small JSON-schema subset needed to shape model output.
+
+    Vertex rejects overly complex structured-output schemas with an opaque 400.
+    KHALINOS keeps all numeric, pattern, cross-reference, and authority checks in
+    the trusted Pydantic validator after generation, so the model-facing schema
+    only needs to preserve object shape, required fields, arrays, and enums.
+    """
+
+    source = schema.model_json_schema()
+    definitions = source.get("$defs", {})
+
+    def compact(node: object) -> object:
+        if not isinstance(node, dict):
+            return node
+        reference = node.get("$ref")
+        if isinstance(reference, str) and reference.startswith("#/$defs/"):
+            return compact(definitions[reference.rsplit("/", 1)[-1]])
+
+        result: dict[str, object] = {}
+        if "type" in node:
+            result["type"] = node["type"]
+        if "enum" in node:
+            result["enum"] = node["enum"]
+        elif "const" in node:
+            result["enum"] = [node["const"]]
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            result["properties"] = {name: compact(value) for name, value in properties.items()}
+        if "required" in node:
+            result["required"] = node["required"]
+        if "items" in node:
+            result["items"] = compact(node["items"])
+        return result
+
+    compacted = compact(source)
+    if not isinstance(compacted, dict):
+        raise TypeError("model JSON schema did not compact to an object")
+    return compacted
+
+
+def normalize_structured_result(schema: type[BaseModel], result: object) -> object:
+    """Normalize presentation-only model variance before strict validation."""
+
+    if schema is QuestPlan and isinstance(result, dict):
+        # The model does not possess authority to mint a ToolPack binding. Vertex
+        # may still emit an empty object for this optional schema field; collapse
+        # that presentation artifact to ``None`` so the trusted workflow can bind
+        # the exact approved manifest after validation.
+        if result.get("toolpack_binding") == {}:
+            result["toolpack_binding"] = None
+        for key in ("product_summary", "architecture_decision"):
+            value = result.get(key)
+            if isinstance(value, str) and len(value) > 800:
+                result[key] = value[:797].rstrip() + "..."
+        quests = result.get("quests", [])
+        if isinstance(quests, list):
+            for index, quest in enumerate(quests, start=1):
+                if not isinstance(quest, dict):
+                    continue
+                quest["quest_id"] = f"Q{index}"
+                quest["depends_on"] = [] if index == 1 else [f"Q{index - 1}"]
+    if schema is GodotGameplayPlan and isinstance(result, dict):
+        role_order = result.get("upgrade_role_order")
+        if isinstance(role_order, list):
+            result["upgrade_role_order"] = list(dict.fromkeys(role_order))
+        for collection in ("heroes", "enemies"):
+            for item in result.get(collection, []):
+                if isinstance(item, dict) and isinstance(item.get("color_hex"), str):
+                    item["color_hex"] = item["color_hex"].removeprefix("#")
+        for ability in result.get("abilities", []):
+            if (
+                isinstance(ability, dict)
+                and ability.get("kind") == "resurrection"
+                and isinstance(ability.get("radius"), (int, float))
+                and ability["radius"] < 20
+            ):
+                # Resurrection is a stored party-state transition, not a spatial
+                # effect. Bind its schema-only radius to the trusted minimum instead
+                # of weakening numeric validation or rerunning the whole planner.
+                ability["radius"] = 20
+    return result
 
 
 OWNER_INSTRUCTION = """
@@ -48,22 +144,28 @@ eval, dynamic code loading, analytics, or placeholder TODOs. The UI must be in E
 responsive, keyboard accessible, visually coherent, and actually interactive.
 
 journey.json must contain {"journeys":[...]} with at least one journey. Each journey has
-a name, a criterion field containing one exact active-Quest acceptance-criterion string that
-it proves, an optional random_seed integer, and ordered steps. Use separate journeys when
-a Quest has multiple criteria. Supported typed steps are
+a name, a criterion field containing one exact active-Quest acceptance-criterion string or
+one exact required_regression_criteria string that it proves, an optional random_seed integer,
+and ordered steps. Every active and regression criterion must have direct runtime evidence;
+preserve previously verified journeys and add separate journeys when needed. Supported typed steps are
 {"click":"CSS selector"}, {"right_click":"CSS selector"}, {"press":"Keyboard key"},
-{"wait_ms":1..12000}, {"assert_text":"visible text"},
+{"wait_ms":1..12000},
+{"assert_text":{"selector":"CSS selector","operator":"eq|contains","value":"visible text"}},
 {"assert_count":{"selector":"CSS selector","operator":"eq|gt|gte|lt|lte","value":integer}},
 {"assert_attribute":{"selector":"CSS selector","name":"attribute","operator":"eq|contains|not_equals","value":"text"}},
 {"assert_class":{"selector":"CSS selector","includes":["class"],"excludes":["class"]}},
 or {"assert_state":{"selector":"CSS selector","state":"visible|hidden|enabled|disabled|checked|unchecked"}}.
 Do not emit arbitrary JavaScript. Every active criterion must be named by exactly one or more journeys
-and backed by a typed assertion that observes its runtime result; clicks, waits, screenshots,
+and backed by a selector-targeted typed assertion that observes its runtime result; never use
+unscoped {"assert_text":"text"} in a criterion-bound journey. Clicks, waits, screenshots,
 source code, and README claims alone are not proof. Selectors must point to real controls in
 index.html and the journey must prove the active Quest behavior. Preserve
 working behavior from the previous verified bundle and make only changes needed for the
 current Quest. When the previous bundle is an approved visual foundation, preserve its
 composition, typography, palette, material language, and anti-goals while adding behavior.
+If the previous bundle contains the trusted assets/visual-foundation.png image, preserve its
+exact relative reference and data-khalinos-asset="visual-foundation" element. The host, not
+the Maker, owns and reattaches its verified bytes.
 Keep revision_summary concise and under 500 characters. Return only the required schema.
 """.strip()
 
@@ -85,8 +187,12 @@ existing_project_entry, the validated supplied bundle is the authoritative start
 make only the bounded change required by the active Quest and preserve everything else.
 Preserve all previously verified behavior. Do not change the Quest, criteria, authorized files,
 or invent a different journey schema.
+If the failed bundle contains the trusted assets/visual-foundation.png image, preserve its exact
+relative reference and data-khalinos-asset="visual-foundation" element. Never synthesize,
+encode, replace, or remove the host-owned image bytes.
 If the incoming artifact uses a legacy or incomplete journey, migrate it to the current typed
-journey contract, bind every exact active criterion to direct runtime assertions, and do not
+journey contract, bind every exact active and required regression criterion to direct runtime
+assertions, and do not
 weaken the criterion while doing so.
 Keep revision_summary concise and under 500 characters. Return the complete five-file bundle
 and only the required schema.
@@ -97,7 +203,7 @@ You are the KHALINOS Visual Director. Read the approved brief and its bound visu
 direction, then issue exactly three genuinely different but equally feasible visual concepts
 for the same product. Differences must be structural: composition, hierarchy, type system,
 material language, and interaction emphasis, not merely color swaps. Every concept must fit
-the approved offline five-file HTML/CSS/vanilla-JavaScript profile, preserve usability, and
+the approved ToolPack and render surface supplied in the request, preserve usability, and
 state concrete anti-goals that prevent generic template output. Do not widen product scope.
 Return only the required schema.
 """.strip()
@@ -108,8 +214,12 @@ complete five-file browser artifact: index.html, styles.css, app.js, journey.jso
 README.md. Create a presentation-ready representative state with enough real interaction to
 prove hierarchy, controls, responsive composition, and visual identity in Chromium. Follow
 the concept precisely and honor all anti-goals. Use HTML, CSS, inline SVG, Canvas, and vanilla
-JavaScript only. No external URL, package, network call, data URL, placeholder, or unfinished
-control. Every form control must have an explicit label or aria-label, and icon-only buttons
+JavaScript only. One trusted local PNG is supplied at assets/visual-foundation.png. Render it
+exactly once as <img src="assets/visual-foundation.png"
+data-khalinos-asset="visual-foundation" alt=""> in a supporting environmental layer. Keep all
+UI, labels, icons, and state in accessible HTML/CSS; the page must remain understandable if the
+image fails to load. No other external URL, package, network call, data URL, placeholder, or
+unfinished control. Every form control must have an explicit label or aria-label, and icon-only buttons
 must have aria-labels.
 
 journey.json must contain exactly the wrapper {"journeys":[...]} with at least one journey.
@@ -124,7 +234,7 @@ concise and under 500 characters. Return only the required schema.
 
 VISUAL_VERIFIER_INSTRUCTION = """
 You are the independent KHALINOS Visual Verifier. You did not create the candidates and
-cannot modify them. Compare the two or three eligible rendered Chromium screenshots against
+cannot modify them. Compare the two or three eligible real rendered product screenshots against
 the approved visual contract and each concept. Score contract alignment, visual hierarchy,
 distinctiveness, interaction clarity, and craft/cohesion from 1 to 10. Penalize generic SaaS
 templates, superficial color variation, weak typography, cramped density, unclear primary
@@ -132,6 +242,90 @@ action, or divergence from explicit anti-goals. Judge visible evidence rather th
 maker claims. Assess only candidates identified as eligible and shown in screenshots, ordered
 by candidate ID. Select the candidate with the highest rubric average; ties may be resolved
 by stronger contract alignment, then distinctiveness. Return only the required schema.
+""".strip()
+
+VISUAL_ASSET_VERIFIER_INSTRUCTION = """
+You are the independent KHALINOS Visual Asset Gate. You did not generate the supplied PNG
+and cannot modify it. Inspect the raw image itself, not a rendered browser screenshot. Reject
+it if any readable text, letter, number, word-like glyph sequence, logo, watermark, signature,
+button, panel, HUD, label, chart annotation, rune, inscription, carving, symbol, signage,
+interface-like geometry, decorative marking, or other interface element is visible. Do not
+make exceptions for marks that appear abstract or non-linguistic. Approve only a pure supporting
+environmental image that can sit behind trusted accessible UI. Return only the required schema,
+using the supplied candidate_id exactly.
+""".strip()
+
+SPRITE_ATLAS_VERIFIER_INSTRUCTION = """
+You are the independent KHALINOS Sprite Atlas Gate. You did not generate the supplied
+normalized PNG and cannot modify it. Compare the image with the exact supplied slot plan.
+Approve only when every assigned cell contains exactly one complete, centered character;
+the count and order match; heroes and enemies are readily distinguishable; and all sprites
+share one coherent scale, lighting, outline, and rendering style. Reject text, glyphs, UI,
+logos, watermarks, extra characters, clipped bodies or weapons, overlapping cells, scenery,
+animation frames, checkerboards, halos, or other background residue. Inspect every slot
+individually. A head, torso, hand, foot, weapon, shield, bow, staff, cape, horn, or other
+role-defining equipment that is missing or materially erased is a completeness failure even
+when the remaining pixels occupy a valid bounding box. Return one slot_finding in exact plan
+order and use each supplied sprite_id exactly. Return only the required schema.
+""".strip()
+
+GODOT_QUEST_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Project Owner issuing the Quest chain for one immutable
+approved brief. You do not write gameplay plans, topology regions, GDScript, scenes, commands, files,
+tests, executable paths, or verification code. The trusted Godot ToolPack owns those.
+Issue two to five linear Quests without inventing features, network services, assets, or
+mechanics outside the brief. Quest acceptance_criteria may use only verbatim strings from
+the approved brief, every approved criterion must appear exactly once across the chain,
+and no criterion may be omitted or added. Put trusted compilation, runtime execution,
+file inspection, rendered capture, and receipt requirements only in evidence_required.
+The model must not set or alter the ToolPack binding. Return only the required QuestPlan.
+Keep product_summary and architecture_decision below 700 characters each.
+""".strip()
+
+GODOT_TOPOLOGY_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Project Owner materializing the bounded topology decision for
+the supplied immutable brief and already-issued QuestPlan. You do not write GDScript,
+scenes, commands, files, tests, executable paths, or verification code. Return only a
+GodotTopologyPlan containing two to sixteen connected screen or overlay regions with
+explicit directed transitions and one initial region. Use the approved project_name
+exactly. Infer only the minimum conventional screen topology required by the brief and
+QuestPlan. Do not invent product features, network services, assets, or mechanics.
+Return only the required GodotTopologyPlan schema.
+""".strip()
+
+GODOT_GAMEPLAY_OWNER_INSTRUCTION = """
+You are the KHALINOS Godot Gameplay Planner. Convert the immutable approved brief and
+already-issued QuestPlan into one bounded data-driven 2D top-down gameplay plan. You do
+not write GDScript, scenes, commands, files, tests, executable paths, or verification
+code. The trusted compiler owns implementation. Use the approved project_name exactly.
+Model only heroes, enemy archetypes, scheduled automatic abilities, summed shared party
+stats, session duration, and deterministic level-choice cadence supported by the supplied
+ToolPack manifest. Explicit numeric duration and cadence requirements are mandatory, not
+suggestions. When the brief requires profession progression, provide Tank, Damage, and
+Support profession rosters, the exact upgrade_role_order, and exactly three choices per
+level: current-profession rank-up first and two alternative professions. When resurrection
+is required, declare capacity one and exactly one automatic resurrection ability. Preserve
+requested roles and session length exactly. Do not
+invent networking, 3D, plugins, backend services, save systems, arbitrary mechanics, or
+production scope. Return only the required GodotGameplayPlan schema.
+Every identifier must start with a lowercase letter and contain only lowercase letters,
+digits, and underscores. Every color_hex must contain exactly six hexadecimal characters
+without a leading '#'. Keep hero health within 20..10000, attack and defense within
+their declared bounds, hero move_speed within 40..800, enemy speed within 10..500,
+ability radius within 20..1000, and all other numeric values within the supplied schema.
+""".strip()
+
+GODOT_VERIFIER_INSTRUCTION = """
+You are the independent KHALINOS Godot Verifier. You did not plan or materialize the
+artifact and cannot modify it. Judge each active Quest acceptance criterion only from
+the immutable brief, structured approved Godot plan, compiled artifact digests, and supplied
+digest-bound Godot headless and display-render evidence. Return findings in the exact supplied criterion
+order, with exactly one finding for every criterion in quest.acceptance_criteria. Treat
+the supplied deterministic_evidence criterion mapping and typed runtime probe as primary
+runtime evidence; a screenshot is not required to show every temporal state. PASS only
+when each criterion has direct deterministic evidence; a plan, source
+file, README claim, or Project Owner assertion alone is not runtime proof. Never weaken
+criteria or broaden authority. Return only the required schema.
 """.strip()
 
 
@@ -142,24 +336,28 @@ def _agent(
     *,
     temperature: float,
     max_output_tokens: int = 8192,
+    compact_json_schema: bool = False,
 ) -> LlmAgent:
+    structured_schema = compact_vertex_json_schema(schema) if compact_json_schema else None
     return LlmAgent(
         name=name,
         model=MODEL,
         instruction=instruction,
-        output_schema=schema,
+        output_schema=None if compact_json_schema else schema,
         output_key=f"{name}_output",
         include_contents="none",
         generate_content_config=types.GenerateContentConfig(
             temperature=temperature,
             max_output_tokens=max_output_tokens,
             thinking_config=types.ThinkingConfig(thinking_level="low"),
+            response_mime_type="application/json" if compact_json_schema else None,
+            response_json_schema=structured_schema,
         ),
     )
 
 
 class AgentTeam:
-    """Seven role-separated ADK agents; Python only enforces the approved state machine."""
+    """Role-separated ADK agents; Python enforces the approved state machines."""
 
     def __init__(self) -> None:
         os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "TRUE")
@@ -168,7 +366,7 @@ class AgentTeam:
         self.maker = _agent(
             "khalinos_accountable_maker",
             MAKER_INSTRUCTION,
-            ArtifactBundle,
+            BrowserArtifactBundle,
             temperature=0.25,
             max_output_tokens=49_152,
         )
@@ -176,7 +374,7 @@ class AgentTeam:
         self.repairer = _agent(
             "khalinos_technical_repair",
             REPAIR_INSTRUCTION,
-            ArtifactBundle,
+            BrowserArtifactBundle,
             temperature=0.1,
             max_output_tokens=49_152,
         )
@@ -189,7 +387,7 @@ class AgentTeam:
         self.visual_maker = _agent(
             "khalinos_visual_candidate_maker",
             VISUAL_MAKER_INSTRUCTION,
-            ArtifactBundle,
+            BrowserArtifactBundle,
             temperature=0.4,
             max_output_tokens=49_152,
         )
@@ -199,7 +397,47 @@ class AgentTeam:
             VisualSelection,
             temperature=0.0,
         )
+        self.visual_asset_verifier = _agent(
+            "khalinos_visual_asset_verifier",
+            VISUAL_ASSET_VERIFIER_INSTRUCTION,
+            VisualAssetGate,
+            temperature=0.0,
+        )
+        self.sprite_atlas_verifier = _agent(
+            "khalinos_sprite_atlas_verifier",
+            SPRITE_ATLAS_VERIFIER_INSTRUCTION,
+            SpriteAtlasGate,
+            temperature=0.0,
+        )
+        self.godot_quest_owner = _agent(
+            "khalinos_godot_quest_owner",
+            GODOT_QUEST_OWNER_INSTRUCTION,
+            QuestPlan,
+            temperature=0.1,
+            compact_json_schema=True,
+        )
+        self.godot_topology_owner = _agent(
+            "khalinos_godot_topology_owner",
+            GODOT_TOPOLOGY_OWNER_INSTRUCTION,
+            GodotTopologyPlan,
+            temperature=0.1,
+        )
+        self.godot_gameplay_owner = _agent(
+            "khalinos_godot_gameplay_owner",
+            GODOT_GAMEPLAY_OWNER_INSTRUCTION,
+            GodotGameplayPlan,
+            temperature=0.1,
+            compact_json_schema=True,
+        )
+        self.godot_verifier = _agent(
+            "khalinos_godot_independent_verifier",
+            GODOT_VERIFIER_INSTRUCTION,
+            AgentVerification,
+            temperature=0.0,
+        )
         self.call_count = 0
+        self._image_lock = asyncio.Lock()
+        self._last_image_call_started = 0.0
 
     async def _run(
         self,
@@ -225,30 +463,140 @@ class AgentTeam:
         self.call_count += 1
         if not final_text:
             raise RuntimeError(f"{agent.name} returned no structured response")
-        return schema.model_validate(json.loads(final_text))
+        result = normalize_structured_result(schema, json.loads(final_text))
+        return schema.model_validate(result)
 
     async def plan(self, payload: dict) -> QuestPlan:
         return await self._run(self.owner, payload, QuestPlan)
 
+    async def plan_godot(self, payload: dict) -> GodotProjectPlan:
+        quest_plan = await self._run(self.godot_quest_owner, payload, QuestPlan)
+        topology = await self._run(
+            self.godot_topology_owner,
+            {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")},
+            GodotTopologyPlan,
+        )
+        return GodotProjectPlan(quest_plan=quest_plan, topology=topology)
+
+    async def plan_godot_gameplay(self, payload: dict) -> GodotGameplayProjectPlan:
+        quest_plan = await self._run(self.godot_quest_owner, payload, QuestPlan)
+        gameplay = await self._run(
+            self.godot_gameplay_owner,
+            {**payload, "approved_quest_plan": quest_plan.model_dump(mode="json")},
+            GodotGameplayPlan,
+        )
+        return GodotGameplayProjectPlan(quest_plan=quest_plan, gameplay=gameplay)
+
     async def make(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.maker, payload, ArtifactBundle)
+        result = await self._run(self.maker, payload, BrowserArtifactBundle)
+        return result.to_artifact_bundle()
 
     async def verify(self, payload: dict) -> AgentVerification:
         return await self._run(self.verifier, payload, AgentVerification)
 
+    async def verify_godot(self, payload: dict) -> AgentVerification:
+        return await self._run(self.godot_verifier, payload, AgentVerification)
+
     async def repair(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.repairer, payload, ArtifactBundle)
+        result = await self._run(self.repairer, payload, BrowserArtifactBundle)
+        return result.to_artifact_bundle()
 
     async def plan_visuals(self, payload: dict) -> VisualConceptPlan:
         return await self._run(self.visual_director, payload, VisualConceptPlan)
 
     async def make_visual(self, payload: dict) -> ArtifactBundle:
-        return await self._run(self.visual_maker, payload, ArtifactBundle)
+        result = await self._run(self.visual_maker, payload, BrowserArtifactBundle)
+        return result.to_artifact_bundle()
+
+    async def make_visual_asset(self, brief: UserBrief, concept: VisualConcept) -> ArtifactAsset:
+        minimum_interval = float(os.environ.get("KHALINOS_IMAGE_MIN_INTERVAL_SECONDS", "35"))
+        async with self._image_lock:
+            elapsed = time.monotonic() - self._last_image_call_started
+            if self._last_image_call_started and elapsed < minimum_interval:
+                await asyncio.sleep(minimum_interval - elapsed)
+            self._last_image_call_started = time.monotonic()
+            asset = await asyncio.to_thread(generate_visual_asset, brief, concept)
+            self.call_count += 1
+            return asset
+
+    async def verify_visual_asset(
+        self,
+        candidate_id: str,
+        asset: ArtifactAsset,
+        concept: VisualConcept,
+    ) -> VisualAssetGate:
+        return await self._run(
+            self.visual_asset_verifier,
+            {
+                "candidate_id": candidate_id,
+                "approved_visual_concept": concept.model_dump(mode="json"),
+                "asset_manifest": {
+                    "path": asset.path,
+                    "sha256": asset.sha256,
+                    "width": asset.width,
+                    "height": asset.height,
+                },
+            },
+            VisualAssetGate,
+            extra_parts=[types.Part.from_bytes(data=asset.bytes(), mime_type=asset.media_type)],
+        )
+
+    async def make_sprite_atlas(
+        self,
+        brief: UserBrief,
+        concept: VisualConcept,
+        plan: SpriteAtlasPlan,
+        feedback: tuple[str, ...] = (),
+    ) -> ArtifactAsset:
+        minimum_interval = float(os.environ.get("KHALINOS_IMAGE_MIN_INTERVAL_SECONDS", "35"))
+        async with self._image_lock:
+            def before_model_call() -> None:
+                elapsed = time.monotonic() - self._last_image_call_started
+                if self._last_image_call_started and elapsed < minimum_interval:
+                    time.sleep(minimum_interval - elapsed)
+                self._last_image_call_started = time.monotonic()
+                self.call_count += 1
+
+            return await asyncio.to_thread(
+                generate_sprite_atlas,
+                brief,
+                concept,
+                plan,
+                feedback,
+                before_model_call,
+            )
+
+    async def verify_sprite_atlas(
+        self,
+        plan: SpriteAtlasPlan,
+        asset: ArtifactAsset,
+        concept: VisualConcept,
+    ) -> SpriteAtlasGate:
+        gate = await self._run(
+            self.sprite_atlas_verifier,
+            {
+                "approved_visual_concept": concept.model_dump(mode="json"),
+                "sprite_atlas_plan": plan.model_dump(mode="json"),
+                "asset_manifest": {
+                    "path": asset.path,
+                    "sha256": asset.sha256,
+                    "width": asset.width,
+                    "height": asset.height,
+                },
+            },
+            SpriteAtlasGate,
+            extra_parts=[types.Part.from_bytes(data=asset.bytes(), mime_type=asset.media_type)],
+        )
+        expected_ids = [slot.sprite_id for slot in plan.slots]
+        actual_ids = [finding.sprite_id for finding in gate.slot_findings]
+        if actual_ids != expected_ids:
+            raise RuntimeError("sprite atlas verifier findings do not exactly match the approved slot plan")
+        return gate
 
     async def select_visual(self, payload: dict, screenshots: list[tuple[str, bytes]]) -> VisualSelection:
         parts: list[types.Part] = []
         for candidate_id, data in screenshots:
-            parts.append(types.Part.from_text(text=f"Rendered Chromium screenshot for {candidate_id}"))
+            parts.append(types.Part.from_text(text=f"Trusted rendered product screenshot for {candidate_id}"))
             parts.append(types.Part.from_bytes(data=data, mime_type="image/png"))
         return await self._run(
             self.visual_verifier,

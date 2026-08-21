@@ -1,0 +1,61 @@
+{
+  "product_summary": "Trinity Survivors is an offline 2D top-down survival roguelite vertical slice built in Godot 4.7.1. The player controls a unified three-hero formation (Warrior, Archer, Priest) moving continuously on a seamless scrolling battlefield. The party shares a single Trinity health pool and combined statistics (Attack, Defense, Health, Movement Speed, Attack Speed) calculated as the sum of all three heroes' contributions. Combat, targeting, and skill activation are fully automatic. Defeated enemies drop Records to increase the Trinity Level, triggering nine promotion events at Levels 2-10 in a strict Tank -> Damage -> Healing cycle with seeded choices and a stored Priest resurrection mechanic.",
+  "architecture_decision": "The architecture implements a single-scene structure in Godot 4.7.1 with a deterministic gameplay probe to verify all mechanics. A central gameplay script manages the unified Trinity state, calculating shared statistics dynamically from the active hero configurations. Movement uses keyboard input to drive an anchor node followed by a camera, with heroes maintaining relative offsets. Automatic combat and skill timers run on independent, pause-aware schedules. The promotion system pauses the game and uses a fixed seed to generate reproducible choices. A dedicated probe script executes headless verification scenarios to validate session duration, level progression, and stat calculations.",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.4.0",
+    "manifest_sha256": "3cb606a3dd18393f5fe2d72a30a0349cd770f4ae3b1bdbbeb95e8f32197ca9f2"
+  },
+  "quests": [
+    {
+      "quest_id": "Q1",
+      "objective": "Establish the core 2D top-down scrolling battlefield, the three-hero formation with continuous movement and camera tracking, and the shared Trinity statistics calculation.",
+      "acceptance_criteria": [
+        "Continuous formation movement and camera tracking function correctly.",
+        "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied.",
+        "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes."
+      ],
+      "evidence_required": [
+        "Successful compilation and execution of the Godot project.",
+        "File inspection of scripts/khalinos_gameplay.gd verifying the shared Trinity statistics summation logic.",
+        "Deterministic gameplay probe output verifying that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes."
+      ],
+      "depends_on": []
+    },
+    {
+      "quest_id": "Q2",
+      "objective": "Implement automatic combat, targeting, enemy spawning, Record collection, and the shared Trinity Level progression system.",
+      "acceptance_criteria": [
+        "Automatic combat, targeting, and skill activation execute on scheduled intervals.",
+        "Record collection increases Trinity Level and triggers the correct promotion cycle overlay.",
+        "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary."
+      ],
+      "evidence_required": [
+        "Rendered capture of the gameplay scene showing active combat and Record collection.",
+        "File inspection of scripts/khalinos_gameplay_probe.gd verifying the 600-second session simulation and level interval checks.",
+        "Deterministic gameplay probe execution receipt confirming victory exactly at the session boundary."
+      ],
+      "depends_on": [
+        "Q1"
+      ]
+    },
+    {
+      "quest_id": "Q3",
+      "objective": "Implement the Tank -> Damage -> Healing promotion cycle with seeded choices, immediate stat updates, and the Priest resurrection mechanic.",
+      "acceptance_criteria": [
+        "Promotion choices offer one guaranteed advancement and two seeded random alternatives.",
+        "Selecting a promotion immediately updates the hero's stats, skills, and visual labels.",
+        "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice.",
+        "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage."
+      ],
+      "evidence_required": [
+        "Rendered capture of the promotion overlay showing three choices with correct labels.",
+        "Deterministic gameplay probe output verifying the Tank, Damage, and Healer upgrade sequence and seeded choices.",
+        "Headless execution log proving that the Priest resurrection charge is stored, capped at one, and consumed to survive lethal damage."
+      ],
+      "depends_on": [
+        "Q2"
+      ]
+    }
+  ]
+}

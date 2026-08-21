@@ -1,0 +1,59 @@
+{
+  "created_at": "2026-08-20T17:40:00+09:00",
+  "previous_intake_id": "9d1501ac63ff4caa91a38cf2f90624ce",
+  "intake_id": "41d7b6e9dfe745acbe7c86406299c2bd",
+  "status": "ready",
+  "authorized": false,
+  "run_dispatched": false,
+  "project_name": "Trinity Survivors",
+  "work_mode": "new_product_build",
+  "project_kind": "godot",
+  "source_count": 5,
+  "preserved_sixsense_answers": {
+    "experience_visual_direction": "Vibrant Stylized"
+  },
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.4.0",
+    "manifest_sha256": "3f6a0489a01fd0e8d650cbbb488a8c27e812733a28be00bc2e9629b26e1a623d"
+  },
+  "estimate": {
+    "quest_count": 3,
+    "cost_usd_min": 5.0,
+    "cost_usd_max": 5.0,
+    "duration_minutes_min": 15,
+    "duration_minutes_max": 30,
+    "max_repairs_per_quest": 0
+  },
+  "acceptance_criteria": [
+    "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary.",
+    "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice.",
+    "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes.",
+    "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage.",
+    "WASD or arrow input moves the formation continuously while the camera follows its anchor.",
+    "Warrior, Archer, and Priest perform distinct Tank, Damage, and Healing behaviors during live combat.",
+    "Enemy pressure follows the ten-minute encounter curve (quantity rise, strength shift, final swarm).",
+    "Defeated enemies drop Records, and collecting them advances the shared Trinity Level.",
+    "Reaching Trinity Levels 2-10 pauses combat and offers exactly three choices in three Tank -> Damage -> Healing cycles.",
+    "Choosing a promotion changes the correct hero's profession label, skills, and at least one combat statistic."
+  ],
+  "authorized_output_files": [
+    "KHALINOS_GAMEPLAY.json",
+    "KHALINOS_SPRITE_ATLAS.json",
+    "README.md",
+    "assets/sprite-atlas.png",
+    "assets/visual-foundation.png",
+    "project.godot",
+    "scenes/gameplay.tscn",
+    "scripts/khalinos_gameplay.gd",
+    "scripts/khalinos_gameplay_probe.gd"
+  ],
+  "deployment_baseline": {
+    "implementation_commit": "6bdbe2772b5d8f9837585d6f6f8566458172dd4a",
+    "evidence_commit_before_this_snapshot": "1038326",
+    "image_digest": "sha256:f17c20a52ec73f7c8f647407aa177623fef98bf30444d51cb553859eda8dbd31",
+    "service_revision": "khalinos-00032-hbc",
+    "cloud_build_id": "22fea684-8b6c-40bc-9205-56ddbb7f3f85",
+    "qualification_execution": "khalinos-godot-toolpack-staging-zv6zb"
+  }
+}

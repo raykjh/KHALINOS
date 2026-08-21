@@ -1,0 +1,52 @@
+{
+  "schema_version": "khalinos-cloud-qualification-v1",
+  "qualified_at": "2026-08-20T06:07:39Z",
+  "project": "khalinos-agent-20260818",
+  "region": "asia-northeast3",
+  "execution": "khalinos-godot-toolpack-staging-wdz9v",
+  "source_commit": "bb9990c",
+  "image": "asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/worker@sha256:72360c78701208e69a9f69edbdf10e32d730b115e54ec6a0cb4858613638d748",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.3.0",
+    "manifest_sha256": "4cde859a67e1f534f12e4bc0a20d497500e04c9e08306c2d2af8f25754be6f5a"
+  },
+  "artifact_sha256": "3d3388b24be258b42765f0feac3f622420ae3c61eb812813a7926054220ce795",
+  "passed": true,
+  "issues": [],
+  "checks": {
+    "all_sprite_ids_mapped": true,
+    "approved_executable_digest": true,
+    "asset_import_process": true,
+    "auto_ability_applied": true,
+    "deterministic_seed_bound": true,
+    "display_render_dimensions": true,
+    "display_render_frames": true,
+    "display_render_nontrivial": true,
+    "display_render_process": true,
+    "enemy_spawned": true,
+    "formation_instantiated": true,
+    "headless_process": true,
+    "level_choice_applied": true,
+    "level_choice_offered": true,
+    "level_schedule_bound": true,
+    "movement_applied": true,
+    "party_stats_aggregated": true,
+    "probe_passed": true,
+    "probe_schema": true,
+    "resurrection_contract_executed": true,
+    "session_duration_bound": true,
+    "shared_health_initialized": true,
+    "sprite_atlas_loaded": true,
+    "sprite_contract_present": true,
+    "sprite_slot_count_bound": true,
+    "three_choice_profession_contract": true,
+    "trusted_asset_materialized": true,
+    "trusted_sprite_atlas_materialized": true,
+    "upgrade_role_order_executed": true,
+    "victory_at_session_end": true
+  },
+  "screenshots": [
+    "godot-gameplay-render00000002.png"
+  ]
+}

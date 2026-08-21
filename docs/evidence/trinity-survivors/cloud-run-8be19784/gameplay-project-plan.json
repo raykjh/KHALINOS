@@ -1,0 +1,327 @@
+{
+  "schema_version": "khalinos-godot-gameplay-project-plan-v1",
+  "quest_plan": {
+    "product_summary": "Trinity Survivors is an offline 2D top-down survival roguelite vertical slice built in Godot 4.7.1. It features a unified three-hero formation (Warrior, Archer, Priest) moving continuously on a seamless scrolling battlefield. The party shares a single Trinity health pool and combined statistics (Attack, Defense, Health, Movement Speed, Attack Speed) summed from all three heroes. Combat, basic attacks, active skills, passive skills, and ultimate skills operate automatically. Defeated enemies drop Records that raise the shared Trinity Level, triggering exactly nine promotion events at Levels 2-10 in a strict Tank -> Damage -> Healing cycle. Each promotion pauses the game and offers exactly three choices: one guaranteed same-profession grade advancement and two seeded random alternatives.",
+    "architecture_decision": "The architecture implements a single-scene structure centered on scenes/gameplay.tscn, driven by scripts/khalinos_gameplay.gd and verified by scripts/khalinos_gameplay_probe.gd. The three heroes are managed as a single formation with a shared Trinity state. The system uses a deterministic gameplay probe to verify the 10-minute session, level progression, and combat mechanics. Assets are loaded from assets/sprite-atlas.png and assets/visual-foundation.png, with metadata defined in KHALINOS_SPRITE_ATLAS.json and KHALINOS_GAMEPLAY.json. The game is entirely offline, using English-only player-facing text, and enforces zero repairs per Quest.",
+    "toolpack_binding": {
+      "toolpack_id": "godot.gameplay",
+      "version": "1.6.2",
+      "manifest_sha256": "d0603d0bf7aca31db78c234e0e4a131f0e9bebb3060ccfb19c62ea4d34118426"
+    },
+    "quests": [
+      {
+        "quest_id": "Q1",
+        "objective": "Implement the continuous formation movement, camera tracking, and shared Trinity statistics calculation.",
+        "acceptance_criteria": [
+          "Continuous formation movement and camera tracking function correctly.",
+          "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes.",
+          "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied."
+        ],
+        "evidence_required": [
+          "File inspection of scripts/khalinos_gameplay.gd verifying the summation formulas for Trinity Attack, Defense, Health, Movement Speed, and Attack Speed.",
+          "Headless execution of scripts/khalinos_gameplay_probe.gd verifying that WASD/arrow keys move the formation anchor and the camera follows.",
+          "Runtime assertion verifying that the shared Trinity statistics are correctly updated when heroes are initialized."
+        ],
+        "depends_on": []
+      },
+      {
+        "quest_id": "Q2",
+        "objective": "Implement automatic combat, targeting, scheduled skill activation, and the Priest resurrection mechanic.",
+        "acceptance_criteria": [
+          "Automatic combat, targeting, and skill activation execute on scheduled intervals.",
+          "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage."
+        ],
+        "evidence_required": [
+          "File inspection of scripts/khalinos_gameplay.gd verifying the automatic skill timers and targeting logic.",
+          "Headless execution of scripts/khalinos_gameplay_probe.gd verifying that Priest Resurrection Stock stores a maximum of one charge and successfully prevents defeat upon lethal damage.",
+          "Rendered capture of automatic basic attacks and skill visual indicators during combat."
+        ],
+        "depends_on": [
+          "Q1"
+        ]
+      },
+      {
+        "quest_id": "Q3",
+        "objective": "Implement Record collection, the promotion cycle overlay with seeded choices, and the full 10-minute session loop.",
+        "acceptance_criteria": [
+          "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary.",
+          "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice.",
+          "Record collection increases Trinity Level and triggers the correct promotion cycle overlay.",
+          "Promotion choices offer one guaranteed advancement and two seeded random alternatives.",
+          "Selecting a promotion immediately updates the hero's stats, skills, and visual labels."
+        ],
+        "evidence_required": [
+          "File inspection of KHALINOS_GAMEPLAY.json and scripts/khalinos_gameplay.gd verifying the promotion cycle order (Tank -> Damage -> Healing) and seeded random selection.",
+          "Headless execution of scripts/khalinos_gameplay_probe.gd verifying the 600-second session, level-up triggers, promotion choices, and victory state.",
+          "Rendered capture of the promotion overlay showing three choices and the updated HUD after selection."
+        ],
+        "depends_on": [
+          "Q2"
+        ]
+      }
+    ]
+  },
+  "gameplay": {
+    "schema_version": "khalinos-godot-gameplay-plan-v1",
+    "project_name": "Trinity Survivors",
+    "genre": "top_down_survival",
+    "viewport_width": 1280,
+    "viewport_height": 720,
+    "session_seconds": 600,
+    "heroes": [
+      {
+        "hero_id": "lower_warrior",
+        "label": "Lower Warrior",
+        "role": "tank",
+        "color_hex": "ff3333",
+        "health": 150,
+        "attack": 15,
+        "defense": 12,
+        "attack_speed": 1.0,
+        "move_speed": 120.0
+      },
+      {
+        "hero_id": "lower_archer",
+        "label": "Lower Archer",
+        "role": "damage",
+        "color_hex": "33ff33",
+        "health": 80,
+        "attack": 25,
+        "defense": 4,
+        "attack_speed": 1.5,
+        "move_speed": 150.0
+      },
+      {
+        "hero_id": "lower_priest",
+        "label": "Lower Priest",
+        "role": "support",
+        "color_hex": "3333ff",
+        "health": 90,
+        "attack": 10,
+        "defense": 6,
+        "attack_speed": 1.1,
+        "move_speed": 130.0
+      }
+    ],
+    "enemies": [
+      {
+        "enemy_id": "goblin",
+        "label": "Goblin",
+        "color_hex": "55aa55",
+        "health": 30,
+        "damage": 5,
+        "speed": 80.0,
+        "record_value": 1,
+        "spawn_weight": 100
+      },
+      {
+        "enemy_id": "goblin_runner",
+        "label": "Goblin Runner",
+        "color_hex": "77cc77",
+        "health": 20,
+        "damage": 4,
+        "speed": 130.0,
+        "record_value": 1,
+        "spawn_weight": 50
+      },
+      {
+        "enemy_id": "orc",
+        "label": "Orc",
+        "color_hex": "aa5555",
+        "health": 80,
+        "damage": 12,
+        "speed": 60.0,
+        "record_value": 2,
+        "spawn_weight": 40
+      },
+      {
+        "enemy_id": "troll",
+        "label": "Troll",
+        "color_hex": "5555aa",
+        "health": 300,
+        "damage": 30,
+        "speed": 40.0,
+        "record_value": 8,
+        "spawn_weight": 10
+      }
+    ],
+    "abilities": [
+      {
+        "ability_id": "cone_cleave",
+        "label": "Cone Cleave",
+        "owner_hero_id": "lower_warrior",
+        "kind": "damage",
+        "cooldown_seconds": 3.0,
+        "power": 25,
+        "radius": 120.0
+      },
+      {
+        "ability_id": "multishot",
+        "label": "Multishot",
+        "owner_hero_id": "lower_archer",
+        "kind": "damage",
+        "cooldown_seconds": 4.0,
+        "power": 18,
+        "radius": 250.0
+      },
+      {
+        "ability_id": "party_heal",
+        "label": "Party Heal",
+        "owner_hero_id": "lower_priest",
+        "kind": "heal",
+        "cooldown_seconds": 6.0,
+        "power": 30,
+        "radius": 200.0
+      },
+      {
+        "ability_id": "resurrection_stock",
+        "label": "Resurrection Stock",
+        "owner_hero_id": "lower_priest",
+        "kind": "resurrection",
+        "cooldown_seconds": 300.0,
+        "power": 1,
+        "radius": 50.0
+      }
+    ],
+    "level_count": 10,
+    "level_interval_seconds": 60,
+    "choices_per_level": 3,
+    "profession_choice_mode": "seeded_random_alternatives",
+    "team_stat_mode": "sum",
+    "upgrade_role_order": [
+      "tank",
+      "damage",
+      "support"
+    ],
+    "profession_rosters": [
+      {
+        "role": "tank",
+        "starting_profession_id": "lower_warrior",
+        "professions": [
+          {
+            "profession_id": "lower_warrior",
+            "label": "Lower Warrior",
+            "role": "tank",
+            "stat_focus": "balanced"
+          },
+          {
+            "profession_id": "intermediate_warrior",
+            "label": "Intermediate Warrior",
+            "role": "tank",
+            "stat_focus": "balanced"
+          },
+          {
+            "profession_id": "lower_axe_warrior",
+            "label": "Lower Axe Warrior",
+            "role": "tank",
+            "stat_focus": "attack"
+          },
+          {
+            "profession_id": "lower_shield_warrior",
+            "label": "Lower Shield Warrior",
+            "role": "tank",
+            "stat_focus": "defense"
+          },
+          {
+            "profession_id": "lower_dual_blade_warrior",
+            "label": "Lower Dual-Blade Warrior",
+            "role": "tank",
+            "stat_focus": "attack_speed"
+          },
+          {
+            "profession_id": "lower_pugilist",
+            "label": "Lower Pugilist",
+            "role": "tank",
+            "stat_focus": "health"
+          }
+        ]
+      },
+      {
+        "role": "damage",
+        "starting_profession_id": "lower_archer",
+        "professions": [
+          {
+            "profession_id": "lower_archer",
+            "label": "Lower Archer",
+            "role": "damage",
+            "stat_focus": "balanced"
+          },
+          {
+            "profession_id": "intermediate_archer",
+            "label": "Intermediate Archer",
+            "role": "damage",
+            "stat_focus": "balanced"
+          },
+          {
+            "profession_id": "lower_longbowman",
+            "label": "Lower Longbowman",
+            "role": "damage",
+            "stat_focus": "attack"
+          },
+          {
+            "profession_id": "lower_crossbowman",
+            "label": "Lower Crossbowman",
+            "role": "damage",
+            "stat_focus": "move_speed"
+          },
+          {
+            "profession_id": "lower_assistant",
+            "label": "Lower Assassin",
+            "role": "damage",
+            "stat_focus": "defense"
+          },
+          {
+            "profession_id": "lower_rifleman",
+            "label": "Lower Rifleman",
+            "role": "damage",
+            "stat_focus": "attack_speed"
+          }
+        ]
+      },
+      {
+        "role": "support",
+        "starting_profession_id": "lower_priest",
+        "professions": [
+          {
+            "profession_id": "lower_priest",
+            "label": "Lower Priest",
+            "role": "support",
+            "stat_focus": "balanced"
+          },
+          {
+            "profession_id": "intermediate_priest",
+            "label": "Intermediate Priest",
+            "role": "support",
+            "stat_focus": "balanced"
+          },
+          {
+            "profession_id": "lower_paladin",
+            "label": "Lower Paladin",
+            "role": "support",
+            "stat_focus": "defense"
+          },
+          {
+            "profession_id": "lower_dark_priest",
+            "label": "Lower Dark Priest",
+            "role": "support",
+            "stat_focus": "attack"
+          },
+          {
+            "profession_id": "lower_guardian_priest",
+            "label": "Lower Guardian Priest",
+            "role": "support",
+            "stat_focus": "health"
+          },
+          {
+            "profession_id": "lower_heretic",
+            "label": "Lower Heretic",
+            "role": "support",
+            "stat_focus": "attack_speed"
+          }
+        ]
+      }
+    ],
+    "resurrection_capacity": 1,
+    "deterministic_seed": 42
+  }
+}

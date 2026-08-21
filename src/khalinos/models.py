@@ -5,11 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import base64
+import struct
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic.json_schema import SkipJsonSchema
+
+from khalinos.toolpacks import ToolPackBinding
 
 
 def utc_now() -> str:
@@ -37,6 +42,13 @@ class RunStatus(StrEnum):
     FAILED = "failed"
 
 
+class AuthoritativeReference(BaseModel):
+    filename: str = Field(min_length=1, max_length=160)
+    media_type: Literal["text/plain", "text/markdown", "application/json"]
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    content: str = Field(min_length=1, max_length=100_000)
+
+
 class UserBrief(BaseModel):
     project_name: str = Field(min_length=2, max_length=80)
     goal: str = Field(min_length=30, max_length=5000)
@@ -44,19 +56,28 @@ class UserBrief(BaseModel):
     acceptance_criteria: list[str] = Field(min_length=2, max_length=10)
     max_quests: int = Field(default=4, ge=2, le=5)
     max_repairs_per_quest: int = Field(default=2, ge=0, le=2)
-    authorized_output_files: list[str] = Field(
-        default_factory=lambda: [
-            "index.html", "styles.css", "app.js", "journey.json", "README.md"
-        ],
-        min_length=5,
-        max_length=5,
-    )
+    toolpack_binding: ToolPackBinding | None = None
+    authorized_output_files: list[str] = Field(min_length=1, max_length=256)
+    # Execution-only authority. The Outcome Preview model must not reproduce source
+    # documents inside its structured-output schema; authorization injects them later.
+    authoritative_references: SkipJsonSchema[list[AuthoritativeReference]] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode="after")
-    def fixed_safe_surface(self) -> "UserBrief":
-        expected = {"index.html", "styles.css", "app.js", "journey.json", "README.md"}
-        if set(self.authorized_output_files) != expected:
-            raise ValueError("the autonomous micro-app profile has one fixed output surface")
+    def safe_output_surface(self) -> "UserBrief":
+        if len(set(self.authorized_output_files)) != len(self.authorized_output_files):
+            raise ValueError("authorized output paths must be unique")
+        for path in self.authorized_output_files:
+            normalized = path.replace("\\", "/")
+            parts = normalized.split("/")
+            if (
+                not path
+                or normalized.startswith("/")
+                or ":" in parts[0]
+                or any(part in {"", ".", ".."} for part in parts)
+            ):
+                raise ValueError("authorized output paths must stay relative to the artifact root")
+        if sum(len(item.content.encode("utf-8")) for item in self.authoritative_references) > 200_000:
+            raise ValueError("authoritative reference text exceeds 200 KB")
         return self
 
 
@@ -74,7 +95,7 @@ ALL_SENSE_DIMENSIONS = list(SenseDimension)
 
 class SourceUpload(BaseModel):
     filename: str = Field(min_length=1, max_length=160)
-    media_type: str = Field(pattern=r"^(text/plain|text/markdown|application/json|image/png|image/jpeg|image/webp)$")
+    media_type: str = Field(pattern=r"^(text/plain|text/markdown|application/json|application/zip|image/png|image/jpeg|image/webp)$")
     data_base64: str = Field(min_length=1, max_length=14_000_000)
 
 
@@ -138,7 +159,7 @@ class ArchiveSnapshot(BaseModel):
     root_prefix: str = Field(default="", max_length=500)
     entry_count: int = Field(ge=5, le=1000)
     uncompressed_size_bytes: int = Field(ge=1, le=25_000_000)
-    materials: list[MaterialDescriptor] = Field(min_length=5, max_length=5)
+    materials: list[MaterialDescriptor] = Field(min_length=5, max_length=6)
 
 
 class UploadCreate(BaseModel):
@@ -167,6 +188,47 @@ class IntakeCreate(BaseModel):
     materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
     selected_project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     upload_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
+    requested_project_kind: Literal["browser", "godot"] | None = None
+    requested_toolpack_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    requested_toolpack_binding: ToolPackBinding | None = None
+    requested_work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
+
+
+class RouteRecommendationRequest(BaseModel):
+    project_name: str = Field(min_length=2, max_length=80)
+    goal: str = Field(min_length=20, max_length=5000)
+    project_locator: str = Field(default="", max_length=2000)
+    materials: list[MaterialDescriptor] = Field(default_factory=list, max_length=5000)
+    requested_work_mode: Literal["new_product_build"] = "new_product_build"
+
+
+class RouteCandidateAssessment(BaseModel):
+    toolpack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    fit: Literal["exact", "bounded_alternative", "incompatible"]
+    reason: str = Field(min_length=15, max_length=500)
+    expected_result: str = Field(min_length=20, max_length=700)
+    limitations: list[str] = Field(default_factory=list, max_length=8)
+
+
+class RouteRecommendation(BaseModel):
+    status: Literal["recommended", "unsupported"]
+    recommended_toolpack_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    candidates: list[RouteCandidateAssessment] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def valid_recommendation(self) -> "RouteRecommendation":
+        ids = [item.toolpack_id for item in self.candidates]
+        if len(ids) != len(set(ids)):
+            raise ValueError("route candidates must be unique")
+        by_id = {item.toolpack_id: item for item in self.candidates}
+        if self.status == "recommended":
+            if self.recommended_toolpack_id not in by_id:
+                raise ValueError("recommended route must name one returned candidate")
+            if by_id[self.recommended_toolpack_id].fit == "incompatible":
+                raise ValueError("an incompatible route cannot be recommended")
+        elif self.recommended_toolpack_id is not None:
+            raise ValueError("unsupported route decisions cannot recommend a ToolPack")
+        return self
 
 
 ShortAnswerOption = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=48)]
@@ -234,6 +296,27 @@ class SenseDecision(BaseModel):
         return self
 
 
+class SenseAssessment(BaseModel):
+    """Small first-stage schema that never carries the large Outcome Preview."""
+
+    status: Literal["question", "ready"]
+    resolved_dimensions: list[SenseDimension] = Field(default_factory=list, max_length=6)
+    next_question: SenseQuestion | None = None
+
+    @model_validator(mode="after")
+    def valid_transition(self) -> "SenseAssessment":
+        if len(self.resolved_dimensions) != len(set(self.resolved_dimensions)):
+            raise ValueError("resolved dimensions must be unique")
+        if self.status == "question" and self.next_question is None:
+            raise ValueError("question assessments require one next question")
+        if self.status == "ready":
+            if self.next_question is not None:
+                raise ValueError("ready assessments cannot include a question")
+            if set(self.resolved_dimensions) != set(ALL_SENSE_DIMENSIONS):
+                raise ValueError("ready assessments must resolve all SixSense dimensions")
+        return self
+
+
 class IntakeAnswer(BaseModel):
     dimension: SenseDimension
     answer: str = Field(min_length=2, max_length=3000)
@@ -241,6 +324,14 @@ class IntakeAnswer(BaseModel):
 
 class IntakeRevision(BaseModel):
     change_request: str = Field(min_length=2, max_length=2000)
+
+
+class IntakeReroute(BaseModel):
+    """A user-confirmed replacement ToolPack for an existing Outcome Preview."""
+
+    requested_project_kind: Literal["browser", "godot"]
+    requested_toolpack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    requested_toolpack_binding: ToolPackBinding
 
 
 class IntakeRecord(BaseModel):
@@ -254,6 +345,10 @@ class IntakeRecord(BaseModel):
     owner_id: str = ""
     selected_project_id: str | None = None
     source_snapshot: ArchiveSnapshot | None = None
+    requested_project_kind: Literal["browser", "godot"] | None = None
+    requested_toolpack_id: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    requested_toolpack_binding: ToolPackBinding | None = None
+    requested_work_mode: Literal["new_product_build", "existing_project_repair"] = "new_product_build"
     answers: dict[str, str] = Field(default_factory=dict)
     resolved_dimensions: list[SenseDimension] = Field(default_factory=list)
     question_history: list[SenseQuestion] = Field(default_factory=list, max_length=6)
@@ -275,6 +370,7 @@ class QuestSpec(BaseModel):
 class QuestPlan(BaseModel):
     product_summary: str = Field(min_length=30, max_length=800)
     architecture_decision: str = Field(min_length=30, max_length=800)
+    toolpack_binding: ToolPackBinding | None = None
     quests: list[QuestSpec] = Field(min_length=2, max_length=5)
 
     @model_validator(mode="after")
@@ -290,26 +386,75 @@ class QuestPlan(BaseModel):
 
 
 class ArtifactFile(BaseModel):
-    path: str = Field(pattern=r"^(index\.html|styles\.css|app\.js|journey\.json|README\.md)$")
-    content: str = Field(min_length=1, max_length=50_000)
+    path: str = Field(min_length=1, max_length=1000)
+    content: str = Field(min_length=1, max_length=2_000_000)
+
+    @model_validator(mode="after")
+    def safe_relative_path(self) -> "ArtifactFile":
+        normalized = self.path.replace("\\", "/")
+        parts = normalized.split("/")
+        if (
+            normalized.startswith("/")
+            or ":" in parts[0]
+            or any(part in {"", ".", ".."} for part in parts)
+        ):
+            raise ValueError("artifact path must stay relative to the artifact root")
+        return self
+
+
+class ArtifactAsset(BaseModel):
+    path: str = Field(pattern=r"^assets/[a-z0-9][a-z0-9._-]{0,79}\.png$")
+    media_type: Literal["image/png"] = "image/png"
+    data_base64: str = Field(min_length=12, max_length=4_000_000)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    width: int = Field(ge=256, le=2048)
+    height: int = Field(ge=256, le=2048)
+
+    @model_validator(mode="after")
+    def digest_matches_payload(self) -> "ArtifactAsset":
+        try:
+            payload = base64.b64decode(self.data_base64, validate=True)
+        except ValueError as exc:
+            raise ValueError("artifact asset must contain valid base64") from exc
+        if hashlib.sha256(payload).hexdigest() != self.sha256:
+            raise ValueError("artifact asset digest does not match its payload")
+        if not 1_024 <= len(payload) <= 2_500_000:
+            raise ValueError("artifact asset size is outside the approved bound")
+        if len(payload) < 24 or not payload.startswith(b"\x89PNG\r\n\x1a\n") or payload[12:16] != b"IHDR":
+            raise ValueError("artifact asset must contain a PNG IHDR header")
+        actual_width, actual_height = struct.unpack(">II", payload[16:24])
+        if (actual_width, actual_height) != (self.width, self.height):
+            raise ValueError("artifact asset dimensions do not match its PNG payload")
+        if actual_width * actual_height > 4_000_000:
+            raise ValueError("artifact asset pixel count exceeds the approved bound")
+        return self
+
+    def bytes(self) -> bytes:
+        return base64.b64decode(self.data_base64, validate=True)
 
 
 class ArtifactBundle(BaseModel):
     revision_summary: str = Field(min_length=10, max_length=2000)
-    files: list[ArtifactFile] = Field(min_length=5, max_length=5)
+    files: list[ArtifactFile] = Field(min_length=1, max_length=256)
+    assets: list[ArtifactAsset] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
-    def exact_file_set(self) -> "ArtifactBundle":
+    def unique_file_set(self) -> "ArtifactBundle":
         paths = [item.path for item in self.files]
         if len(paths) != len(set(paths)):
             raise ValueError("artifact paths must be unique")
-        expected = {"index.html", "styles.css", "app.js", "journey.json", "README.md"}
-        if set(paths) != expected:
-            raise ValueError("artifact bundle must contain the complete authorized file set")
+        asset_paths = [item.path for item in self.assets]
+        if len(asset_paths) != len(set(asset_paths)):
+            raise ValueError("artifact asset paths must be unique")
+        if set(paths).intersection(asset_paths):
+            raise ValueError("artifact text and binary paths must be unique")
         return self
 
     def file_map(self) -> dict[str, str]:
         return {item.path: item.content for item in self.files}
+
+    def asset_map(self) -> dict[str, ArtifactAsset]:
+        return {item.path: item for item in self.assets}
 
 
 class VisualConcept(BaseModel):
@@ -333,6 +478,94 @@ class VisualConceptPlan(BaseModel):
             raise ValueError("visual candidates must be ordered V1, V2, V3")
         if len({item.name.casefold() for item in self.candidates}) != 3:
             raise ValueError("visual candidates must have distinct names")
+        return self
+
+
+class VisualAssetGate(BaseModel):
+    candidate_id: str = Field(pattern=r"^V[1-3]$")
+    approved: bool
+    contains_text_or_glyphs: bool
+    contains_interface_elements: bool
+    contains_logo_or_watermark: bool
+    issues: list[str] = Field(default_factory=list, max_length=6)
+    rationale: str = Field(min_length=20, max_length=600)
+
+    @model_validator(mode="after")
+    def forbidden_content_cannot_be_approved(self) -> "VisualAssetGate":
+        forbidden = self.contains_text_or_glyphs or self.contains_interface_elements or self.contains_logo_or_watermark
+        if self.approved == forbidden:
+            raise ValueError("visual asset approval must reject every forbidden-content signal")
+        if forbidden and not self.issues:
+            raise ValueError("rejected visual assets require a concrete issue")
+        return self
+
+
+class SpriteSlotVisualFinding(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    sprite_id: str = Field(pattern=r"^[a-z][a-z0-9_]{1,31}$")
+    complete_full_body: bool
+    required_equipment_preserved: bool
+    background_residue_absent: bool
+    role_is_readable: bool
+    issue: str | None = Field(default=None, min_length=3, max_length=300)
+
+    @model_validator(mode="after")
+    def issue_matches_signals(self) -> "SpriteSlotVisualFinding":
+        safe = all((
+            self.complete_full_body,
+            self.required_equipment_preserved,
+            self.background_residue_absent,
+            self.role_is_readable,
+        ))
+        if safe == (self.issue is not None):
+            raise ValueError("sprite slot issue must be present exactly when a completeness signal fails")
+        return self
+
+
+class SpriteAtlasGate(BaseModel):
+    """Independent semantic gate for one normalized gameplay sprite atlas."""
+
+    approved: bool
+    slot_count_matches: bool
+    roles_are_distinguishable: bool
+    style_is_consistent: bool
+    contains_text_or_glyphs: bool
+    contains_interface_elements: bool
+    contains_logo_or_watermark: bool
+    has_clipped_or_overlapping_sprites: bool
+    all_characters_complete: bool
+    all_required_equipment_preserved: bool
+    background_residue_absent: bool
+    slot_findings: list[SpriteSlotVisualFinding] = Field(min_length=1, max_length=12)
+    issues: list[str] = Field(default_factory=list, max_length=8)
+    rationale: str = Field(min_length=20, max_length=800)
+
+    @model_validator(mode="after")
+    def approval_matches_signals(self) -> "SpriteAtlasGate":
+        safe = (
+            self.slot_count_matches
+            and self.roles_are_distinguishable
+            and self.style_is_consistent
+            and not self.contains_text_or_glyphs
+            and not self.contains_interface_elements
+            and not self.contains_logo_or_watermark
+            and not self.has_clipped_or_overlapping_sprites
+            and self.all_characters_complete
+            and self.all_required_equipment_preserved
+            and self.background_residue_absent
+            and all(
+                item.complete_full_body
+                and item.required_equipment_preserved
+                and item.background_residue_absent
+                and item.role_is_readable
+                for item in self.slot_findings
+            )
+        )
+        if self.approved != safe:
+            raise ValueError("sprite atlas approval must match every semantic safety signal")
+        if not safe and not self.issues:
+            raise ValueError("rejected sprite atlases require a concrete issue")
         return self
 
 
@@ -382,8 +615,17 @@ class VisualSelectionReceipt(BaseModel):
     selected_artifact_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     eligible_candidate_ids: list[str] = Field(min_length=2, max_length=3)
     screenshot_paths: dict[str, str]
+    asset_sha256_by_candidate: dict[str, str] = Field(default_factory=dict)
     selection: VisualSelection
     created_at: str = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def assets_match_eligible_candidates(self) -> "VisualSelectionReceipt":
+        if set(self.asset_sha256_by_candidate) != set(self.eligible_candidate_ids):
+            raise ValueError("visual asset receipts must match the eligible candidates exactly")
+        if any(not re.fullmatch(r"[a-f0-9]{64}", digest) for digest in self.asset_sha256_by_candidate.values()):
+            raise ValueError("visual asset receipt digests must be SHA-256 values")
+        return self
 
 
 class CriterionFinding(BaseModel):
@@ -421,6 +663,7 @@ class QuestReceipt(BaseModel):
     quest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     parent_receipt_id: str | None = None
     artifact_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    toolpack_binding: ToolPackBinding | None = None
     deterministic_evidence: DeterministicEvidence
     independent_verification: AgentVerification
     repair_rounds: int = Field(ge=0, le=2)
@@ -432,6 +675,7 @@ class RunRecord(BaseModel):
     run_id: str
     status: RunStatus
     brief_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    toolpack_binding: ToolPackBinding | None = None
     current_quest_id: str | None = None
     completed_receipt_ids: list[str] = Field(default_factory=list)
     message: str

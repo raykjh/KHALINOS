@@ -1,0 +1,40 @@
+{
+  "schema_version": "khalinos-godot-cloud-qualification-evidence-v1",
+  "captured_at": "2026-08-18T10:37:42Z",
+  "source": {
+    "release": "Godot 4.7.1-stable",
+    "official_asset_url": "https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip",
+    "zip_sha256": "c7ff14fd28472c8d4f193043de30278dcf7e5241a1dcf7566b02e27addaa33ba",
+    "executable_sha256": "32f8d7596c4b41185512b1c49d69f2da3be018fd784a53e349fa92a98a97bcde",
+    "executable_size_bytes": 144583504
+  },
+  "cloud": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "job": "khalinos-godot-toolpack-staging",
+    "execution": "khalinos-godot-toolpack-staging-m2vn5",
+    "container_image_digest": "sha256:47bfaecf3fee5f3688526f11a8a52c74e0f9132a2c1a6229253c13e35b1ac0cd",
+    "completed": true,
+    "duration_seconds": 10.23,
+    "max_retries": 0
+  },
+  "toolpack_binding": {
+    "toolpack_id": "godot.topology",
+    "version": "1.0.1",
+    "manifest_sha256": "f56a3da67a566f11ab7c1498714fa5cb551b2fca5837f237a9f685f7ae616728"
+  },
+  "artifact": {
+    "plan_sha256": "5ec4a5fbdf9ec46443b53c7b97787c8583d7d783e6523d6f62538c1752b9dfff",
+    "bundle_sha256": "e259cafab1e7b75890fe25c1d69e41dd1627cb210ed06792d944ded28dd4cec7",
+    "materialized_file_count": 8
+  },
+  "checks": {
+    "approved_executable_digest": true,
+    "headless_process": true,
+    "probe_schema": true,
+    "all_regions_loaded": true,
+    "probe_error_free": true,
+    "probe_passed": true
+  },
+  "passed": true
+}

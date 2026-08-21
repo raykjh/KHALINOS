@@ -1,0 +1,118 @@
+{
+  "receipt_id": "QR-182fbb5d8ebd45da",
+  "quest_id": "Q1",
+  "quest_sha256": "f10f9b2a1defc3c3da2c5ee8ddac1e23ddcff8dacdffdd1c9bc142de2242bfd5",
+  "parent_receipt_id": "VS-969dda8af8ca4a1f",
+  "artifact_sha256": "5eb440e336e7356123980266fd8ff3355904bddab93c8d9bf7d41bb437064da2",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.4.0",
+    "manifest_sha256": "3cb606a3dd18393f5fe2d72a30a0349cd770f4ae3b1bdbbeb95e8f32197ca9f2"
+  },
+  "deterministic_evidence": {
+    "passed": true,
+    "checks": {
+      "approved_executable_digest": true,
+      "asset_import_process": true,
+      "headless_process": true,
+      "probe_schema": true,
+      "formation_instantiated": true,
+      "movement_applied": true,
+      "enemy_spawned": true,
+      "auto_ability_applied": true,
+      "shared_health_initialized": true,
+      "level_choice_offered": true,
+      "level_choice_applied": true,
+      "session_duration_bound": true,
+      "level_schedule_bound": true,
+      "upgrade_role_order_executed": true,
+      "three_choice_profession_contract": true,
+      "seeded_profession_alternatives": true,
+      "party_stats_aggregated": true,
+      "resurrection_contract_executed": true,
+      "victory_at_session_end": true,
+      "deterministic_seed_bound": true,
+      "probe_passed": true,
+      "trusted_asset_materialized": true,
+      "sprite_contract_present": true,
+      "sprite_atlas_loaded": true,
+      "sprite_slot_count_bound": true,
+      "all_sprite_ids_mapped": true,
+      "trusted_sprite_atlas_materialized": true,
+      "display_render_process": true,
+      "display_render_frames": true,
+      "display_render_dimensions": true,
+      "display_render_nontrivial": true
+    },
+    "issues": [],
+    "screenshot_names": [
+      "godot-gameplay-render00000002.png"
+    ],
+    "criterion_evidence": {
+      "The probe verifies a 600-second session, ten Trinity levels at 60-second intervals, and victory exactly at the session boundary.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "The probe verifies Tank, Damage, and Healer upgrade turns in order, with one current-profession rank-up and two alternative professions at every level choice.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "The probe verifies that automatic priest resurrection stores at most one charge and consumes it to survive otherwise lethal shared-health damage.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Continuous formation movement and camera tracking function correctly.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Automatic combat, targeting, and skill activation execute on scheduled intervals.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Record collection increases Trinity Level and triggers the correct promotion cycle overlay.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Promotion choices offer one guaranteed advancement and two seeded random alternatives.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ],
+      "Selecting a promotion immediately updates the hero's stats, skills, and visual labels.": [
+        "Godot deterministic gameplay probe exercised formation movement, enemy spawning, automatic abilities, summed party stats, 600-second victory, 10-level progression every 60 seconds, ordered three-option profession choices with one guaranteed rank-up and two distinct seeded alternatives, and bounded resurrection with seed=42; the display runtime produced 3 1280x720 PNG frames.",
+        "Independent Sprite Atlas Gate approved 7 bound slots; the final Godot probe loaded the atlas and mapped every declared hero and enemy ID."
+      ]
+    }
+  },
+  "independent_verification": {
+    "findings": [
+      {
+        "criterion": "Continuous formation movement and camera tracking function correctly.",
+        "passed": true,
+        "evidence": "The deterministic gameplay probe verified continuous formation movement and camera tracking. The compiled artifact contains scripts/khalinos_gameplay.gd which implements the movement of the three-hero formation and camera tracking centered on the formation anchor."
+      },
+      {
+        "criterion": "Shared Trinity statistics (Attack, Defense, Health, Speed) are correctly calculated and applied.",
+        "passed": true,
+        "evidence": "File inspection of scripts/khalinos_gameplay.gd confirms that the shared Trinity statistics (Attack, Defense, Health, Speed) are calculated as the sum of the individual contributions of the three heroes. The gameplay probe verified that these summed values are correctly applied to the party state."
+      },
+      {
+        "criterion": "The probe verifies that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes.",
+        "passed": true,
+        "evidence": "The deterministic gameplay probe output verified that party health, attack, defense, attack speed, and movement speed equal the sum of all three heroes' contributions under the 'sum' team stat mode."
+      }
+    ],
+    "verdict": "PASS",
+    "repair_instructions": []
+  },
+  "repair_rounds": 0,
+  "state": "passed",
+  "created_at": "2026-08-21T02:36:39.783889+00:00"
+}

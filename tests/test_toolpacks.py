@@ -1,0 +1,196 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from khalinos.toolpacks import (
+    CapabilityDeclaration,
+    EvidenceContract,
+    ExternalDependency,
+    OutputContract,
+    RegisteredToolPack,
+    RoutingContract,
+    ToolPackBinding,
+    ToolPackManifest,
+    ToolPackRegistry,
+    source_set_sha256,
+)
+
+
+class FakeExecutionAdapter:
+    adapter_id = "fixture.execution.v1"
+
+    def materialize(self, artifact: object, root: Path) -> None:
+        del artifact, root
+
+
+class FakeEvidenceAdapter:
+    adapter_id = "fixture.evidence.v1"
+
+    def verify(
+        self,
+        artifact: object,
+        root: Path,
+        evidence_dir: Path,
+        acceptance_criteria: list[str],
+    ) -> dict:
+        del artifact, root, evidence_dir, acceptance_criteria
+        return {"passed": True}
+
+
+def manifest() -> ToolPackManifest:
+    return ToolPackManifest(
+        toolpack_id="fixture.product",
+        version="1.0.0",
+        display_name="Fixture Product",
+        description="A domain-neutral fixture used to test Kernel contracts.",
+        implementation_sha256="1" * 64,
+        execution_adapter_id="fixture.execution.v1",
+        project_kinds=("fixture",),
+        work_modes=("build", "repair"),
+        capabilities=(
+            CapabilityDeclaration(
+                capability_id="fixture.control",
+                operations=("build", "repair"),
+                scopes=("artifact:read", "artifact:write"),
+            ),
+        ),
+        routing=RoutingContract(
+            primary_project_kind="fixture",
+            supported_outcomes=("bounded fixture artifacts",),
+            excluded_outcomes=("unbounded fixture behavior",),
+            selection_guidance="Choose this fixture only for bounded contract tests.",
+        ),
+        output=OutputContract(
+            artifact_kind="fixture.bundle",
+            authorized_paths=("artifact.txt",),
+            max_file_count=1,
+            max_total_bytes=1024,
+        ),
+        evidence=EvidenceContract(
+            adapter_id="fixture.evidence.v1",
+            evidence_types=("deterministic.fixture",),
+        ),
+    )
+
+
+def registered() -> RegisteredToolPack:
+    return RegisteredToolPack(manifest(), FakeExecutionAdapter(), FakeEvidenceAdapter())
+
+
+def registered_for(toolpack_id: str, project_kind: str) -> RegisteredToolPack:
+    value = manifest().model_copy(update={
+        "toolpack_id": toolpack_id,
+        "project_kinds": (project_kind,),
+        "work_modes": ("new_product_build",),
+    })
+    return RegisteredToolPack(value, FakeExecutionAdapter(), FakeEvidenceAdapter())
+
+
+def test_manifest_digest_is_canonical_and_binding_is_exact() -> None:
+    first = registered()
+    second = registered()
+    assert first.manifest.sha256() == second.manifest.sha256()
+    assert first.binding() == second.binding()
+
+
+def test_external_model_digest_is_part_of_the_toolpack_binding() -> None:
+    dependency = ExternalDependency(
+        dependency_id="fixture.model",
+        kind="model",
+        version="1",
+        sha256="2" * 64,
+        byte_size=128,
+        source_url="https://example.com/fixture.onnx",
+        license_id="Apache-2.0",
+    )
+    original = manifest().model_copy(update={"external_dependencies": (dependency,)})
+    changed = original.model_copy(update={
+        "external_dependencies": (dependency.model_copy(update={"sha256": "3" * 64}),),
+    })
+    assert original.sha256() != changed.sha256()
+
+
+def test_registry_resolves_only_the_exact_approved_binding() -> None:
+    pack = registered()
+    registry = ToolPackRegistry([pack])
+    assert registry.resolve(pack.binding()) is pack
+
+    changed = ToolPackBinding(
+        toolpack_id=pack.binding().toolpack_id,
+        version=pack.binding().version,
+        manifest_sha256="0" * 64,
+    )
+    with pytest.raises(PermissionError, match="does not match"):
+        registry.resolve(changed)
+    with pytest.raises(PermissionError, match="not approved"):
+        registry.binding_for("unknown.product")
+
+
+def test_registry_selects_only_one_exact_compatible_toolpack() -> None:
+    browser = registered_for("browser.product", "browser")
+    godot = registered_for("godot.topology", "godot")
+    registry = ToolPackRegistry([browser, godot])
+
+    assert registry.select(
+        project_kind="browser", work_mode="new_product_build"
+    ) is browser
+    assert registry.select(
+        project_kind="godot", work_mode="new_product_build"
+    ) is godot
+    with pytest.raises(PermissionError, match="No approved ToolPack"):
+        registry.select(project_kind="unity", work_mode="new_product_build")
+    with pytest.raises(PermissionError, match="No approved ToolPack"):
+        registry.select(
+            project_kind="godot",
+            work_mode="new_product_build",
+            requested_toolpack_id="browser.product",
+        )
+
+
+def test_registry_rejects_ambiguous_implicit_selection() -> None:
+    first = registered_for("browser.first", "browser")
+    second = registered_for("browser.second", "browser")
+    registry = ToolPackRegistry([first, second])
+    with pytest.raises(PermissionError, match="ambiguous"):
+        registry.select(project_kind="browser", work_mode="new_product_build")
+    assert registry.select(
+        project_kind="browser",
+        work_mode="new_product_build",
+        requested_toolpack_id="browser.first",
+    ) is first
+
+
+def test_registry_and_adapter_contracts_reject_ambiguous_registration() -> None:
+    pack = registered()
+    with pytest.raises(ValueError, match="duplicate"):
+        ToolPackRegistry([pack, pack])
+
+    class WrongExecutionAdapter(FakeExecutionAdapter):
+        adapter_id = "wrong.execution.v1"
+
+    with pytest.raises(ValueError, match="execution adapter"):
+        RegisteredToolPack(manifest(), WrongExecutionAdapter(), FakeEvidenceAdapter())
+
+
+def test_manifest_collections_and_paths_are_canonical_and_bounded() -> None:
+    raw = manifest().model_dump(mode="json")
+    raw["work_modes"] = ["repair", "build"]
+    with pytest.raises(ValueError, match="unique and sorted"):
+        ToolPackManifest.model_validate(raw)
+
+    raw = manifest().model_dump(mode="json")
+    raw["output"]["authorized_paths"] = ["../outside.txt"]
+    with pytest.raises(ValueError, match="artifact root"):
+        ToolPackManifest.model_validate(raw)
+
+
+def test_implementation_source_digest_is_newline_neutral_and_change_sensitive(tmp_path: Path) -> None:
+    source = tmp_path / "adapter.py"
+    source.write_bytes(b"first\nsecond\n")
+    first = source_set_sha256(tmp_path, ["adapter.py"])
+    source.write_bytes(b"first\r\nsecond\r\n")
+    assert source_set_sha256(tmp_path, ["adapter.py"]) == first
+    source.write_bytes(b"first\nchanged\n")
+    assert source_set_sha256(tmp_path, ["adapter.py"]) != first

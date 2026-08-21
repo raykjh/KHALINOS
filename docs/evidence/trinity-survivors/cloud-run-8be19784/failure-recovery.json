@@ -1,0 +1,47 @@
+{
+  "policy": "Preserve safe failures, correct generalized causes, never rewrite a blocked receipt, and always create a fresh run ID after a change.",
+  "events": [
+    {
+      "run_id": "0b18bcec8f6b413ba4bf331dfe0a0ff7",
+      "result": "failed",
+      "cause": "The model paraphrased one immutable acceptance criterion.",
+      "correction": "Bind ordered Quest criteria verbatim on the trusted host."
+    },
+    {
+      "run_id": "20474debcaa54be98e0abaa42260532e",
+      "result": "failed",
+      "cause": "One generated troll source had no isolated central character after approved segmentation.",
+      "correction": "Regenerate only the rejected sprite slot once with deterministic feedback; do not weaken normalization or regenerate accepted slots."
+    },
+    {
+      "run_id": "7f3277a53c76431e93225a377380dd21",
+      "result": "failed",
+      "cause": "A nonspatial resurrection ability used a radius below the shared spatial schema minimum.",
+      "correction": "Canonicalize only nonspatial resurrection radius to the trusted minimum; keep invalid damage and heal radii rejected."
+    },
+    {
+      "run_id": "9c6a74a9cbce4946a0278852b8f25f07",
+      "result": "blocked",
+      "cause": "All 44 deterministic checks passed, but the Verifier returned the wrong number of criterion findings for Q1.",
+      "correction": "Request one bounded schema-format retry with the exact ordered criteria; a second mismatch still blocks."
+    },
+    {
+      "run_id": "12807554599c416d88646fec1207ce16",
+      "result": "failed",
+      "cause": "A copied brief carried a stale ToolPack manifest binding.",
+      "correction": "The trusted registry rejected it before planning; create a fresh brief bound to the current approved manifest."
+    },
+    {
+      "execution": "khalinos-worker-sfj44",
+      "result": "failed",
+      "cause": "An operator command supplied an empty run ID after a local import error.",
+      "correction": "Worker SAFE_RUN_ID validation rejected it before reading or mutating any run; validate the ID locally before dispatch."
+    },
+    {
+      "run_id": "8be1978415eb40b99d4dddbe8d143c33",
+      "result": "passed",
+      "cause": null,
+      "correction": "Fresh execution on the current immutable ToolPack binding passed without Technical Repair rounds."
+    }
+  ]
+}

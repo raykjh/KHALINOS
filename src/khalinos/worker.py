@@ -10,17 +10,19 @@ from khalinos.agents import AgentTeam
 from khalinos.models import SAFE_RUN_ID
 from khalinos.storage import CloudRunStore
 from khalinos.projects import CloudProjectStore
-from khalinos.workflow import execute_run
+from khalinos.registry import APPROVED_TOOLPACKS
+from khalinos.run_router import execute_authorized_run
 
 
 def main() -> int:
     run_id = os.environ.get("KHALINOS_RUN_ID", "")
     if not SAFE_RUN_ID.fullmatch(run_id):
         raise ValueError("KHALINOS_RUN_ID is missing or invalid")
-    result = asyncio.run(execute_run(
+    result = asyncio.run(execute_authorized_run(
         run_id,
         store=CloudRunStore(),
         team=AgentTeam(),
+        registry=APPROVED_TOOLPACKS,
         project_store=CloudProjectStore(),
     ))
     print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False))

@@ -182,6 +182,7 @@
     <aside class="rail" aria-label="Progress">
       <div class="phase active" data-phase="materials">Materials</div>
       <div class="phase" data-phase="goal">Goal</div>
+      <div class="phase" data-phase="route" hidden>Compatibility</div>
       <div class="phase" data-phase="senses">SixSense</div>
       <div class="phase" data-phase="preview">Preview</div>
       <div class="phase" data-phase="execute">Execute</div>
@@ -219,7 +220,16 @@
         <p class="lead" id="goalContext">A new project will be created. Describe the result you want KHALINOS to build.</p>
         <label>Project name<input id="projectName" value="My project" minlength="2" required></label>
         <label>Goal<textarea id="goal" minlength="20" required placeholder="Describe the goal, required features, exclusions, and desired design. More detail helps KHALINOS guide the work effectively."></textarea></label>
-        <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Submit goal</button></div>
+        <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Find the best route</button></div>
+      </div>
+
+      <div class="step" id="routeStep">
+        <div class="kicker">Route recommendation</div>
+        <h2>Choose how KHALINOS should build this outcome.</h2>
+        <p class="lead">KHALINOS compares the goal only with approved ToolPacks. You confirm the route before SixSense begins.</p>
+        <div class="inspection" id="routeNotice"><strong id="routeStatus">Reviewing approved routes…</strong><p id="routeSummary"></p></div>
+        <div class="entry-grid" id="routeOptions"></div>
+        <div class="actions"><button class="secondary" id="backToGoal">Back to goal</button><button id="confirmRoute" disabled>Continue with selected route</button></div>
       </div>
 
       <div class="step" id="sensesStep">
@@ -248,7 +258,7 @@
           <article class="card"><h3>Completion & quality</h3><ul id="quality"></ul></article>
           <article class="card wide"><h3>Authority, budget & delivery</h3><ul id="authority"></ul><div class="estimate" id="estimate"></div></article>
         </div>
-        <div class="actions"><button class="secondary" id="revise">Revise outcome</button><button id="authorize">Authorize and execute</button></div>
+        <div class="actions"><button class="secondary" id="changeRoute">Change route</button><button class="secondary" id="revise">Revise outcome</button><button id="authorize">Authorize and execute</button></div>
         <div id="revisionBox" hidden><label>What should change?<textarea id="revisionRequest" placeholder="Describe the change. Confirmed answers and uploaded sources will be carried into a new SixSense pass."></textarea></label><button id="restart">Restart SixSense with this change</button></div>
       </div>
 
@@ -287,8 +297,8 @@
   </div>
 </main>
 <script>
-const phases=['materials','goal','senses','preview','execute'];
-let intake=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='';
+const phases=['materials','goal','route','senses','preview','execute'];
+let intake=null, routeRecommendation=null, materialInspection=null, materialDescriptors=[], projectLibraryRecords=[], authCredential='', currentUser=null, selectedProjectId=null, externalUploadId=null, pollTimer=null, elapsedTimer=null, latestRunRecord=null, workChoice='', pendingWorkChoice='', requestedProjectKind='', requestedToolpackId='', requestedToolpackBinding=null;
 const AUTH_SESSION_KEY='khalinos_google_credential';
 const $=selector=>document.querySelector(selector);
 function show(name){
@@ -302,8 +312,8 @@ function apiError(response,text){try{return JSON.parse(text).detail||text;}catch
 async function filePayload(file){
   const data=await file.arrayBuffer(); let binary=''; const bytes=new Uint8Array(data); const chunk=0x8000;
   for(let i=0;i<bytes.length;i+=chunk) binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-  const inferred={'txt':'text/plain','md':'text/markdown','json':'application/json','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp'};
-  return {filename:file.name,media_type:file.type||inferred[file.name.split('.').pop().toLowerCase()]||'text/plain',data_base64:btoa(binary)};
+  const inferred={'txt':'text/plain','md':'text/markdown','json':'application/json','zip':'application/zip','png':'image/png','jpg':'image/jpeg','jpeg':'image/jpeg','webp':'image/webp'};
+  return {filename:file.name,media_type:inferred[file.name.split('.').pop().toLowerCase()]||file.type||'text/plain',data_base64:btoa(binary)};
 }
 function selectedMaterialFiles(){return [...$('#externalZip').files,...$('#materials').files];}
 function descriptor(file){return {filename:file.name,relative_path:file.webkitRelativePath||file.name,media_type:file.type||'application/octet-stream',size_bytes:file.size};}
@@ -348,7 +358,7 @@ async function loadProjects(reveal=false){
   if(!authCredential)return;
   const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
   const projects=await response.json();projectLibraryRecords=projects;const library=$('#projectLibrary');if(reveal)library.hidden=false;
-  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'?`<button data-play-project="${item.project_id}">Play result</button>`:''}<button class="secondary" data-improve-project="${item.project_id}">Improve</button></div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
+  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'&&['browser','web'].includes(item.project_kind)?`<button data-play-project="${item.project_id}">Play result</button>`:''}${['browser','web'].includes(item.project_kind)?`<button class="secondary" data-improve-project="${item.project_id}">Improve</button>`:''}</div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
   library.querySelectorAll('[data-play-project]').forEach(button=>button.addEventListener('click',()=>playProject(button.dataset.playProject)));
   library.querySelectorAll('[data-improve-project]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.improveProject))));
 }
@@ -358,10 +368,13 @@ async function artifactBundle(projectId){
 async function playProject(projectId){
   const preview=window.open('about:blank','_blank');if(!preview){alert('Allow pop-ups for KHALINOS to open the verified result.');return;}preview.opener=null;preview.document.title='Loading verified result…';
   try{
-    const bundle=await artifactBundle(projectId);const files=Object.fromEntries(bundle.files.map(file=>[file.path,file.content]));const parser=new DOMParser();const documentCopy=parser.parseFromString(files['index.html'],'text/html');const assets=[];
-    documentCopy.querySelectorAll('link[rel="stylesheet"]').forEach(link=>{const url=URL.createObjectURL(new Blob([files['styles.css']],{type:'text/css'}));assets.push(url);link.href=url;});
-    documentCopy.querySelectorAll('script[src]').forEach(script=>{const url=URL.createObjectURL(new Blob([files['app.js']],{type:'text/javascript'}));assets.push(url);script.src=url;});
-    const htmlUrl=URL.createObjectURL(new Blob([`<!doctype html>${documentCopy.documentElement.outerHTML}`],{type:'text/html'}));assets.push(htmlUrl);preview.location.href=htmlUrl;setTimeout(()=>assets.forEach(url=>URL.revokeObjectURL(url)),300000);
+    const bundle=await artifactBundle(projectId);const files=Object.fromEntries(bundle.files.map(file=>[file.path,file.content]));const parser=new DOMParser();const documentCopy=parser.parseFromString(files['index.html'],'text/html');const objectUrls=[];const assetUrls={};
+    for(const asset of bundle.assets||[]){const binary=atob(asset.data_base64);const bytes=Uint8Array.from(binary,char=>char.charCodeAt(0));const url=URL.createObjectURL(new Blob([bytes],{type:asset.media_type}));objectUrls.push(url);assetUrls[asset.path]=url;}
+    documentCopy.querySelectorAll('[src]').forEach(element=>{const original=element.getAttribute('src');if(assetUrls[original])element.setAttribute('src',assetUrls[original]);});
+    let css=files['styles.css'];for(const [path,url] of Object.entries(assetUrls))css=css.split(path).join(url);
+    documentCopy.querySelectorAll('link[rel="stylesheet"]').forEach(link=>{const url=URL.createObjectURL(new Blob([css],{type:'text/css'}));objectUrls.push(url);link.href=url;});
+    documentCopy.querySelectorAll('script[src]').forEach(script=>{const url=URL.createObjectURL(new Blob([files['app.js']],{type:'text/javascript'}));objectUrls.push(url);script.src=url;});
+    const htmlUrl=URL.createObjectURL(new Blob([`<!doctype html>${documentCopy.documentElement.outerHTML}`],{type:'text/html'}));objectUrls.push(htmlUrl);preview.location.href=htmlUrl;setTimeout(()=>objectUrls.forEach(url=>URL.revokeObjectURL(url)),300000);
   }catch(error){preview.close();alert(`Verified result could not be opened: ${error.message}`);}
 }
 async function selectProject(project){
@@ -392,11 +405,11 @@ function clearWorkingMaterial(){
   ['chooseProject','toggleLocator','toggleZip'].forEach(id=>document.getElementById(id).setAttribute('aria-expanded','false'));['projectLibrary','locatorPanel','zipPanel'].forEach(id=>document.getElementById(id).hidden=true);
 }
 function chooseWork(mode){
-  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
+  if(!authCredential){pendingWorkChoice=mode;requireSignIn();return;}pendingWorkChoice='';workChoice=mode;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;routeRecommendation=null;clearWorkingMaterial();$('#startNewProject').classList.toggle('selected',mode==='new');$('#improveExisting').classList.toggle('selected',mode==='existing');$('#existingOptions').hidden=mode!=='existing';$('#materialOptions').hidden=false;$('#inspectMaterials').hidden=false;$('#inspectMaterials').textContent=mode==='new'?'Continue with new project':'Continue with existing project';
 }
 $('#startNewProject').addEventListener('click',()=>chooseWork('new'));
 $('#improveExisting').addEventListener('click',()=>chooseWork('existing'));
-$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
+$('#judgeDemo').addEventListener('click',async()=>{const demo=await fetch('/api/demo/project').then(response=>response.json());workChoice='demo';requestedProjectKind='browser';requestedToolpackId='browser.product';requestedToolpackBinding=null;clearWorkingMaterial();materialDescriptors=demo.materials;$('#projectName').value=demo.project_name;$('#goal').value=demo.goal;$('#projectLocator').value=demo.project_locator;await inspectDescriptorSet();$('#goalContext').textContent=`${demo.notice} ${materialInspection.summary} Sign in to execute it.`;});
 function toggleMethod(button,panel,open=panel.hidden){panel.hidden=!open;button.setAttribute('aria-expanded',String(open));}
 $('#chooseProject').addEventListener('click',async()=>{if(!requireSignIn())return;const open=$('#projectLibrary').hidden;toggleMethod($('#chooseProject'),$('#projectLibrary'),open);if(open)await loadProjects(true);});
 $('#toggleLocator').addEventListener('click',()=>toggleMethod($('#toggleLocator'),$('#locatorPanel')));
@@ -413,15 +426,47 @@ $('#inspectMaterials').addEventListener('click',async()=>{
 });
 $('#beginSensing').addEventListener('click',async()=>{
   if(!requireSignIn())return;
-  const button=$('#beginSensing'); busy(button,true,'Analyzing six dimensions…');
+  const button=$('#beginSensing'); busy(button,true,workChoice==='existing'?'Analyzing six dimensions…':'Comparing approved routes…');
   try{
     if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
-    const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);
-    const sources=await Promise.all(supported.map(filePayload));
-    const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId})});
-    const text=await response.text(); if(!response.ok)throw new Error(apiError(response,text)); intake=JSON.parse(text); renderIntake();
+    if(workChoice==='existing'||workChoice==='demo'){await startSixSense();return;}
+    const response=await fetch('/api/routes/recommend',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,requested_work_mode:'new_product_build'})});
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));routeRecommendation=JSON.parse(text);
+    const exact=routeRecommendation.options.filter(item=>item.assessment.fit==='exact');
+    if(routeRecommendation.recommendation.status==='recommended'&&exact.length===1&&routeRecommendation.recommendation.recommended_toolpack_id===exact[0].toolpack.toolpack_id){
+      requestedToolpackId=exact[0].toolpack.toolpack_id;await startSixSense();return;
+    }
+    renderRoute();
   }catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}
 });
+function renderRoute(){
+  show('route');const decision=routeRecommendation.recommendation;const options=routeRecommendation.options;if(!options.some(item=>item.toolpack.toolpack_id===requestedToolpackId&&item.assessment.fit!=='incompatible'))requestedToolpackId=decision.recommended_toolpack_id||'';
+  $('#routeStatus').textContent=decision.status==='unsupported'?'No approved route can complete this goal as written.':'Recommended route';
+  $('#routeSummary').textContent=decision.status==='unsupported'?'Revise the goal or wait for a compatible approved ToolPack. KHALINOS will not force this work into the wrong runtime.':'Review the expected result and limitations. A bounded alternative changes the outcome and requires your explicit confirmation.';
+  $('#routeOptions').innerHTML=options.map(option=>{const a=option.assessment;const selected=option.toolpack.toolpack_id===requestedToolpackId;return `<button class="entry route-option${selected?' selected':''}" type="button" data-toolpack="${escapeHtml(option.toolpack.toolpack_id)}" ${a.fit==='incompatible'?'disabled':''}><strong>${escapeHtml(option.toolpack.display_name)} · ${a.fit.replace('_',' ')}</strong><span>${escapeHtml(a.expected_result)}</span><small>${escapeHtml(a.reason)}</small>${a.limitations.length?`<small>Not included: ${escapeHtml(a.limitations.join(' · '))}</small>`:''}</button>`;}).join('');
+  $('#routeOptions').querySelectorAll('[data-toolpack]:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{requestedToolpackId=button.dataset.toolpack;$('#routeOptions').querySelectorAll('.route-option').forEach(item=>item.classList.toggle('selected',item===button));$('#confirmRoute').disabled=false;}));
+  $('#confirmRoute').disabled=!requestedToolpackId;
+}
+async function startSixSense(){
+  const supported=[...$('#materials').files].filter(file=>/\.(txt|md|json|zip|png|jpe?g|webp)$/i.test(file.name)&&file.size<=10000000).slice(0,8);const sources=await Promise.all(supported.map(filePayload));const requestedWorkMode=workChoice==='existing'?'existing_project_repair':'new_product_build';
+  if(requestedWorkMode==='new_product_build'&&routeRecommendation){const option=routeRecommendation.options.find(item=>item.toolpack.toolpack_id===requestedToolpackId);if(!option)throw new Error('Choose one compatible approved route.');requestedProjectKind=option.project_kind;requestedToolpackBinding={toolpack_id:option.toolpack.toolpack_id,version:option.toolpack.version,manifest_sha256:option.toolpack.manifest_sha256};}
+  const response=await fetch('/api/intakes',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),sources,project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,selected_project_id:selectedProjectId,upload_id:externalUploadId,requested_project_kind:requestedWorkMode==='new_product_build'?requestedProjectKind:null,requested_toolpack_id:requestedWorkMode==='new_product_build'?requestedToolpackId:null,requested_toolpack_binding:requestedWorkMode==='new_product_build'?requestedToolpackBinding:null,requested_work_mode:requestedWorkMode})});
+  const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);renderIntake();
+}
+async function continueFromRoute(){
+  const option=routeRecommendation.options.find(item=>item.toolpack.toolpack_id===requestedToolpackId);if(!option)throw new Error('Choose one compatible approved route.');
+  const binding={toolpack_id:option.toolpack.toolpack_id,version:option.toolpack.version,manifest_sha256:option.toolpack.manifest_sha256};
+  if(intake?.status==='ready'){
+    const previous=intake.requested_toolpack_binding;
+    if(previous&&previous.toolpack_id===binding.toolpack_id&&previous.version===binding.version&&previous.manifest_sha256===binding.manifest_sha256){renderIntake();return;}
+    const response=await fetch(`/api/intakes/${intake.intake_id}/reroute`,{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({requested_project_kind:option.project_kind,requested_toolpack_id:option.toolpack.toolpack_id,requested_toolpack_binding:binding})});
+    const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));intake=JSON.parse(text);requestedProjectKind=option.project_kind;requestedToolpackBinding=binding;renderIntake();return;
+  }
+  await startSixSense();
+}
+$('#confirmRoute').addEventListener('click',async()=>{const button=$('#confirmRoute');busy(button,true,'Starting SixSense…');try{await continueFromRoute();}catch(error){alert(`SixSense could not start: ${error.message}`);}finally{busy(button,false);}});
+$('#backToGoal').addEventListener('click',()=>{routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
+$('#changeRoute').addEventListener('click',()=>{requestedProjectKind='';requestedToolpackBinding=null;requestedToolpackId=intake?.requested_toolpack_id||requestedToolpackId;if(routeRecommendation){renderRoute();return;}requestedToolpackId='';show('goal');});
 function renderIntake(){
   if(intake.status==='ready'){renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');
@@ -473,11 +518,11 @@ function approvedEstimate(){
 }
 function renderRun(record){
   latestRunRecord=record;const activeRole=roleFor(record);const terminal=['passed','blocked','failed'].includes(record.status);
-  const workMode=record.work_mode||intake?.material_inspection?.recommended_work_mode||'';const existing=workMode==='existing_project_repair';const sequence=existing?['owner','repair','runtime','verifier','result']:['owner','visual','maker','runtime','verifier','result'];const activeIndex=sequence.indexOf(activeRole);const skipped=existing?new Set(['visual','maker']):new Set();
+  const workMode=record.work_mode||intake?.material_inspection?.recommended_work_mode||'';const existing=workMode==='existing_project_repair';const godot=record.toolpack_binding?.toolpack_id==='godot.topology';const sequence=existing?['owner','repair','runtime','verifier','result']:godot?['owner','maker','runtime','verifier','result']:['owner','visual','maker','runtime','verifier','result'];const activeIndex=sequence.indexOf(activeRole);const skipped=existing?new Set(['visual','maker']):godot?new Set(['visual','repair']):new Set();
   $('#runId').textContent=`Run ${record.run_id}`;$('#runStatus').textContent=record.status.toUpperCase();$('#modelCalls').textContent=record.model_calls;
   const total=intake?.preview?.estimate?.quest_count||Math.max(record.completed_receipt_ids.length,1);$('#questProgress').textContent=`${Math.min(record.completed_receipt_ids.length,total)} / ${total}`;
   $('#runElapsed').textContent=elapsed(record);$('#approvedEstimate').textContent=approvedEstimate();$('#campHeadline').textContent=terminal?`${record.status.toUpperCase()} ·`:`${activeRole.replaceAll('_',' ').toUpperCase()} ·`;$('#campMessage').textContent=record.message;
-  const playable=record.status==='passed'&&record.project_id;$('#resultActions').hidden=!playable;if(playable){$('#playResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}
+  const playable=record.status==='passed'&&record.project_id&&!godot;$('#resultActions').hidden=!playable;if(playable){$('#playResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}
   document.querySelectorAll('.station').forEach(station=>{
     const role=station.dataset.role;station.classList.remove('active','done','blocked','failed');const state=station.querySelector('.station-state');
     if(skipped.has(role)){state.textContent='Not required';return;}

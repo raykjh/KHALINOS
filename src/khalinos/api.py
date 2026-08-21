@@ -13,14 +13,16 @@ from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
 from khalinos.auth import AuthenticationUnavailable, Identity, InvalidIdentity, authenticate_bearer, google_client_id
-from khalinos.intake import answer_intake, authorized_brief, inspect_materials, restart_intake, start_intake
+from khalinos.intake import answer_intake, authorized_brief, inspect_materials, reroute_intake, restart_intake, source_payloads, start_intake
 from khalinos.intake_storage import CloudIntakeStore
 from khalinos.models import (
     IntakeAnswer,
     IntakeCreate,
+    IntakeReroute,
     IntakeRevision,
     MaterialInspectionRequest,
     ProjectRecord,
+    RouteRecommendationRequest,
     RunRecord,
     RunStatus,
     UserBrief,
@@ -28,14 +30,79 @@ from khalinos.models import (
     canonical_sha256,
 )
 from khalinos.projects import CloudProjectStore
+from khalinos.registry import APPROVED_TOOLPACKS
+from khalinos.routing import RouteAdvisor
 from khalinos.sixsense import SixSenseAgent
 from khalinos.storage import CloudRunStore
+from khalinos.toolpacks import ToolPackBinding
 from khalinos.uploads import CloudUploadStore
 
 
-app = FastAPI(title="KHALINOS", version="0.5.0")
+app = FastAPI(title="KHALINOS", version="0.6.0")
 web_root = Path(__file__).with_name("web")
 app.mount("/assets", StaticFiles(directory=web_root), name="assets")
+
+
+def validate_godot_topology_brief(brief: UserBrief) -> None:
+    """Keep the public Godot path inside evidence the approved adapter can actually prove."""
+    observable_terms = (
+        "screen", "overlay", "scene", "region", "topology", "navigation",
+        "transition", "open", "load", "reach", "start",
+    )
+    unsupported_terms = (
+        "gameplay", "combat", "enemy", "player movement", "keyboard input",
+        "physics", "animation", "save game", "score", "puzzle logic",
+        "3d model", "asset generation", "multiplayer", "audio playback",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot topology evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(f"Godot topology criteria must be screen/load/navigation observations: {criterion}")
+
+
+def validate_godot_visual_brief(brief: UserBrief) -> None:
+    """Bind visual-prototype completion to evidence the real renderer can observe."""
+    observable_terms = (
+        "visual", "appearance", "style", "screen", "scene", "layout", "composition",
+        "palette", "readable", "visible", "render", "navigation", "transition", "open", "load",
+    )
+    unsupported_terms = (
+        "gameplay", "combat", "enemy ai", "player movement", "physics", "save game",
+        "score", "puzzle logic", "multiplayer", "audio playback",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot visual-prototype evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(
+                f"Godot visual-prototype criteria must be visible render or screen-flow observations: {criterion}"
+            )
+
+
+def validate_godot_gameplay_brief(brief: UserBrief) -> None:
+    """Bind the gameplay route to the mechanics its deterministic adapter can prove."""
+    observable_terms = (
+        "game", "play", "movement", "move", "formation", "hero", "enemy", "spawn",
+        "attack", "combat", "ability", "skill", "health", "damage", "heal", "shield",
+        "record", "experience", "level", "choice", "survival", "victory", "defeat",
+        "session", "visual", "render", "screen", "promotion", "profession", "upgrade",
+        "rank", "grade", "alternative", "random", "seed",
+    )
+    unsupported_terms = (
+        "3d", "multiplayer", "network", "server", "backend", "plugin", "storefront",
+        "steam", "console export", "procedural world", "open world", "save game",
+    )
+    for criterion in brief.acceptance_criteria:
+        normalized = " ".join(criterion.casefold().split())
+        if any(term in normalized for term in unsupported_terms):
+            raise ValueError(f"Godot gameplay evidence cannot verify this criterion: {criterion}")
+        if not any(term in normalized for term in observable_terms):
+            raise ValueError(
+                f"Godot gameplay criteria must be observable 2D mechanics or rendered-state outcomes: {criterion}"
+            )
 
 
 @app.get("/")
@@ -51,7 +118,7 @@ def health() -> dict[str, object]:
         "model": os.environ.get("KHALINOS_MODEL", "gemini-3.5-flash"),
         "framework": "Google ADK 2.6.2",
         "runtime": "Google Cloud Run",
-        "version": "0.5.0",
+        "version": "0.6.0",
     }
 
 
@@ -69,17 +136,45 @@ def queue_run(
     *,
     owner_id: str,
     project_id: str,
+    project_kind: str,
+    work_mode: str,
+    requested_toolpack_id: str | None = None,
+    requested_toolpack_binding: ToolPackBinding | None = None,
     source_snapshot=None,
 ) -> dict[str, object]:
+    selected = APPROVED_TOOLPACKS.select(
+        project_kind=project_kind,
+        work_mode=work_mode,
+        requested_toolpack_id=requested_toolpack_id,
+    )
+    toolpack = APPROVED_TOOLPACKS.resolve(requested_toolpack_binding) if requested_toolpack_binding else selected
+    if toolpack.binding() != selected.binding():
+        raise PermissionError("the confirmed ToolPack binding is no longer the approved compatible route")
+    binding = toolpack.binding()
+    brief_updates = {
+        "toolpack_binding": binding,
+        "authorized_output_files": list(toolpack.manifest.output.authorized_paths),
+    }
+    if toolpack.manifest.toolpack_id == "godot.topology":
+        validate_godot_topology_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    elif toolpack.manifest.toolpack_id == "godot.visual-prototype":
+        validate_godot_visual_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    elif toolpack.manifest.toolpack_id == "godot.gameplay":
+        validate_godot_gameplay_brief(brief)
+        brief_updates["max_repairs_per_quest"] = 0
+    brief = brief.model_copy(update=brief_updates)
     run_id = uuid4().hex
     record = RunRecord(
         run_id=run_id,
         status=RunStatus.QUEUED,
         brief_sha256=canonical_sha256(brief),
+        toolpack_binding=binding,
         message="The immutable user brief is queued for Cloud execution.",
         owner_id=owner_id,
         project_id=project_id,
-        work_mode="existing_project_repair" if source_snapshot else "new_product_build",
+        work_mode=work_mode,
         source_snapshot=source_snapshot,
     )
     store = CloudRunStore()
@@ -189,6 +284,25 @@ async def create_intake(
     try:
         if request.selected_project_id and request.upload_id:
             raise ValueError("choose either a KHALINOS project or one external ZIP")
+        if request.requested_work_mode == "new_product_build":
+            if request.selected_project_id or request.upload_id:
+                raise ValueError("a new product cannot be bound to an existing project snapshot")
+            if request.requested_project_kind not in {"browser", "godot"}:
+                raise ValueError("choose an approved new-project runtime before SixSense")
+        elif not request.selected_project_id and not request.upload_id:
+            raise ValueError("existing-project repair requires a KHALINOS project or validated ZIP")
+        try:
+            selected_toolpack = APPROVED_TOOLPACKS.select(
+                project_kind=request.requested_project_kind or "browser",
+                work_mode=request.requested_work_mode,
+                requested_toolpack_id=request.requested_toolpack_id,
+            )
+            if request.requested_toolpack_binding:
+                bound_toolpack = APPROVED_TOOLPACKS.resolve(request.requested_toolpack_binding)
+                if bound_toolpack.binding() != selected_toolpack.binding():
+                    raise PermissionError("the confirmed ToolPack binding does not match the selected route")
+        except PermissionError as exc:
+            raise ValueError(str(exc)) from exc
         source_snapshot = None
         if request.selected_project_id:
             project = CloudProjectStore().read_owned(request.selected_project_id, identity.owner_id)
@@ -220,6 +334,45 @@ async def create_intake(
 def inspect_submitted_materials(request: MaterialInspectionRequest) -> dict[str, object]:
     """Return advisory static classification; this endpoint never executes submitted files."""
     return inspect_materials(request).model_dump(mode="json")
+
+
+@app.post("/api/routes/recommend")
+async def recommend_route(
+    request: RouteRecommendationRequest,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    """Rank only statically approved ToolPacks; this does not grant execution authority."""
+
+    del identity
+    inspection = inspect_materials(MaterialInspectionRequest(
+        project_locator=request.project_locator,
+        materials=request.materials,
+    ))
+    candidates = APPROVED_TOOLPACKS.routing_candidates(work_mode=request.requested_work_mode)
+    if not candidates:
+        raise HTTPException(status_code=422, detail="no approved ToolPack supports this work mode")
+    try:
+        recommendation = await RouteAdvisor().recommend(request, inspection, candidates)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    manifests = {item.toolpack_id: item for item in candidates}
+    return {
+        "recommendation": recommendation.model_dump(mode="json"),
+        "options": [
+            {
+                "toolpack": {
+                    "toolpack_id": manifests[item.toolpack_id].toolpack_id,
+                    "version": manifests[item.toolpack_id].version,
+                    "display_name": manifests[item.toolpack_id].display_name,
+                    "description": manifests[item.toolpack_id].description,
+                    "manifest_sha256": manifests[item.toolpack_id].sha256(),
+                },
+                "project_kind": manifests[item.toolpack_id].routing.primary_project_kind,
+                "assessment": item.model_dump(mode="json"),
+            }
+            for item in recommendation.candidates
+        ],
+    }
 
 
 @app.get("/api/intakes/{intake_id}")
@@ -277,6 +430,40 @@ async def revise_intake(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@app.post("/api/intakes/{intake_id}/reroute", status_code=201)
+async def reroute_ready_intake(
+    intake_id: str,
+    reroute: IntakeReroute,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> dict[str, object]:
+    store = CloudIntakeStore()
+    try:
+        previous = store.read(intake_id)
+        if previous.owner_id != identity.owner_id:
+            raise FileNotFoundError(intake_id)
+        if previous.requested_work_mode != "new_product_build":
+            raise ValueError("route changes are available only for new-product builds")
+        selected = APPROVED_TOOLPACKS.select(
+            project_kind=reroute.requested_project_kind,
+            work_mode=previous.requested_work_mode,
+            requested_toolpack_id=reroute.requested_toolpack_id,
+        )
+        bound = APPROVED_TOOLPACKS.resolve(reroute.requested_toolpack_binding)
+        if selected.binding() != bound.binding():
+            raise ValueError("the confirmed ToolPack binding does not match the selected route")
+        record = await reroute_intake(
+            intake_id,
+            reroute,
+            store=store,
+            agent=SixSenseAgent(),
+        )
+        return record.model_dump(mode="json")
+    except (FileNotFoundError, PermissionError) as exc:
+        raise HTTPException(status_code=404, detail="intake not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.post("/api/intakes/{intake_id}/authorize", status_code=202)
 def authorize_intake(
     intake_id: str,
@@ -304,17 +491,48 @@ def authorize_intake(
         created_at = previous.created_at
         origin = previous.origin
         project_kind = previous.project_kind
+        work_mode = "existing_project_repair"
     else:
         created_at = intake.created_at
         origin = "external" if intake.material_inspection and intake.material_inspection.source_available else "khalinos"
-        detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
-        project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
-    result = queue_run(
-        authorized_brief(intake.preview),
-        owner_id=identity.owner_id,
-        project_id=project_id,
-        source_snapshot=intake.source_snapshot,
+        work_mode = intake.requested_work_mode
+        if work_mode == "new_product_build":
+            if intake.requested_project_kind not in {"browser", "godot"}:
+                raise HTTPException(status_code=409, detail="the intake has no approved new-project runtime")
+            project_kind = intake.requested_project_kind
+        else:
+            if intake.source_snapshot is None:
+                raise HTTPException(status_code=409, detail="existing-project repair requires a verified source snapshot")
+            detected_kind = intake.material_inspection.project_kind if intake.material_inspection else "unknown"
+            project_kind = detected_kind if detected_kind in {"godot", "unity", "web"} else "browser"
+    requested_toolpack_id = (
+        intake.requested_toolpack_binding.toolpack_id
+        if intake.requested_toolpack_binding is not None
+        else intake.requested_toolpack_id
     )
+    try:
+        result = queue_run(
+            authorized_brief(
+                intake.preview,
+                include_preview_quality=(
+                    project_kind != "godot" or requested_toolpack_id in {
+                        "godot.visual-prototype", "godot.gameplay",
+                    }
+                ),
+                authoritative_sources=source_payloads(store, intake),
+            ),
+            owner_id=identity.owner_id,
+            project_id=project_id,
+            project_kind=project_kind,
+            work_mode=work_mode,
+            requested_toolpack_id=intake.requested_toolpack_id,
+            requested_toolpack_binding=intake.requested_toolpack_binding,
+            source_snapshot=intake.source_snapshot,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     run_id = result["record"]["run_id"]
     project_store.prepare(ProjectRecord(
         project_id=project_id,

@@ -5,15 +5,19 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import io
+import zipfile
 from pathlib import Path
 from typing import Protocol
 from uuid import uuid4
 
 from khalinos.models import (
     ArchiveSnapshot,
+    AuthoritativeReference,
     IntakeAnswer,
     IntakeCreate,
     IntakeRecord,
+    IntakeReroute,
     IntakeRevision,
     MaterialInspection,
     MaterialInspectionRequest,
@@ -108,6 +112,35 @@ def inspect_materials(request: MaterialInspectionRequest) -> MaterialInspection:
     )
 
 
+def bind_material_role(
+    inspection: MaterialInspection,
+    *,
+    requested_work_mode: str,
+) -> MaterialInspection:
+    """Honor the user's explicit new/existing choice when assigning submitted material."""
+
+    if requested_work_mode != "new_product_build" or inspection.material_count == 0:
+        return inspection
+    notices = [
+        item
+        for item in inspection.notices
+        if not item.startswith("An archive is treated as possible source material")
+    ]
+    notices.append(
+        "Because the user selected New project, submitted files are reference inputs and do not convert this run into existing-project work."
+    )
+    return inspection.model_copy(update={
+        "recommended_work_mode": "reference_guided_build",
+        "source_available": False,
+        "detected_materials": [
+            item for item in inspection.detected_materials
+            if item != "Source or project material"
+        ] + ["Reference inputs for a new product"],
+        "summary": "Reference material was supplied for a new product build; KHALINOS will create a new project rather than modify the files.",
+        "notices": list(dict.fromkeys(notices))[:12],
+    })
+
+
 class IntakeStore(Protocol):
     def create(self, record: IntakeRecord, sources: list[tuple[SourceReference, bytes]]) -> None: ...
     def read(self, intake_id: str) -> IntakeRecord: ...
@@ -119,7 +152,12 @@ class SensingAgent(Protocol):
     async def assess(self, record: IntakeRecord, source_payloads: list[tuple[str, str, bytes]]) -> SenseDecision: ...
 
 
-def authorized_brief(preview: OutcomePreview):
+def authorized_brief(
+    preview: OutcomePreview,
+    *,
+    include_preview_quality: bool = True,
+    authoritative_sources: list[tuple[str, str, bytes]] | None = None,
+):
     """Bind the confirmed SixSense outcome to the immutable execution contract."""
     source = preview.recommended_brief
     constraints = list(source.constraints[:6])
@@ -128,19 +166,49 @@ def authorized_brief(preview: OutcomePreview):
     constraints.extend(f"Operating context: {item}" for item in preview.operating_context[:2])
     criteria = list(dict.fromkeys([
         *source.acceptance_criteria,
-        *preview.completion_and_quality,
+        *(preview.completion_and_quality if include_preview_quality else []),
     ]))[:10]
+    references: list[AuthoritativeReference] = []
+    for filename, media_type, data in authoritative_sources or []:
+        if media_type not in {"text/plain", "text/markdown", "application/json"}:
+            continue
+        try:
+            content = data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError(f"authoritative source must be UTF-8: {filename}") from exc
+        references.append(AuthoritativeReference(
+            filename=filename,
+            media_type=media_type,
+            sha256=hashlib.sha256(data).hexdigest(),
+            content=content,
+        ))
     return source.model_copy(update={
         "goal": preview.final_result,
         "constraints": constraints[:12],
         "acceptance_criteria": criteria,
         "max_quests": preview.estimate.quest_count,
+        "authoritative_references": references,
     })
 
 
 def decode_sources(request: IntakeCreate) -> list[tuple[SourceReference, bytes]]:
     decoded: list[tuple[SourceReference, bytes]] = []
     total = 0
+
+    def append_source(filename: str, media_type: str, data: bytes) -> None:
+        nonlocal total
+        total += len(data)
+        if total > 20_000_000:
+            raise ValueError("combined source size exceeds 20 MB")
+        reference = SourceReference(
+            source_id=uuid4().hex,
+            filename=filename,
+            media_type=media_type,
+            size_bytes=len(data),
+            sha256=hashlib.sha256(data).hexdigest(),
+        )
+        decoded.append((reference, data))
+
     for upload in request.sources:
         safe_name = Path(upload.filename).name
         if safe_name != upload.filename or safe_name in {"", ".", ".."}:
@@ -151,17 +219,44 @@ def decode_sources(request: IntakeCreate) -> list[tuple[SourceReference, bytes]]
             raise ValueError(f"invalid base64 source: {safe_name}") from exc
         if not data or len(data) > 10_000_000:
             raise ValueError(f"source must contain 1 byte to 10 MB: {safe_name}")
-        total += len(data)
-        if total > 20_000_000:
-            raise ValueError("combined source size exceeds 20 MB")
-        reference = SourceReference(
-            source_id=uuid4().hex,
-            filename=safe_name,
-            media_type=upload.media_type,
-            size_bytes=len(data),
-            sha256=hashlib.sha256(data).hexdigest(),
-        )
-        decoded.append((reference, data))
+        if upload.media_type != "application/zip":
+            append_source(safe_name, upload.media_type, data)
+            continue
+        try:
+            archive = zipfile.ZipFile(io.BytesIO(data))
+        except zipfile.BadZipFile as exc:
+            raise ValueError(f"invalid reference ZIP: {safe_name}") from exc
+        members = [item for item in archive.infolist() if not item.is_dir()]
+        if not members or len(members) > 8:
+            raise ValueError("reference ZIP must contain 1 to 8 text documents")
+        uncompressed_total = 0
+        seen: set[str] = set()
+        for member in members:
+            normalized = member.filename.replace("\\", "/")
+            parts = [part for part in normalized.split("/") if part]
+            if normalized.startswith("/") or not parts or any(part in {".", ".."} for part in parts):
+                raise ValueError("reference ZIP contains an unsafe path")
+            suffix = Path(parts[-1]).suffix.casefold()
+            if suffix not in {".md", ".txt", ".json"}:
+                raise ValueError("reference ZIP may contain only Markdown, text, or JSON documents")
+            if member.flag_bits & 0x1:
+                raise ValueError("encrypted reference ZIP entries are not allowed")
+            uncompressed_total += member.file_size
+            if uncompressed_total > 2_000_000 or member.file_size > 500_000:
+                raise ValueError("reference ZIP text exceeds the bounded extraction limit")
+            if member.compress_size and member.file_size > member.compress_size * 100:
+                raise ValueError("reference ZIP entry exceeds the safe compression ratio")
+            extracted = archive.read(member)
+            try:
+                extracted.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise ValueError("reference ZIP text must be UTF-8") from exc
+            flattened = "__".join(parts)[-160:]
+            if flattened in seen:
+                raise ValueError("reference ZIP document names must be unique")
+            seen.add(flattened)
+            media_type = {".md": "text/markdown", ".json": "application/json"}.get(suffix, "text/plain")
+            append_source(flattened, media_type, extracted)
     return decoded
 
 
@@ -194,10 +289,13 @@ async def start_intake(
     source_snapshot: ArchiveSnapshot | None = None,
 ) -> IntakeRecord:
     sources = decode_sources(request)
-    material_inspection = inspect_materials(MaterialInspectionRequest(
-        project_locator=request.project_locator,
-        materials=request.materials,
-    ))
+    material_inspection = bind_material_role(
+        inspect_materials(MaterialInspectionRequest(
+            project_locator=request.project_locator,
+            materials=request.materials,
+        )),
+        requested_work_mode=request.requested_work_mode,
+    )
     record = IntakeRecord(
         intake_id=uuid4().hex,
         project_name=request.project_name,
@@ -208,6 +306,10 @@ async def start_intake(
         owner_id=owner_id,
         selected_project_id=request.selected_project_id,
         source_snapshot=source_snapshot,
+        requested_project_kind=request.requested_project_kind,
+        requested_toolpack_id=request.requested_toolpack_id,
+        requested_toolpack_binding=request.requested_toolpack_binding,
+        requested_work_mode=request.requested_work_mode,
     )
     store.create(record, sources)
     decision = await agent.assess(
@@ -227,21 +329,31 @@ async def answer_intake(
     agent: SensingAgent,
 ) -> IntakeRecord:
     record = store.read(intake_id)
-    if record.status != "sensing" or record.current_question is None:
+    if record.status != "sensing":
         raise ValueError("intake is not waiting for an answer")
+    if record.current_question is None:
+        # Recover an intake written by an older worker that persisted the answer
+        # before Preview generation failed. The same answer is an idempotent retry.
+        if record.answers.get(answer.dimension.value) != answer.answer:
+            raise ValueError("intake is not waiting for this answer")
+        decision = await agent.assess(record, source_payloads(store, record))
+        record = apply_decision(record, decision)
+        store.update(record)
+        return record
     if answer.dimension != record.current_question.dimension:
         raise ValueError("answer does not match the active SixSense question")
     answers = dict(record.answers)
     answers[answer.dimension.value] = answer.answer
     resolved = list(dict.fromkeys([*record.resolved_dimensions, answer.dimension]))
-    record = record.model_copy(update={
+    provisional = record.model_copy(update={
         "answers": answers,
         "resolved_dimensions": resolved,
         "current_question": None,
     })
-    store.update(record)
-    decision = await agent.assess(record, source_payloads(store, record))
-    record = apply_decision(record, decision)
+    # Commit the answer only after the next question or Preview is valid. A model
+    # or provider failure therefore leaves the original question retryable.
+    decision = await agent.assess(provisional, source_payloads(store, provisional))
+    record = apply_decision(provisional, decision)
     store.update(record)
     return record
 
@@ -277,12 +389,70 @@ async def restart_intake(
         owner_id=previous.owner_id,
         selected_project_id=previous.selected_project_id,
         source_snapshot=previous.source_snapshot,
+        requested_project_kind=previous.requested_project_kind,
+        requested_toolpack_id=previous.requested_toolpack_id,
+        requested_toolpack_binding=previous.requested_toolpack_binding,
+        requested_work_mode=previous.requested_work_mode,
     )
     store.create(record, copied_sources)
     decision = await agent.assess(
         record,
         [(reference.filename, reference.media_type, data) for reference, data in copied_sources],
     )
+    record = apply_decision(record, decision)
+    store.update(record)
+    return record
+
+
+async def reroute_intake(
+    intake_id: str,
+    reroute: IntakeReroute,
+    *,
+    store: IntakeStore,
+    agent: SensingAgent,
+) -> IntakeRecord:
+    """Rebind a ready preview without discarding user decisions or source authority.
+
+    Reconfirming the same digest-bound ToolPack is an idempotent no-op. A real
+    route change creates a new intake so the former preview remains auditable,
+    while the original goal, sources, and every confirmed SixSense answer are
+    carried forward unchanged.
+    """
+
+    previous = store.read(intake_id)
+    if previous.status != "ready" or previous.preview is None:
+        raise ValueError("only a completed Outcome Preview can change route")
+    if (
+        previous.requested_project_kind == reroute.requested_project_kind
+        and previous.requested_toolpack_id == reroute.requested_toolpack_id
+        and previous.requested_toolpack_binding == reroute.requested_toolpack_binding
+    ):
+        return previous
+
+    copied_sources = [
+        (reference, store.source_bytes(previous.intake_id, reference))
+        for reference in previous.sources
+    ]
+    record = IntakeRecord(
+        intake_id=uuid4().hex,
+        project_name=previous.project_name,
+        goal=previous.goal,
+        sources=list(previous.sources),
+        project_locator=previous.project_locator,
+        material_inspection=previous.material_inspection,
+        owner_id=previous.owner_id,
+        selected_project_id=previous.selected_project_id,
+        source_snapshot=previous.source_snapshot,
+        requested_project_kind=reroute.requested_project_kind,
+        requested_toolpack_id=reroute.requested_toolpack_id,
+        requested_toolpack_binding=reroute.requested_toolpack_binding,
+        requested_work_mode=previous.requested_work_mode,
+        answers=dict(previous.answers),
+        resolved_dimensions=list(previous.resolved_dimensions),
+        question_history=list(previous.question_history),
+    )
+    store.create(record, copied_sources)
+    decision = await agent.assess(record, source_payloads(store, record))
     record = apply_decision(record, decision)
     store.update(record)
     return record
