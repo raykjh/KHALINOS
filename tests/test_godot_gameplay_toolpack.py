@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw
 
 from khalinos.godot_gameplay import (
     CompiledGodotGameplay,
+    GODOT_GAMEPLAY_SPRITE_PROFILE,
     GameplayAbility,
     GameplayEnemy,
     GameplayHero,
@@ -18,6 +19,7 @@ from khalinos.godot_gameplay import (
     GodotGameplayPlan,
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
+    compose_godot_gameplay_capabilities,
     derive_sprite_atlas_plan,
     explicit_gameplay_criteria,
     validate_gameplay_plan_requirements,
@@ -141,13 +143,14 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.6.2"
+    assert binding.version == "1.7.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
     first = artifact()
     second = artifact()
     assert first.bundle_sha256 == second.bundle_sha256
+    assert first.bundle_sha256 == "c3765875b507b8229d9cd63d1d8eac56006f4e039eeb1cab961e77df2e976fe0"
     assert first.gameplay.profession_choice_mode == "seeded_random_alternatives"
     assert "_seeded_profession_alternatives" in first.files["scripts/khalinos_gameplay.gd"]
     gameplay_script = first.files["scripts/khalinos_gameplay.gd"]
@@ -166,6 +169,16 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
         (destination / path).as_posix() for path in [*first.files, first.asset.path, first.sprite_atlas.path]
     }
     assert hashlib.sha256((destination / first.asset.path).read_bytes()).hexdigest() == first.asset.sha256
+
+
+def test_trinity_sprite_profile_owns_the_exact_existing_artifact_surface() -> None:
+    approved = artifact()
+    composition = compose_godot_gameplay_capabilities(approved.gameplay, approved.sprite_plan)
+    assert tuple(binding.pack_id for binding in composition.bindings) == tuple(
+        pack.pack_id for pack in GODOT_GAMEPLAY_SPRITE_PROFILE
+    )
+    assert set(composition.text_files) == set(approved.files)
+    assert set(composition.binary_paths) == {approved.asset.path, approved.sprite_atlas.path}
 
 
 def test_gameplay_plan_rejects_unknown_ability_owner_and_impossible_level_schedule() -> None:

@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic, Iterable, Literal, Protocol, TypeVar
+from typing import Generic, Iterable, Literal, Mapping, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -182,6 +182,153 @@ class ToolPackBinding(BaseModel):
     toolpack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
     version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
     manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class CapabilityPackManifest(BaseModel):
+    """One ordered, least-authority unit inside an approved ToolPack.
+
+    Capability Packs do not expand Kernel authority.  They partition an
+    already-approved ToolPack into a directed composition graph with explicit
+    prerequisites, conflicts, and exclusive ownership of artifact paths.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    pack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
+    provides: tuple[str, ...] = Field(min_length=1, max_length=32)
+    requires: tuple[str, ...] = Field(default=(), max_length=32)
+    conflicts: tuple[str, ...] = Field(default=(), max_length=32)
+    text_paths: tuple[str, ...] = Field(default=(), max_length=256)
+    binary_paths: tuple[str, ...] = Field(default=(), max_length=256)
+
+    @model_validator(mode="after")
+    def canonical_contract(self) -> "CapabilityPackManifest":
+        for label, values in (
+            ("provided capabilities", self.provides),
+            ("required capabilities", self.requires),
+            ("conflicts", self.conflicts),
+            ("text paths", self.text_paths),
+            ("binary paths", self.binary_paths),
+        ):
+            if tuple(sorted(set(values))) != values:
+                raise ValueError(f"Capability Pack {label} must be unique and sorted")
+        all_paths = self.text_paths + self.binary_paths
+        if not all_paths:
+            raise ValueError("Capability Pack must own at least one artifact path")
+        if len(set(all_paths)) != len(all_paths):
+            raise ValueError("Capability Pack text and binary paths must not overlap")
+        if any(path.startswith(("/", "\\")) or ".." in path.replace("\\", "/").split("/") for path in all_paths):
+            raise ValueError("Capability Pack output paths must stay relative to the artifact root")
+        return self
+
+    def sha256(self) -> str:
+        encoded = json.dumps(
+            self.model_dump(mode="json"),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+
+class CapabilityPackBinding(BaseModel):
+    """Exact Capability Pack revision recorded by a composition receipt."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    pack_id: str = Field(pattern=r"^[a-z][a-z0-9_.-]{2,63}$")
+    version: str = Field(pattern=r"^[0-9]+\.[0-9]+\.[0-9]+$")
+    manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+@dataclass(frozen=True)
+class CapabilityPackStage:
+    """Materialized outputs claimed by one Capability Pack."""
+
+    manifest: CapabilityPackManifest
+    text_files: Mapping[str, str]
+    binary_paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CapabilityComposition:
+    """Validated composition result; binary payloads remain externally bound."""
+
+    text_files: dict[str, str]
+    binary_paths: tuple[str, ...]
+    bindings: tuple[CapabilityPackBinding, ...]
+
+
+def compose_capability_stages(stages: Iterable[CapabilityPackStage]) -> CapabilityComposition:
+    """Compose an ordered pack graph and fail closed on any authority ambiguity."""
+
+    ordered = tuple(stages)
+    selected_ids: set[str] = set()
+    provided: set[str] = set()
+    forbidden: set[str] = set()
+    owned_paths: set[str] = set()
+    text_files: dict[str, str] = {}
+    binary_paths: list[str] = []
+    bindings: list[CapabilityPackBinding] = []
+
+    for stage in ordered:
+        manifest = stage.manifest
+        if manifest.pack_id in selected_ids:
+            raise PermissionError(f"duplicate Capability Pack: {manifest.pack_id}")
+        missing = set(manifest.requires) - provided
+        if missing:
+            raise PermissionError(
+                f"Capability Pack {manifest.pack_id} has unsatisfied prerequisites: "
+                + ", ".join(sorted(missing))
+            )
+        selected_tokens = selected_ids | provided
+        conflicts = set(manifest.conflicts) & selected_tokens
+        reverse_conflicts = forbidden & ({manifest.pack_id} | set(manifest.provides))
+        conflicts.update(reverse_conflicts)
+        if conflicts:
+            raise PermissionError(
+                f"Capability Pack {manifest.pack_id} conflicts with: "
+                + ", ".join(sorted(conflicts))
+            )
+        duplicate_capabilities = set(manifest.provides) & provided
+        if duplicate_capabilities:
+            raise PermissionError(
+                f"Capability Pack {manifest.pack_id} redefines capabilities: "
+                + ", ".join(sorted(duplicate_capabilities))
+            )
+
+        actual_text = set(stage.text_files)
+        actual_binary = set(stage.binary_paths)
+        if actual_text != set(manifest.text_paths):
+            raise PermissionError(f"Capability Pack {manifest.pack_id} text outputs do not match its manifest")
+        if actual_binary != set(manifest.binary_paths):
+            raise PermissionError(f"Capability Pack {manifest.pack_id} binary outputs do not match its manifest")
+        stage_paths = actual_text | actual_binary
+        overlap = stage_paths & owned_paths
+        if overlap:
+            raise PermissionError(
+                f"Capability Pack {manifest.pack_id} overlaps output ownership: "
+                + ", ".join(sorted(overlap))
+            )
+
+        selected_ids.add(manifest.pack_id)
+        provided.update(manifest.provides)
+        forbidden.update(manifest.conflicts)
+        owned_paths.update(stage_paths)
+        text_files.update(stage.text_files)
+        binary_paths.extend(stage.binary_paths)
+        bindings.append(CapabilityPackBinding(
+            pack_id=manifest.pack_id,
+            version=manifest.version,
+            manifest_sha256=manifest.sha256(),
+        ))
+
+    return CapabilityComposition(
+        text_files=text_files,
+        binary_paths=tuple(binary_paths),
+        bindings=tuple(bindings),
+    )
 
 
 class ExecutionAdapter(Protocol[ArtifactT]):

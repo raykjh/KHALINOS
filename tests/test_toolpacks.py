@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 from khalinos.toolpacks import (
+    CapabilityPackManifest,
+    CapabilityPackStage,
     CapabilityDeclaration,
     EvidenceContract,
     ExternalDependency,
@@ -14,6 +16,7 @@ from khalinos.toolpacks import (
     ToolPackBinding,
     ToolPackManifest,
     ToolPackRegistry,
+    compose_capability_stages,
     source_set_sha256,
 )
 
@@ -194,3 +197,74 @@ def test_implementation_source_digest_is_newline_neutral_and_change_sensitive(tm
     assert source_set_sha256(tmp_path, ["adapter.py"]) == first
     source.write_bytes(b"first\nchanged\n")
     assert source_set_sha256(tmp_path, ["adapter.py"]) != first
+
+
+def capability_manifest(
+    pack_id: str,
+    *,
+    provides: tuple[str, ...],
+    requires: tuple[str, ...] = (),
+    conflicts: tuple[str, ...] = (),
+    text_paths: tuple[str, ...] = ("artifact.txt",),
+) -> CapabilityPackManifest:
+    return CapabilityPackManifest(
+        pack_id=pack_id,
+        version="1.0.0",
+        provides=provides,
+        requires=requires,
+        conflicts=conflicts,
+        text_paths=text_paths,
+    )
+
+
+def test_capability_packs_compose_only_in_declared_dependency_order() -> None:
+    core = capability_manifest("fixture.core", provides=("fixture.base",), text_paths=("base.txt",))
+    feature = capability_manifest(
+        "fixture.feature",
+        provides=("fixture.feature",),
+        requires=("fixture.base",),
+        text_paths=("feature.txt",),
+    )
+    composed = compose_capability_stages((
+        CapabilityPackStage(core, {"base.txt": "base"}),
+        CapabilityPackStage(feature, {"feature.txt": "feature"}),
+    ))
+    assert composed.text_files == {"base.txt": "base", "feature.txt": "feature"}
+    assert [binding.pack_id for binding in composed.bindings] == ["fixture.core", "fixture.feature"]
+
+    with pytest.raises(PermissionError, match="unsatisfied prerequisites"):
+        compose_capability_stages((CapabilityPackStage(feature, {"feature.txt": "feature"}),))
+
+
+def test_capability_packs_fail_closed_on_conflicts_and_output_ambiguity() -> None:
+    core = capability_manifest(
+        "fixture.core",
+        provides=("fixture.base",),
+        conflicts=("fixture.incompatible",),
+        text_paths=("shared.txt",),
+    )
+    incompatible = capability_manifest(
+        "fixture.incompatible",
+        provides=("fixture.other",),
+        text_paths=("other.txt",),
+    )
+    with pytest.raises(PermissionError, match="conflicts"):
+        compose_capability_stages((
+            CapabilityPackStage(core, {"shared.txt": "core"}),
+            CapabilityPackStage(incompatible, {"other.txt": "other"}),
+        ))
+
+    overlap = capability_manifest(
+        "fixture.overlap",
+        provides=("fixture.overlap",),
+        requires=("fixture.base",),
+        text_paths=("shared.txt",),
+    )
+    with pytest.raises(PermissionError, match="overlaps output ownership"):
+        compose_capability_stages((
+            CapabilityPackStage(core, {"shared.txt": "core"}),
+            CapabilityPackStage(overlap, {"shared.txt": "overlap"}),
+        ))
+
+    with pytest.raises(PermissionError, match="text outputs do not match"):
+        compose_capability_stages((CapabilityPackStage(core, {"undeclared.txt": "value"}),))
