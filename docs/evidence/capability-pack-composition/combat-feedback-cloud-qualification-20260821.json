@@ -1,0 +1,91 @@
+{
+  "schema_version": "khalinos-combat-feedback-cloud-qualification-v1",
+  "qualified_commit": "7908647054be46902f103d3f4e258953057092a9",
+  "cloud": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "job": "khalinos-worker",
+    "image_digest": "sha256:615da3f80441c55e3eb0fca598db0abe8d44d1dd6ea6fd1b7815ce780797a24c",
+    "memory": "8Gi",
+    "cpu": "2",
+    "timeout_seconds": 1800,
+    "max_retries": 0
+  },
+  "shared_capability_pack": {
+    "pack_id": "godot.combat-feedback",
+    "version": "1.0.0",
+    "manifest_sha256": "d08dc8021debe5cb788fb162afb36c37f4882e8ed9e6acf9c2c6d4d4f7c86c02",
+    "owned_text_paths": [
+      "scripts/khalinos_combat_feedback.gd"
+    ]
+  },
+  "profiles": {
+    "godot.trinity-top-down": {
+      "run_id": "78d1d06f2a034714b1d917ce6ce6f969",
+      "execution": "khalinos-worker-x74vs",
+      "duration": "8m4.87s",
+      "status": "passed",
+      "message": "Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.",
+      "toolpack_id": "godot.gameplay",
+      "toolpack_version": "1.9.0",
+      "toolpack_manifest_sha256": "6c2ff6753c93ac8edcb0d4d7afb01b3ca1d9bdd3a6f9f48292ebfa25336397fb",
+      "active_agent_count": 9,
+      "model_calls": 18,
+      "receipt_count": 3,
+      "deterministic_checks_passed": 45,
+      "issues": [],
+      "sprite_gate_approved": true,
+      "combat_feedback_pack_loaded": true,
+      "artifact_sha256": "34116f1e4e6ee140e0287e152ac6572cb2638feef4a062c7260952e0d46ce482",
+      "bundle_sha256": "828373b72792c5f2f17fe9ea9bb8b043ecf6ef56d3db1d2ae9dc779311bb6a0e",
+      "source_zip_sha256": "160ee614bfefa686830d708ef74876b59ac5bacadfc53c9c324c78a4ccbcf00c",
+      "agent_capability_trace_sha256": "71b566334c17d8ac8cda873c1a1f5eacfab75301cc8060408e2f9180ede5967a",
+      "accountable_maker_capability_packs": [
+        "godot.project-core",
+        "godot.top-down-auto-combat",
+        "godot.combat-feedback"
+      ]
+    },
+    "godot.side-scroll-destination": {
+      "run_id": "fe2f3493c6af432e9ebd0b0c61852dcf",
+      "execution": "khalinos-worker-2ppkr",
+      "duration": "2m16.72s",
+      "status": "passed",
+      "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification.",
+      "toolpack_id": "godot.side-scroll-experiment",
+      "toolpack_version": "0.4.0",
+      "toolpack_manifest_sha256": "9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962",
+      "active_agent_count": 8,
+      "model_calls": 12,
+      "receipt_count": 3,
+      "deterministic_checks_passed": 18,
+      "issues": [],
+      "combat_feedback_pack_loaded": true,
+      "artifact_sha256": "1c014a4c5b7205290615cc9382778e5d0e91ca6a53f6e3f2ab11df89692c4745",
+      "bundle_sha256": "3c73c963cb06f80bb9f7ba55f994b3dd6a2593e57814acec7ade1e5f099d9ade",
+      "source_zip_sha256": "42e98c7d65225a578c921b24be032b1295d793b0a924e557f095957fa5953e94",
+      "agent_capability_trace_sha256": "7c6cdaaee496192a29af6900a463306a4182622fead603f4abd0133487e48f83",
+      "accountable_maker_capability_packs": [
+        "godot.project-core",
+        "godot.side-scroll-lane-combat",
+        "godot.combat-feedback",
+        "godot.destination-progression"
+      ]
+    }
+  },
+  "comparison": {
+    "fixed_max_agent_slots": 13,
+    "new_agent_slots_created": false,
+    "shared_agent_slot_count": 8,
+    "trinity_only_agent_slots": [
+      "khalinos_sprite_atlas_verifier"
+    ],
+    "side_scroll_only_agent_slots": [],
+    "model_calls_recorded": 30,
+    "conclusion": "The fixed agent inventory was preserved. Existing agent slots consumed profile-specific Capability Pack combinations while both profiles shared godot.combat-feedback."
+  },
+  "local_regression": {
+    "tests_passed": 169,
+    "tests_failed": 0
+  }
+}
