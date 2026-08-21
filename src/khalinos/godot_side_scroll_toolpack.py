@@ -32,6 +32,7 @@ SIDE_SCROLL_PATHS = {
     "README.md",
     "project.godot",
     "scenes/gameplay.tscn",
+    "scripts/khalinos_combat_feedback.gd",
     "scripts/khalinos_side_scroll.gd",
     "scripts/khalinos_side_scroll_probe.gd",
 }
@@ -196,6 +197,7 @@ class GodotSideScrollEvidenceAdapter:
             "asset_import_process": imported.returncode == 0,
             "headless_process": probe.returncode == 0,
             "probe_schema": receipt.get("schema_version") == "khalinos-godot-side-scroll-probe-v1",
+            "combat_feedback_pack_loaded": receipt.get("combat_feedback_pack_loaded") is True,
             "horizontal_lane_present": receipt.get("horizontal_lane_present") is True,
             "movement_right": receipt.get("movement_right") is True,
             "enemy_spawned": receipt.get("enemy_spawned") is True,
@@ -239,7 +241,7 @@ GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES = (
 
 GODOT_SIDE_SCROLL_MANIFEST = ToolPackManifest(
     toolpack_id="godot.side-scroll-experiment",
-    version="0.3.3",
+    version="0.4.0",
     display_name="Godot Side-scroll Composition Experiment",
     description="Composes a bounded horizontal auto-combat journey from reusable Godot Capability Packs and verifies mechanics in the approved runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES),
@@ -267,7 +269,7 @@ GODOT_SIDE_SCROLL_MANIFEST = ToolPackManifest(
     output=OutputContract(
         artifact_kind="godot.side-scroll-experiment",
         authorized_paths=tuple(sorted(SIDE_SCROLL_PATHS | {ASSET_PATH})),
-        max_file_count=8,
+        max_file_count=9,
         max_total_bytes=5_000_000,
     ),
     evidence=EvidenceContract(

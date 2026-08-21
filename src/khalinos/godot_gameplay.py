@@ -12,8 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
 from khalinos.godot_capability_packs import (
+    GODOT_COMBAT_FEEDBACK_PACK,
     GODOT_PROJECT_CORE_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
+    godot_combat_feedback_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
@@ -339,6 +341,9 @@ def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
 
 
 GAMEPLAY_SCRIPT = r'''extends Node2D
+
+const CombatFeedback = preload("res://scripts/khalinos_combat_feedback.gd")
+const COMBAT_FEEDBACK_PACK_ID := CombatFeedback.PACK_ID
 
 var config: Dictionary
 var center := Vector2.ZERO
@@ -864,6 +869,7 @@ func verification_scenario() -> Dictionary:
             expected_roles.append(String(role_order[stage % role_order.size()]))
     return {
         "schema_version": "khalinos-godot-gameplay-probe-v5",
+        "combat_feedback_pack_loaded": COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
         "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
@@ -913,36 +919,11 @@ func _draw() -> void:
     for y in range(0, int(config.viewport_height), 64):
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     for effect in skill_effects:
-        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var alpha: float = 0.78 * (1.0 - progress)
-        var kind := String(effect.kind)
-        var effect_color := Color(1.0, 0.68, 0.18, alpha)
-        if kind == "heal":
-            effect_color = Color(0.25, 1.0, 0.62, alpha)
-            draw_circle(center, float(effect.radius) * (0.30 + progress * 0.25), Color(0.20, 0.92, 0.55, alpha * 0.18))
-        elif kind == "shield":
-            effect_color = Color(0.35, 0.72, 1.0, alpha)
-        elif kind == "resurrection":
-            effect_color = Color(0.88, 0.72, 1.0, alpha)
-        draw_circle(center, float(effect.radius) * (0.72 + progress * 0.28), effect_color, false, 5.0, true)
+        CombatFeedback.draw_skill(self, effect, center)
     for effect in basic_attack_effects:
-        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var attack_color := Color(1.0, 0.68, 0.22, 0.94 * (1.0 - progress))
-        var width := 7.0
-        if String(effect.role) == "damage":
-            attack_color = Color(1.0, 0.94, 0.30, 0.96 * (1.0 - progress))
-            width = 4.0
-        elif String(effect.role) == "support":
-            attack_color = Color(0.35, 0.92, 1.0, 0.94 * (1.0 - progress))
-            width = 5.0
-        draw_line(effect.origin, effect.target, attack_color, width, true)
-        draw_circle(effect.target, 8.0 + progress * 12.0, attack_color, false, 3.0, true)
-        draw_circle(effect.origin, float(effect.range), Color(attack_color, 0.10 * (1.0 - progress)), false, 1.5, true)
+        CombatFeedback.draw_basic_attack(self, effect)
     for effect in enemy_attack_effects:
-        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var enemy_attack_color := Color(1.0, 0.18, 0.12, 0.95 * (1.0 - progress))
-        draw_line(effect.position, effect.target, enemy_attack_color, 8.0, true)
-        draw_circle(effect.target, 12.0 + progress * 14.0, enemy_attack_color, false, 4.0, true)
+        CombatFeedback.draw_enemy_attack(self, effect)
     var hero_index := 0
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
@@ -1061,6 +1042,8 @@ func _probe() -> void:
         await process_frame
     var receipt: Dictionary = instance.verification_scenario() if instance != null else {}
     receipt.passed = (
+        receipt.get("combat_feedback_pack_loaded", false)
+        and
         receipt.get("start_gate_present", false)
         and receipt.get("countdown_decrements", false)
         and receipt.get("first_enemy_level_one_beatable", false)
@@ -1114,7 +1097,7 @@ GODOT_GAMEPLAY_PROBE_PACK = CapabilityPackManifest(
     pack_id="godot.gameplay-probe",
     version="1.0.0",
     provides=("evidence.gameplay-probe",),
-    requires=("gameplay.auto-attack", "gameplay.top-down", "godot.project"),
+    requires=("gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.top-down", "godot.project"),
     text_paths=("scripts/khalinos_gameplay_probe.gd",),
 )
 GODOT_SPRITE_ATLAS_PACK = CapabilityPackManifest(
@@ -1130,6 +1113,7 @@ GODOT_GAMEPLAY_BASE_PROFILE = (
     GODOT_PROJECT_CORE_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
     GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
+    GODOT_COMBAT_FEEDBACK_PACK,
     GODOT_GAMEPLAY_PROBE_PACK,
 )
 GODOT_GAMEPLAY_SPRITE_PROFILE = GODOT_GAMEPLAY_BASE_PROFILE + (GODOT_SPRITE_ATLAS_PACK,)
@@ -1162,6 +1146,7 @@ def compose_godot_gameplay_capabilities(
                 "KHALINOS_GAMEPLAY.json": json.dumps(gameplay_manifest, ensure_ascii=False, indent=2) + "\n",
             },
         ),
+        godot_combat_feedback_stage(),
         CapabilityPackStage(
             manifest=GODOT_GAMEPLAY_PROBE_PACK,
             text_files={"scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT},

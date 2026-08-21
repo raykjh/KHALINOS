@@ -9,8 +9,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from khalinos.godot_capability_packs import (
+    GODOT_COMBAT_FEEDBACK_PACK,
     GODOT_PROJECT_CORE_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
+    godot_combat_feedback_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
@@ -25,6 +27,9 @@ from khalinos.visual_assets import ASSET_PATH
 
 
 SIDE_SCROLL_SCRIPT = r'''extends Node2D
+
+const CombatFeedback = preload("res://scripts/khalinos_combat_feedback.gd")
+const COMBAT_FEEDBACK_PACK_ID := CombatFeedback.PACK_ID
 
 var combat: Dictionary = {}
 var destination: Dictionary = {}
@@ -110,7 +115,15 @@ func _draw() -> void:
         var offset := fmod(float(index * 180) - progress_distance * 0.35, width + 180.0) - 90.0
         draw_circle(Vector2(offset, height * 0.53), 48, Color("79aa68"))
     draw_line(Vector2(0, height * 0.78), Vector2(width, height * 0.78), Color("f7e7ad"), 4)
-    draw_circle(Vector2(170, 360), float(combat.get("attack_range", 300)), Color(0.25, 0.65, 1.0, 0.10))
+    CombatFeedback.draw_attack_range(
+        self,
+        Vector2(170, 360),
+        float(combat.get("attack_range", 300)),
+        Color(0.25, 0.65, 1.0, 0.10),
+        true,
+        -1.0,
+        false,
+    )
     draw_circle(Vector2(150, 342), 22, Color("d69a43"))
     draw_circle(Vector2(170, 376), 19, Color("5b86c4"))
     draw_circle(Vector2(188, 338), 17, Color("eadf8b"))
@@ -122,7 +135,9 @@ func _draw() -> void:
         var hp_ratio := clampf(float(enemy["hp"]) / float(combat["enemy_health"]), 0.0, 1.0)
         draw_rect(Rect2(enemy_pos.x - 22, enemy_pos.y - 48, 44 * hp_ratio, 5), Color("e85b4f"), true)
     for effect in shot_effects:
-        draw_line(effect["from"], effect["to"], Color("fff2a8"), 7)
+        CombatFeedback.draw_attack_line(
+            self, effect["from"], effect["to"], Color("fff2a8"), 7.0, false
+        )
     var ratio := progress_distance / maxf(1.0, float(destination.get("destination_distance", 1)))
     draw_rect(Rect2(36, 28, width - 72, 18), Color("27384a"), true)
     draw_rect(Rect2(39, 31, (width - 78) * ratio, 12), Color("f1bd4a"), true)
@@ -154,6 +169,7 @@ func _initialize() -> void:
         scene.simulate_step(0.10)
     var receipt := {
         "schema_version": "khalinos-godot-side-scroll-probe-v1",
+        "combat_feedback_pack_loaded": scene.COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
         "horizontal_lane_present": true,
         "movement_right": scene.progress_distance > initial_progress,
         "enemy_spawned": scene.total_spawned > 0,
@@ -167,7 +183,8 @@ func _initialize() -> void:
         "kills": scene.total_kills,
     }
     receipt["passed"] = (
-        receipt["movement_right"] and receipt["enemy_spawned"]
+        receipt["combat_feedback_pack_loaded"]
+        and receipt["movement_right"] and receipt["enemy_spawned"]
         and receipt["auto_attack_fired"] and receipt["enemy_defeated"]
         and receipt["destination_reached"] and receipt["victory"]
     )
@@ -216,7 +233,7 @@ class CompiledGodotSideScroll(BaseModel):
     asset: ArtifactAsset
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    files: dict[str, str] = Field(min_length=7, max_length=7)
+    files: dict[str, str] = Field(min_length=8, max_length=8)
 
 
 GODOT_SIDE_SCROLL_LANE_COMBAT_PACK = CapabilityPackManifest(
@@ -238,13 +255,14 @@ GODOT_SIDE_SCROLL_PROBE_PACK = CapabilityPackManifest(
     pack_id="godot.side-scroll-probe",
     version="1.0.0",
     provides=("evidence.side-scroll-probe",),
-    requires=("gameplay.auto-attack", "gameplay.destination", "gameplay.side-scroll", "godot.project"),
+    requires=("gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.destination", "gameplay.side-scroll", "godot.project"),
     text_paths=("scripts/khalinos_side_scroll_probe.gd",),
 )
 GODOT_SIDE_SCROLL_PROFILE = (
     GODOT_PROJECT_CORE_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
     GODOT_SIDE_SCROLL_LANE_COMBAT_PACK,
+    GODOT_COMBAT_FEEDBACK_PACK,
     GODOT_DESTINATION_PROGRESSION_PACK,
     GODOT_SIDE_SCROLL_PROBE_PACK,
 )
@@ -295,6 +313,7 @@ def compose_godot_side_scroll_capabilities(plan: GodotSideScrollPlan) -> Capabil
                 "scripts/khalinos_side_scroll.gd": SIDE_SCROLL_SCRIPT,
             },
         ),
+        godot_combat_feedback_stage(),
         CapabilityPackStage(
             manifest=GODOT_DESTINATION_PROGRESSION_PACK,
             text_files={

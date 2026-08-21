@@ -23,6 +23,90 @@ GODOT_VISUAL_FOUNDATION_PACK = CapabilityPackManifest(
     text_paths=("scenes/gameplay.tscn",),
     binary_paths=(ASSET_PATH,),
 )
+GODOT_COMBAT_FEEDBACK_PACK = CapabilityPackManifest(
+    pack_id="godot.combat-feedback",
+    version="1.0.0",
+    provides=("gameplay.combat-feedback",),
+    requires=("gameplay.auto-attack",),
+    text_paths=("scripts/khalinos_combat_feedback.gd",),
+)
+
+
+COMBAT_FEEDBACK_SCRIPT = r'''extends RefCounted
+
+const PACK_ID := "godot.combat-feedback@1.0.0"
+
+static func draw_attack_range(
+    canvas: CanvasItem,
+    origin: Vector2,
+    radius: float,
+    color: Color,
+    filled: bool = false,
+    width: float = 1.5,
+    antialiased: bool = true,
+) -> void:
+    canvas.draw_circle(origin, radius, color, filled, width, antialiased)
+
+static func draw_attack_line(
+    canvas: CanvasItem,
+    origin: Vector2,
+    target: Vector2,
+    color: Color,
+    width: float,
+    antialiased: bool = true,
+) -> void:
+    canvas.draw_line(origin, target, color, width, antialiased)
+
+static func draw_basic_attack(canvas: CanvasItem, effect: Dictionary) -> void:
+    var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
+    var attack_color := Color(1.0, 0.68, 0.22, 0.94 * (1.0 - progress))
+    var width := 7.0
+    if String(effect.role) == "damage":
+        attack_color = Color(1.0, 0.94, 0.30, 0.96 * (1.0 - progress))
+        width = 4.0
+    elif String(effect.role) == "support":
+        attack_color = Color(0.35, 0.92, 1.0, 0.94 * (1.0 - progress))
+        width = 5.0
+    draw_attack_line(canvas, effect.origin, effect.target, attack_color, width)
+    canvas.draw_circle(effect.target, 8.0 + progress * 12.0, attack_color, false, 3.0, true)
+    draw_attack_range(
+        canvas,
+        effect.origin,
+        float(effect.range),
+        Color(attack_color, 0.10 * (1.0 - progress)),
+    )
+
+static func draw_skill(canvas: CanvasItem, effect: Dictionary, center: Vector2) -> void:
+    var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
+    var alpha: float = 0.78 * (1.0 - progress)
+    var kind := String(effect.kind)
+    var effect_color := Color(1.0, 0.68, 0.18, alpha)
+    if kind == "heal":
+        effect_color = Color(0.25, 1.0, 0.62, alpha)
+        canvas.draw_circle(
+            center,
+            float(effect.radius) * (0.30 + progress * 0.25),
+            Color(0.20, 0.92, 0.55, alpha * 0.18),
+        )
+    elif kind == "shield":
+        effect_color = Color(0.35, 0.72, 1.0, alpha)
+    elif kind == "resurrection":
+        effect_color = Color(0.88, 0.72, 1.0, alpha)
+    canvas.draw_circle(
+        center,
+        float(effect.radius) * (0.72 + progress * 0.28),
+        effect_color,
+        false,
+        5.0,
+        true,
+    )
+
+static func draw_enemy_attack(canvas: CanvasItem, effect: Dictionary) -> void:
+    var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
+    var color := Color(1.0, 0.18, 0.12, 0.95 * (1.0 - progress))
+    draw_attack_line(canvas, effect.position, effect.target, color, 8.0)
+    canvas.draw_circle(effect.target, 12.0 + progress * 14.0, color, false, 4.0, true)
+'''
 
 
 def godot_project_core_stage(
@@ -58,4 +142,13 @@ def godot_visual_foundation_stage(
         manifest=GODOT_VISUAL_FOUNDATION_PACK,
         text_files={"scenes/gameplay.tscn": scene},
         binary_paths=(ASSET_PATH,),
+    )
+
+
+def godot_combat_feedback_stage() -> CapabilityPackStage:
+    """Materialize shared combat-feedback drawing primitives after combat authority exists."""
+
+    return CapabilityPackStage(
+        manifest=GODOT_COMBAT_FEEDBACK_PACK,
+        text_files={"scripts/khalinos_combat_feedback.gd": COMBAT_FEEDBACK_SCRIPT},
     )

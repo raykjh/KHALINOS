@@ -35,7 +35,7 @@ from khalinos.visual_assets import ASSET_PATH, png_dimensions
 CORE_PATHS = {
     "project.godot", "KHALINOS_GAMEPLAY.json", "README.md",
     "scenes/gameplay.tscn", "scripts/khalinos_gameplay.gd",
-    "scripts/khalinos_gameplay_probe.gd",
+    "scripts/khalinos_gameplay_probe.gd", "scripts/khalinos_combat_feedback.gd",
 }
 SPRITE_PATHS = {SPRITE_ATLAS_MANIFEST_PATH}
 
@@ -235,6 +235,7 @@ class GodotGameplayEvidenceAdapter:
             "asset_import_process": imported.returncode == 0,
             "headless_process": probe.returncode == 0,
             "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v5",
+            "combat_feedback_pack_loaded": receipt.get("combat_feedback_pack_loaded") is True,
             "start_gate_present": receipt.get("start_gate_present") is True,
             "countdown_decrements": receipt.get("countdown_decrements") is True,
             "first_enemy_level_one_beatable": receipt.get("first_enemy_level_one_beatable") is True,
@@ -325,7 +326,7 @@ GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="1.8.5",
+    version="1.9.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),
@@ -365,7 +366,7 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     ),
     output=OutputContract(
         artifact_kind="godot.gameplay-vertical-slice",
-        authorized_paths=("KHALINOS_GAMEPLAY.json", "KHALINOS_SPRITE_ATLAS.json", "README.md", "assets/sprite-atlas.png", "assets/visual-foundation.png", "project.godot", "scenes/gameplay.tscn", "scripts/khalinos_gameplay.gd", "scripts/khalinos_gameplay_probe.gd"),
+        authorized_paths=("KHALINOS_GAMEPLAY.json", "KHALINOS_SPRITE_ATLAS.json", "README.md", "assets/sprite-atlas.png", "assets/visual-foundation.png", "project.godot", "scenes/gameplay.tscn", "scripts/khalinos_combat_feedback.gd", "scripts/khalinos_gameplay.gd", "scripts/khalinos_gameplay_probe.gd"),
         max_file_count=12,
         max_total_bytes=5_500_000,
     ),

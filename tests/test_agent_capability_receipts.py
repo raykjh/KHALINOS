@@ -89,10 +89,12 @@ def test_trinity_and_side_scroll_rebind_existing_slots_without_creating_agents()
     assert _pack_ids(trinity_trace, "khalinos_accountable_maker") == (
         "godot.project-core",
         "godot.top-down-auto-combat",
+        "godot.combat-feedback",
     )
     assert _pack_ids(side_trace, "khalinos_accountable_maker") == (
         "godot.project-core",
         "godot.side-scroll-lane-combat",
+        "godot.combat-feedback",
         "godot.destination-progression",
     )
     assert _pack_ids(trinity_trace, "khalinos_godot_independent_verifier") == (

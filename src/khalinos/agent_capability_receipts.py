@@ -189,7 +189,11 @@ def build_agent_capability_trace(
         raise PermissionError("profile manifests do not match the executed Capability composition")
 
     if profile_id == "godot.trinity-top-down":
-        maker_ids = ("godot.project-core", "godot.top-down-auto-combat")
+        maker_ids = (
+            "godot.project-core",
+            "godot.top-down-auto-combat",
+            "godot.combat-feedback",
+        )
         visual_ids = ("godot.visual-foundation", "godot.sprite-atlas")
         verifier_id = "godot.gameplay-probe"
         include_sprite_gate = True
@@ -197,6 +201,7 @@ def build_agent_capability_trace(
         maker_ids = (
             "godot.project-core",
             "godot.side-scroll-lane-combat",
+            "godot.combat-feedback",
             "godot.destination-progression",
         )
         visual_ids = ("godot.visual-foundation",)

@@ -146,7 +146,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.8.5"
+    assert binding.version == "1.9.0"
 
 
 async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
@@ -200,10 +200,16 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     first = artifact()
     second = artifact()
     assert first.bundle_sha256 == second.bundle_sha256
-    assert first.bundle_sha256 == "903500948617f04951f97020382a6cd6ce411fea439ce5ccb25fe81b2b72dbad"
+    assert first.bundle_sha256 == "21fae766cf137979421d74d04121b8ab0488c9ae293df91b41cf7419a19e6358"
     assert first.gameplay.profession_choice_mode == "seeded_random_alternatives"
     assert "_seeded_profession_alternatives" in first.files["scripts/khalinos_gameplay.gd"]
     gameplay_script = first.files["scripts/khalinos_gameplay.gd"]
+    feedback_script = first.files["scripts/khalinos_combat_feedback.gd"]
+    assert 'preload("res://scripts/khalinos_combat_feedback.gd")' in gameplay_script
+    assert 'PACK_ID := "godot.combat-feedback@1.0.0"' in feedback_script
+    assert "CombatFeedback.draw_basic_attack" in gameplay_script
+    assert "CombatFeedback.draw_skill" in gameplay_script
+    assert "CombatFeedback.draw_enemy_attack" in gameplay_script
     assert "func _draw_start_overlay" in gameplay_script
     assert "func _format_countdown" in gameplay_script
     assert "basic_attack_effects.append" in gameplay_script
