@@ -43,6 +43,7 @@ def test_trusted_normalization_repairs_only_structural_model_variance() -> None:
     quest_payload = {
         "product_summary": "s" * 900,
         "architecture_decision": "a" * 900,
+        "toolpack_binding": {},
         "quests": [
             {"quest_id": "long_name", "depends_on": ["wrong"]},
             {"quest_id": "another_name", "depends_on": []},
@@ -50,6 +51,7 @@ def test_trusted_normalization_repairs_only_structural_model_variance() -> None:
     }
     normalized_quests = normalize_structured_result(QuestPlan, quest_payload)
     assert len(normalized_quests["product_summary"]) == 800
+    assert normalized_quests["toolpack_binding"] is None
     assert normalized_quests["quests"][0]["quest_id"] == "Q1"
     assert normalized_quests["quests"][1]["depends_on"] == ["Q1"]
 

@@ -83,6 +83,12 @@ def normalize_structured_result(schema: type[BaseModel], result: object) -> obje
     """Normalize presentation-only model variance before strict validation."""
 
     if schema is QuestPlan and isinstance(result, dict):
+        # The model does not possess authority to mint a ToolPack binding. Vertex
+        # may still emit an empty object for this optional schema field; collapse
+        # that presentation artifact to ``None`` so the trusted workflow can bind
+        # the exact approved manifest after validation.
+        if result.get("toolpack_binding") == {}:
+            result["toolpack_binding"] = None
         for key in ("product_summary", "architecture_decision"):
             value = result.get(key)
             if isinstance(value, str) and len(value) > 800:
