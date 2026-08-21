@@ -146,7 +146,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.8.2"
+    assert binding.version == "1.8.3"
 
 
 async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
@@ -200,7 +200,7 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     first = artifact()
     second = artifact()
     assert first.bundle_sha256 == second.bundle_sha256
-    assert first.bundle_sha256 == "c3765875b507b8229d9cd63d1d8eac56006f4e039eeb1cab961e77df2e976fe0"
+    assert first.bundle_sha256 == "903500948617f04951f97020382a6cd6ce411fea439ce5ccb25fe81b2b72dbad"
     assert first.gameplay.profession_choice_mode == "seeded_random_alternatives"
     assert "_seeded_profession_alternatives" in first.files["scripts/khalinos_gameplay.gd"]
     gameplay_script = first.files["scripts/khalinos_gameplay.gd"]
@@ -209,6 +209,7 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     assert "basic_attack_effects.append" in gameplay_script
     assert "skill_effects.append" in gameplay_script
     assert "enemy_attack_effects.append" in gameplay_script
+    assert "shield = 0.0\n    var health_before_enemy_attack" in gameplay_script
     assert "func _draw_skill_cooldowns" in gameplay_script
     assert 'Color("8ee58a")' in gameplay_script
     assert "func _draw_choice_overlay" in gameplay_script

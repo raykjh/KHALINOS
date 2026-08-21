@@ -773,6 +773,7 @@ func verification_scenario() -> Dictionary:
     enemies[0].health = 9999.0
     enemies[0].attack_clock = 0.0
     enemy_attack_effects = []
+    shield = 0.0
     var health_before_enemy_attack := shared_health
     _step_simulation(0.01, Vector2.ZERO)
     var enemy_effect_count := enemy_attack_effects.size()
