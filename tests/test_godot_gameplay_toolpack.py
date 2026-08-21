@@ -141,7 +141,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.5.0"
+    assert binding.version == "1.6.0"
 
 
 def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(tmp_path) -> None:
@@ -153,7 +153,10 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     gameplay_script = first.files["scripts/khalinos_gameplay.gd"]
     assert "func _draw_start_overlay" in gameplay_script
     assert "func _format_countdown" in gameplay_script
-    assert "attack_effects.append" in gameplay_script
+    assert "basic_attack_effects.append" in gameplay_script
+    assert "skill_effects.append" in gameplay_script
+    assert "enemy_attack_effects.append" in gameplay_script
+    assert "func _draw_skill_cooldowns" in gameplay_script
     assert 'Color("8ee58a")' in gameplay_script
     assert "func _draw_choice_overlay" in gameplay_script
     assert "func _draw_outcome_overlay" in gameplay_script
@@ -201,6 +204,18 @@ def test_explicit_playability_requirements_bind_visible_gameplay_feedback() -> N
     assert any("green hostile visual family" in criterion for criterion in criteria)
     assert any("brighter readable background" in criterion for criterion in criteria)
     assert any("next available input" in criterion for criterion in criteria)
+
+
+def test_explicit_combat_requirements_bind_distinct_attacks_and_cooldowns() -> None:
+    criteria = explicit_gameplay_criteria(
+        "The first enemy at level 1 must be beatable. Every hero needs a visible basic attack; "
+        "skills need cooldowns and separate effects, with a heal effect and enemy attack effect."
+    )
+    assert any("first level-one enemy" in criterion for criterion in criteria)
+    assert any("Every hero independently" in criterion for criterion in criteria)
+    assert any("declared cooldowns" in criterion for criterion in criteria)
+    assert any("green restorative effect" in criterion for criterion in criteria)
+    assert any("bounded cadence" in criterion for criterion in criteria)
 
 
 def test_gameplay_toolpack_rejects_bundle_or_asset_tampering(tmp_path) -> None:

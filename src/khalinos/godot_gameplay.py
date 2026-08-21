@@ -55,6 +55,26 @@ def explicit_gameplay_criteria(text: str) -> list[str]:
         criteria.append(
             "Automatic hero attacks show a visible motion, active range, and impact-timed combat feedback."
         )
+    if any(phrase in normalized for phrase in ("basic attack", "normal attack", "regular attack")):
+        criteria.append(
+            "Every hero independently performs a visible role-distinct basic attack against an enemy in range."
+        )
+    if "skill" in normalized and ("cooldown" in normalized or "cool down" in normalized):
+        criteria.append(
+            "Skills obey their declared cooldowns, expose remaining cooldown time in the HUD, and use effects distinct from basic attacks."
+        )
+    if any(phrase in normalized for phrase in ("heal effect", "healing effect", "visible heal")):
+        criteria.append(
+            "Healing produces a distinct visible green restorative effect around the party."
+        )
+    if any(phrase in normalized for phrase in ("enemy attack effect", "monster attack effect", "mob attack effect")):
+        criteria.append(
+            "Nearby enemies attack on a bounded cadence with a separate visible hostile impact effect."
+        )
+    if "level 1" in normalized and any(phrase in normalized for phrase in ("first enemy", "first monster", "first mob")):
+        criteria.append(
+            "The first level-one enemy is the lowest-threat unlocked type and is beatable by the initial party basic attacks."
+        )
     if "green" in normalized and any(term in normalized for term in ("enemy", "enemies", "monster", "monsters")):
         criteria.append(
             "Rendered enemies use a green hostile visual family that remains immediately distinct from the hero formation."
@@ -319,7 +339,11 @@ var level := 1
 var records := 0
 var enemies: Array[Dictionary] = []
 var ability_clocks: Dictionary = {}
-var attack_effects: Array[Dictionary] = []
+var hero_attack_clocks: Dictionary = {}
+var basic_attack_effects: Array[Dictionary] = []
+var skill_effects: Array[Dictionary] = []
+var enemy_attack_effects: Array[Dictionary] = []
+var spawn_count := 0
 var started := false
 var choice_open := false
 var current_upgrade_role := ""
@@ -340,6 +364,8 @@ func _ready() -> void:
     shared_health = shared_health_max
     for ability in config.abilities:
         ability_clocks[ability.ability_id] = 0.0
+    for hero in config.heroes:
+        hero_attack_clocks[hero.hero_id] = 0.0
     for roster in config.get("profession_rosters", []):
         profession_state[roster.role] = {"profession_id": roster.starting_profession_id, "rank": 1}
     rng.seed = int(config.deterministic_seed)
@@ -419,13 +445,22 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
         spawn_clock -= spawn_interval
         _spawn_enemy()
     for enemy in enemies:
+        enemy.attack_clock = max(0.0, float(enemy.get("attack_clock", 0.0)) - delta)
         var offset: Vector2 = center - enemy.position
         if offset.length() > 1.0:
             enemy.position += offset.normalized() * float(enemy.speed) * delta
-        if offset.length() < 36.0:
-            _apply_damage(_contact_damage_per_second(enemy) * delta)
+        if offset.length() < 42.0 and float(enemy.attack_clock) <= 0.0:
+            _apply_damage(_enemy_attack_damage(enemy))
+            enemy.attack_clock = 0.9
+            enemy_attack_effects.append({
+                "position": enemy.position,
+                "target": center,
+                "life": 0.32,
+                "max_life": 0.32,
+            })
+    _tick_basic_attacks(delta)
     _tick_abilities(delta)
-    _update_attack_effects(delta)
+    _update_combat_effects(delta)
     _remove_dead()
     var target_level: int = min(int(config.level_count), 1 + int(elapsed / float(config.level_interval_seconds)))
     if target_level > level:
@@ -444,8 +479,8 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
 func _party_defense() -> float:
     return float(_party_stats().defense)
 
-func _contact_damage_per_second(enemy: Dictionary) -> float:
-    return max(0.1, float(enemy.damage) - _party_defense() * 0.01)
+func _enemy_attack_damage(enemy: Dictionary) -> float:
+    return max(0.5, float(enemy.damage) - _party_defense() * 0.01)
 
 func _party_stats() -> Dictionary:
     var totals := {"health": 0.0, "attack": 0.0, "defense": 0.0, "attack_speed": 0.0, "move_speed": 0.0}
@@ -458,7 +493,12 @@ func _party_stats() -> Dictionary:
     return totals
 
 func _spawn_enemy() -> void:
-    var template: Dictionary = config.enemies[rng.randi_range(0, config.enemies.size() - 1)]
+    var pool: Array = config.enemies.duplicate(true)
+    pool.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return _enemy_threat(a) < _enemy_threat(b))
+    var progress: float = clamp(elapsed / max(1.0, float(config.session_seconds)), 0.0, 1.0)
+    var unlocked_count: int = clamp(1 + int(progress * float(pool.size())), 1, pool.size())
+    var unlocked: Array = pool.slice(0, unlocked_count)
+    var template: Dictionary = unlocked[0] if spawn_count == 0 else _weighted_enemy_template(unlocked)
     var angle: float = rng.randf_range(0.0, TAU)
     var distance: float = float(max(int(config.viewport_width), int(config.viewport_height))) * 0.55
     enemies.append({
@@ -469,7 +509,75 @@ func _spawn_enemy() -> void:
         "speed": template.speed,
         "record_value": template.record_value,
         "color_hex": template.color_hex,
+        "attack_clock": rng.randf_range(0.35, 0.75),
     })
+    spawn_count += 1
+
+func _enemy_threat(enemy: Dictionary) -> float:
+    return float(enemy.health) + float(enemy.damage) * 6.0 + float(enemy.speed) * 0.08
+
+func _weighted_enemy_template(pool: Array) -> Dictionary:
+    var total_weight := 0
+    for candidate in pool:
+        total_weight += int(candidate.spawn_weight)
+    var roll := rng.randi_range(1, max(1, total_weight))
+    for candidate in pool:
+        roll -= int(candidate.spawn_weight)
+        if roll <= 0:
+            return candidate
+    return pool[0]
+
+func _hero_position(hero_index: int) -> Vector2:
+    var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
+    return center + Vector2.from_angle(angle) * 30.0
+
+func _basic_attack_range(role: String) -> float:
+    match role:
+        "tank":
+            return 110.0
+        "damage":
+            return 280.0
+        "support":
+            return 200.0
+        _:
+            return 170.0
+
+func _nearest_enemy(origin: Vector2, attack_range: float) -> Dictionary:
+    var selected: Dictionary = {}
+    var selected_distance := attack_range + 1.0
+    for enemy in enemies:
+        var distance := origin.distance_to(enemy.position)
+        if distance <= attack_range and distance < selected_distance:
+            selected = enemy
+            selected_distance = distance
+    return selected
+
+func _tick_basic_attacks(delta: float) -> void:
+    var party_stats := _party_stats()
+    var hero_count: float = max(1.0, float(config.heroes.size()))
+    var cooldown: float = max(0.35, hero_count / max(0.1, float(party_stats.attack_speed)))
+    var damage: float = max(1.0, float(party_stats.attack) / hero_count)
+    for hero_index in range(config.heroes.size()):
+        var hero: Dictionary = config.heroes[hero_index]
+        var hero_id := String(hero.hero_id)
+        hero_attack_clocks[hero_id] = float(hero_attack_clocks.get(hero_id, 0.0)) + delta
+        if float(hero_attack_clocks[hero_id]) < cooldown:
+            continue
+        var origin := _hero_position(hero_index)
+        var target := _nearest_enemy(origin, _basic_attack_range(String(hero.role)))
+        if target.is_empty():
+            continue
+        hero_attack_clocks[hero_id] = 0.0
+        target.health = float(target.health) - damage
+        basic_attack_effects.append({
+            "owner_hero_id": hero_id,
+            "role": String(hero.role),
+            "origin": origin,
+            "target": target.position,
+            "range": _basic_attack_range(String(hero.role)),
+            "life": 0.28,
+            "max_life": 0.28,
+        })
 
 func _tick_abilities(delta: float) -> void:
     for ability in config.abilities:
@@ -478,14 +586,14 @@ func _tick_abilities(delta: float) -> void:
         if float(ability_clocks[id]) < float(ability.cooldown_seconds):
             continue
         ability_clocks[id] = 0.0
-        if String(ability.kind) in ["damage", "buff"]:
-            attack_effects.append({
-                "owner_hero_id": String(ability.owner_hero_id),
-                "kind": String(ability.kind),
-                "radius": float(ability.radius),
-                "life": 0.42,
-                "max_life": 0.42,
-            })
+        skill_effects.append({
+            "owner_hero_id": String(ability.owner_hero_id),
+            "kind": String(ability.kind),
+            "label": String(ability.label),
+            "radius": float(ability.radius),
+            "life": 0.62,
+            "max_life": 0.62,
+        })
         match ability.kind:
             "damage":
                 for enemy in enemies:
@@ -501,13 +609,18 @@ func _tick_abilities(delta: float) -> void:
             "resurrection":
                 stored_resurrections = min(int(config.get("resurrection_capacity", 0)), stored_resurrections + 1)
 
-func _update_attack_effects(delta: float) -> void:
+func _update_combat_effects(delta: float) -> void:
+    basic_attack_effects = _decay_effects(basic_attack_effects, delta)
+    skill_effects = _decay_effects(skill_effects, delta)
+    enemy_attack_effects = _decay_effects(enemy_attack_effects, delta)
+
+func _decay_effects(source: Array[Dictionary], delta: float) -> Array[Dictionary]:
     var active: Array[Dictionary] = []
-    for effect in attack_effects:
+    for effect in source:
         effect.life = float(effect.life) - delta
         if float(effect.life) > 0.0:
             active.append(effect)
-    attack_effects = active
+    return active
 
 func _profession_details(profession_id: String) -> Dictionary:
     for roster in config.get("profession_rosters", []):
@@ -602,23 +715,58 @@ func verification_scenario() -> Dictionary:
     var start_gate_present := not started and elapsed == 0.0 and enemies.is_empty()
     var initial_countdown := _remaining_seconds()
     _start_game()
-    var sample_enemy: Dictionary = config.enemies[0]
-    var contact_damage_delta_scaled := _contact_damage_per_second(sample_enemy) * 0.5 < float(sample_enemy.damage)
     var start := center
     _step_simulation(0.5, Vector2.RIGHT)
     var moved := center.x > start.x
     var countdown_decrements := _remaining_seconds() < initial_countdown
     _spawn_enemy()
     var spawned := enemies.size() > 0
-    for enemy in enemies:
-        enemy.position = center
-        enemy.health = 1.0
+    var first_enemy_id := String(enemies[0].enemy_id) if spawned else ""
+    var weakest_enemy: Dictionary = config.enemies[0]
+    for candidate in config.enemies:
+        if _enemy_threat(candidate) < _enemy_threat(weakest_enemy):
+            weakest_enemy = candidate
+    var first_enemy_level_one_beatable := spawned and first_enemy_id == String(weakest_enemy.enemy_id) and level == 1
+    if spawned:
+        enemies[0].position = center
+        enemies[0].health = float(weakest_enemy.health)
+    basic_attack_effects = []
+    for hero in config.heroes:
+        hero_attack_clocks[String(hero.hero_id)] = 999.0
+    _tick_basic_attacks(0.01)
+    var basic_attack_owners: Array[String] = []
+    for effect in basic_attack_effects:
+        basic_attack_owners.append(String(effect.owner_hero_id))
+    for hero in config.heroes:
+        first_enemy_level_one_beatable = first_enemy_level_one_beatable and basic_attack_owners.has(String(hero.hero_id))
+    first_enemy_level_one_beatable = first_enemy_level_one_beatable and spawned and float(enemies[0].health) <= 0.0
+    var all_hero_basic_attacks_visible: bool = basic_attack_owners.size() == config.heroes.size()
+    _remove_dead()
+    var ability_records_before := records
+    skill_effects = []
     for ability in config.abilities:
         ability_clocks[ability.ability_id] = float(ability.cooldown_seconds)
     _tick_abilities(0.01)
-    var attack_feedback_visible := not attack_effects.is_empty()
-    _remove_dead()
-    var ability_applied := records > 0 or shared_health > 0.0 or shield > 0.0
+    var skill_effect_count := skill_effects.size()
+    var skill_effect_visible: bool = skill_effect_count == config.abilities.size()
+    var heal_effect_visible := false
+    for effect in skill_effects:
+        heal_effect_visible = heal_effect_visible or String(effect.kind) == "heal"
+    _tick_abilities(0.01)
+    var skill_cooldown_enforced := skill_effects.size() == skill_effect_count
+    var ability_applied: bool = records > ability_records_before or skill_effect_visible or shield > 0.0
+    enemies = []
+    _spawn_enemy()
+    enemies[0].position = center
+    enemies[0].health = 9999.0
+    enemies[0].attack_clock = 0.0
+    enemy_attack_effects = []
+    var health_before_enemy_attack := shared_health
+    _step_simulation(0.01, Vector2.ZERO)
+    var enemy_effect_count := enemy_attack_effects.size()
+    var enemy_attack_effect_visible := enemy_effect_count == 1 and shared_health < health_before_enemy_attack
+    _step_simulation(0.01, Vector2.ZERO)
+    var enemy_attack_cooldown_enforced := enemy_attack_effects.size() == enemy_effect_count
     var observed_roles: Array[String] = []
     var choice_contract_valid := true
     var seeded_alternatives_valid := true
@@ -702,11 +850,16 @@ func verification_scenario() -> Dictionary:
         if not role_order.is_empty():
             expected_roles.append(String(role_order[stage % role_order.size()]))
     return {
-        "schema_version": "khalinos-godot-gameplay-probe-v4",
+        "schema_version": "khalinos-godot-gameplay-probe-v5",
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
-        "contact_damage_delta_scaled": contact_damage_delta_scaled,
-        "attack_feedback_visible": attack_feedback_visible,
+        "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
+        "all_hero_basic_attacks_visible": all_hero_basic_attacks_visible,
+        "skill_cooldown_enforced": skill_cooldown_enforced,
+        "skill_effect_visible": skill_effect_visible,
+        "heal_effect_visible": heal_effect_visible,
+        "enemy_attack_effect_visible": enemy_attack_effect_visible,
+        "enemy_attack_cooldown_enforced": enemy_attack_cooldown_enforced,
         "level_choice_prompted": level_choice_prompted,
         "enemy_visual_family": "green",
         "background_visual_treatment": "bright_readable",
@@ -746,16 +899,47 @@ func _draw() -> void:
         draw_line(Vector2(x, 0), Vector2(x, config.viewport_height), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     for y in range(0, int(config.viewport_height), 64):
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
-    for effect in attack_effects:
+    for effect in skill_effects:
         var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
-        var effect_color := Color(0.98, 0.78, 0.25, 0.72 * (1.0 - progress))
-        draw_circle(center, float(effect.radius) * (0.72 + progress * 0.28), effect_color, false, 4.0, true)
+        var alpha: float = 0.78 * (1.0 - progress)
+        var kind := String(effect.kind)
+        var effect_color := Color(1.0, 0.68, 0.18, alpha)
+        if kind == "heal":
+            effect_color = Color(0.25, 1.0, 0.62, alpha)
+            draw_circle(center, float(effect.radius) * (0.30 + progress * 0.25), Color(0.20, 0.92, 0.55, alpha * 0.18))
+        elif kind == "shield":
+            effect_color = Color(0.35, 0.72, 1.0, alpha)
+        elif kind == "resurrection":
+            effect_color = Color(0.88, 0.72, 1.0, alpha)
+        draw_circle(center, float(effect.radius) * (0.72 + progress * 0.28), effect_color, false, 5.0, true)
+    for effect in basic_attack_effects:
+        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
+        var attack_color := Color(1.0, 0.68, 0.22, 0.94 * (1.0 - progress))
+        var width := 7.0
+        if String(effect.role) == "damage":
+            attack_color = Color(1.0, 0.94, 0.30, 0.96 * (1.0 - progress))
+            width = 4.0
+        elif String(effect.role) == "support":
+            attack_color = Color(0.35, 0.92, 1.0, 0.94 * (1.0 - progress))
+            width = 5.0
+        draw_line(effect.origin, effect.target, attack_color, width, true)
+        draw_circle(effect.target, 8.0 + progress * 12.0, attack_color, false, 3.0, true)
+        draw_circle(effect.origin, float(effect.range), Color(attack_color, 0.10 * (1.0 - progress)), false, 1.5, true)
+    for effect in enemy_attack_effects:
+        var progress: float = 1.0 - float(effect.life) / max(0.01, float(effect.max_life))
+        var enemy_attack_color := Color(1.0, 0.18, 0.12, 0.95 * (1.0 - progress))
+        draw_line(effect.position, effect.target, enemy_attack_color, 8.0, true)
+        draw_circle(effect.target, 12.0 + progress * 14.0, enemy_attack_color, false, 4.0, true)
     var hero_index := 0
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
         var position: Vector2 = center + Vector2.from_angle(angle) * 30.0
         var attacking := false
-        for effect in attack_effects:
+        for effect in basic_attack_effects:
+            if String(effect.owner_hero_id) == String(hero.hero_id):
+                attacking = true
+                position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
+        for effect in skill_effects:
             if String(effect.owner_hero_id) == String(hero.hero_id):
                 attacking = true
                 position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
@@ -781,6 +965,7 @@ func _draw() -> void:
     draw_rect(Rect2(34, 55, 348.0 * clamp(shared_health / max(1.0, shared_health_max), 0.0, 1.0), 12), Color("d95f4f"))
     _draw_label("TIME  " + _format_countdown(), Vector2(float(config.viewport_width) / 2.0 - 82.0, 45), 26, Color("fff0a8"))
     _draw_label("LEVEL %d / %d" % [level, int(config.level_count)], Vector2(float(config.viewport_width) - 180.0, 42), 18, Color("f7f2df"))
+    _draw_skill_cooldowns()
     _draw_label("Move: WASD / Arrows", Vector2(30, float(config.viewport_height) - 24.0), 16, Color(0.9, 0.94, 0.86, 0.82))
     if not started:
         _draw_start_overlay()
@@ -788,6 +973,18 @@ func _draw() -> void:
         _draw_choice_overlay()
     if ended:
         _draw_outcome_overlay()
+
+func _draw_skill_cooldowns() -> void:
+    var panel_x := float(config.viewport_width) - 290.0
+    draw_rect(Rect2(panel_x, 76.0, 266.0, 30.0 + config.abilities.size() * 24.0), Color(0.035, 0.055, 0.04, 0.82))
+    _draw_label("SKILL COOLDOWNS", Vector2(panel_x + 12.0, 98.0), 15, Color("fff0a8"))
+    for index in range(config.abilities.size()):
+        var ability: Dictionary = config.abilities[index]
+        var remaining: float = max(0.0, float(ability.cooldown_seconds) - float(ability_clocks.get(ability.ability_id, 0.0)))
+        var state := "READY" if remaining <= 0.0 else "%.1fs" % remaining
+        var state_color := Color("8ff0a8") if remaining <= 0.0 else Color("e8e3cf")
+        _draw_label(String(ability.label), Vector2(panel_x + 12.0, 124.0 + index * 24.0), 14, Color("d7e4d0"))
+        _draw_label(state, Vector2(panel_x + 188.0, 124.0 + index * 24.0), 14, state_color)
 
 func _draw_label(text: String, position: Vector2, size: int, color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
     draw_string(ThemeDB.fallback_font, position, text, alignment, width, size, color)
@@ -853,8 +1050,13 @@ func _probe() -> void:
     receipt.passed = (
         receipt.get("start_gate_present", false)
         and receipt.get("countdown_decrements", false)
-        and receipt.get("contact_damage_delta_scaled", false)
-        and receipt.get("attack_feedback_visible", false)
+        and receipt.get("first_enemy_level_one_beatable", false)
+        and receipt.get("all_hero_basic_attacks_visible", false)
+        and receipt.get("skill_cooldown_enforced", false)
+        and receipt.get("skill_effect_visible", false)
+        and receipt.get("heal_effect_visible", false)
+        and receipt.get("enemy_attack_effect_visible", false)
+        and receipt.get("enemy_attack_cooldown_enforced", false)
         and receipt.get("level_choice_prompted", false)
         and receipt.get("enemy_visual_family", "") == "green"
         and receipt.get("background_visual_treatment", "") == "bright_readable"
