@@ -1,0 +1,59 @@
+{
+  "receipt_id": "VS-969dda8af8ca4a1f",
+  "plan_sha256": "bc8c659c329ed2e3c8727989a593536ad5af906d50ce90df4a39cafc4e67d3a9",
+  "selected_candidate_id": "V2",
+  "selected_artifact_sha256": "fe61dab95aaf3dd1aace6d14039b99418fc645084cb0136c44a81b92dc8142bb",
+  "eligible_candidate_ids": [
+    "V1",
+    "V2"
+  ],
+  "screenshot_paths": {
+    "V1": "gs://khalinos-agent-20260818-runs/runs/5f0964c8e3a0443197ab5b7e05b1a468/visuals/V1/evidence/godot-gameplay-render00000002.png",
+    "V2": "gs://khalinos-agent-20260818-runs/runs/5f0964c8e3a0443197ab5b7e05b1a468/visuals/V2/evidence/godot-gameplay-render00000002.png"
+  },
+  "asset_sha256_by_candidate": {
+    "V1": "99559987f08babf869f9d2b3f13a544332177facb6517bdad71e9413c956829f",
+    "V2": "40a7e5c4d3308d0410000d5d39cbb684c341c910d2e117b8e5738b9bc2b61007"
+  },
+  "selection": {
+    "assessments": [
+      {
+        "candidate_id": "V1",
+        "contract_alignment": 5,
+        "visual_hierarchy": 4,
+        "distinctiveness": 3,
+        "interaction_clarity": 3,
+        "craft_and_cohesion": 4,
+        "strengths": [
+          "The background texture matches a dark, subterranean archive/ruined environment.",
+          "The three-hero formation is clearly visible as colored circles in a triangular layout."
+        ],
+        "weaknesses": [
+          "Extremely minimal UI that fails to show the shared stats, level progress bar, or skill slots as described in the visual concept plan.",
+          "The heroes are represented by generic colored circles rather than stylized fantasy characters or custom sprites.",
+          "The health bar is a simple flat red rectangle with no styling or text labels."
+        ]
+      },
+      {
+        "candidate_id": "V2",
+        "contract_alignment": 5,
+        "visual_hierarchy": 4,
+        "distinctiveness": 4,
+        "interaction_clarity": 3,
+        "craft_and_cohesion": 4,
+        "strengths": [
+          "The background features a more distinct rocky cavern/subterranean path texture.",
+          "The three-hero formation is clearly centered and visible."
+        ],
+        "weaknesses": [
+          "Extremely minimal UI lacking the required shared stats, level progress bar, or skill slots.",
+          "Uses generic colored circles for heroes instead of the chiseled stone-textured avatars described in the concept plan.",
+          "The health bar is a simple flat red rectangle with no styling or text labels."
+        ]
+      }
+    ],
+    "selected_candidate_id": "V2",
+    "rationale": "Both V1 and V2 are extremely minimal implementations that rely on placeholder colored circles for the heroes and a basic flat red bar for health, failing to deliver the rich UI elements described in their respective design concepts. However, V2 is selected because its background texture of a rocky subterranean cavern is slightly more distinct and better aligned with the 'subterranean archive' theme than the muddy, dark background of V1."
+  },
+  "created_at": "2026-08-21T02:29:30.977219+00:00"
+}

@@ -1,0 +1,199 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">KHALINOS evidence-gated autonomous production architecture</title>
+  <desc id="desc">A left-to-right architecture showing user authority, Gemini and ADK orchestration, trusted ToolPack production, separated verification gates, bounded repair, and verified results on Google Cloud.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071521"/>
+      <stop offset="0.56" stop-color="#0b1d2a"/>
+      <stop offset="1" stop-color="#102839"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3ce0c5"/>
+      <stop offset="1" stop-color="#7ed7ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000814" flood-opacity="0.42"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,6 L0,12 z" fill="#66d7e8"/>
+    </marker>
+    <marker id="arrowGold" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L12,6 L0,12 z" fill="#f3c96b"/>
+    </marker>
+    <style>
+      .label { font-family: Inter, Segoe UI, Arial, sans-serif; fill: #dcebf3; }
+      .muted { fill: #8fa9b8; }
+      .caps { font-size: 13px; font-weight: 700; letter-spacing: 2.4px; }
+      .lane-title { font-size: 20px; font-weight: 750; }
+      .node-title { font-size: 17px; font-weight: 700; }
+      .node-copy { font-size: 13px; }
+      .small { font-size: 12px; }
+      .flow { fill: none; stroke: #66d7e8; stroke-width: 3; marker-end: url(#arrow); }
+      .gold-flow { fill: none; stroke: #f3c96b; stroke-width: 3; marker-end: url(#arrowGold); }
+      .dash { stroke-dasharray: 7 7; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" rx="30" fill="url(#bg)"/>
+  <circle cx="1490" cy="95" r="180" fill="#1f5060" opacity="0.18"/>
+  <circle cx="80" cy="820" r="210" fill="#116b63" opacity="0.12"/>
+
+  <text x="70" y="70" class="label" font-size="34" font-weight="800">KHALINOS</text>
+  <text x="70" y="104" class="label muted" font-size="18">Evidence-gated autonomous production on Gemini, ADK, and Google Cloud</text>
+  <rect x="1210" y="48" width="320" height="58" rx="29" fill="#132f3d" stroke="#f3c96b" stroke-width="1.5"/>
+  <text x="1370" y="83" class="label" font-size="16" font-weight="700" text-anchor="middle">IF IT IS NOT PROVEN, IT IS NOT COMPLETE</text>
+
+  <!-- Lane backgrounds -->
+  <g opacity="0.98">
+    <rect x="55" y="145" width="280" height="610" rx="24" fill="#0e2532" stroke="#275064"/>
+    <rect x="365" y="145" width="280" height="610" rx="24" fill="#102936" stroke="#275064"/>
+    <rect x="675" y="145" width="280" height="610" rx="24" fill="#102936" stroke="#275064"/>
+    <rect x="985" y="145" width="280" height="610" rx="24" fill="#102936" stroke="#275064"/>
+    <rect x="1295" y="145" width="250" height="610" rx="24" fill="#102936" stroke="#2e625b"/>
+  </g>
+
+  <!-- Lane headers -->
+  <g class="label">
+    <text x="80" y="185" class="caps" fill="#77dccb">01 · AUTHORITY</text>
+    <text x="390" y="185" class="caps" fill="#7ed7ff">02 · ORCHESTRATION</text>
+    <text x="700" y="185" class="caps" fill="#b4a0ff">03 · PRODUCTION</text>
+    <text x="1010" y="185" class="caps" fill="#f3c96b">04 · EVIDENCE GATES</text>
+    <text x="1320" y="185" class="caps" fill="#77dccb">05 · RESULT</text>
+  </g>
+
+  <!-- Authority nodes -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="220" width="230" height="92" rx="16" fill="#143746" stroke="#4dbdab"/>
+    <rect x="80" y="342" width="230" height="92" rx="16" fill="#143746" stroke="#4dbdab"/>
+    <rect x="80" y="464" width="230" height="92" rx="16" fill="#143746" stroke="#4dbdab"/>
+    <rect x="80" y="586" width="230" height="116" rx="16" fill="#2f2a20" stroke="#f3c96b" stroke-width="2"/>
+  </g>
+  <g class="label">
+    <text x="100" y="251" class="node-title">Goal + materials</text>
+    <text x="100" y="277" class="node-copy muted">Plain-language intent</text>
+    <text x="100" y="296" class="node-copy muted">Authoritative references</text>
+
+    <text x="100" y="373" class="node-title">Route Advisor</text>
+    <text x="100" y="399" class="node-copy muted">Approved ToolPack fit only</text>
+    <text x="100" y="418" class="node-copy muted">Host-bound manifest digest</text>
+
+    <text x="100" y="495" class="node-title">SixSense</text>
+    <text x="100" y="521" class="node-copy muted">Ask only material gaps</text>
+    <text x="100" y="540" class="node-copy muted">Editable professional defaults</text>
+
+    <text x="100" y="617" class="node-title" fill="#ffe2a1">Immutable outcome contract</text>
+    <text x="100" y="645" class="node-copy" fill="#dec892">Scope · evidence · budget · time</text>
+    <text x="100" y="674" class="node-copy" fill="#f3c96b">USER AUTHORIZATION GATE</text>
+  </g>
+
+  <!-- Orchestration nodes -->
+  <g filter="url(#shadow)">
+    <rect x="390" y="232" width="230" height="98" rx="16" fill="#15384a" stroke="#5fb9e8"/>
+    <rect x="390" y="382" width="230" height="98" rx="16" fill="#15384a" stroke="#5fb9e8"/>
+    <rect x="390" y="532" width="230" height="112" rx="16" fill="#15384a" stroke="#5fb9e8"/>
+  </g>
+  <g class="label">
+    <text x="410" y="265" class="node-title">Cloud Run service</text>
+    <text x="410" y="291" class="node-copy muted">Identity · intake · live state</text>
+    <text x="410" y="310" class="node-copy muted">Starts one fixed Worker Job</text>
+
+    <text x="410" y="415" class="node-title">Cloud Run Job</text>
+    <text x="410" y="441" class="node-copy muted">Asynchronous execution</text>
+    <text x="410" y="460" class="node-copy muted">Timeout · retry · cost bounds</text>
+
+    <text x="410" y="565" class="node-title">Gemini Project Owner</text>
+    <text x="410" y="591" class="node-copy muted">Google ADK schema-bound agent</text>
+    <text x="410" y="610" class="node-copy muted">Issues dependency-safe Quests</text>
+  </g>
+
+  <!-- Production nodes -->
+  <g filter="url(#shadow)">
+    <rect x="700" y="232" width="230" height="98" rx="16" fill="#242c48" stroke="#a995ff"/>
+    <rect x="700" y="382" width="230" height="98" rx="16" fill="#242c48" stroke="#a995ff"/>
+    <rect x="700" y="532" width="230" height="112" rx="16" fill="#242c48" stroke="#a995ff"/>
+  </g>
+  <g class="label">
+    <text x="720" y="265" class="node-title">Visual Director</text>
+    <text x="720" y="291" class="node-copy muted">Concept competition</text>
+    <text x="720" y="310" class="node-copy muted">Nano Banana assets + gates</text>
+
+    <text x="720" y="415" class="node-title">Accountable Maker</text>
+    <text x="720" y="441" class="node-copy muted">Gemini 3.5 via ADK</text>
+    <text x="720" y="460" class="node-copy muted">Cannot approve its own work</text>
+
+    <text x="720" y="565" class="node-title">Trusted ToolPack</text>
+    <text x="720" y="591" class="node-copy muted">Bounded Browser / Godot output</text>
+    <text x="720" y="610" class="node-copy muted">Static paths · digest · runtime</text>
+  </g>
+
+  <!-- Verification nodes -->
+  <g filter="url(#shadow)">
+    <rect x="1010" y="232" width="230" height="98" rx="16" fill="#3a3020" stroke="#f3c96b"/>
+    <rect x="1010" y="382" width="230" height="98" rx="16" fill="#3a3020" stroke="#f3c96b"/>
+    <rect x="1010" y="532" width="230" height="112" rx="16" fill="#342638" stroke="#dc8cd8"/>
+  </g>
+  <g class="label">
+    <text x="1030" y="265" class="node-title">Deterministic runtime</text>
+    <text x="1030" y="291" class="node-copy muted">Real mechanics + render</text>
+    <text x="1030" y="310" class="node-copy muted">Network-isolated assertions</text>
+
+    <text x="1030" y="415" class="node-title">Independent Verifier</text>
+    <text x="1030" y="441" class="node-copy muted">Criterion-bound judgment</text>
+    <text x="1030" y="460" class="node-copy muted">Cannot modify the artifact</text>
+
+    <text x="1030" y="565" class="node-title">Technical Repair</text>
+    <text x="1030" y="591" class="node-copy muted">Causal, scoped, max 2 rounds</text>
+    <text x="1030" y="610" class="node-copy muted">Then re-enter runtime gate</text>
+  </g>
+
+  <!-- Result nodes -->
+  <g filter="url(#shadow)">
+    <rect x="1320" y="246" width="200" height="126" rx="18" fill="#123b38" stroke="#57d5bd" stroke-width="2"/>
+    <rect x="1320" y="420" width="200" height="126" rx="18" fill="#123b38" stroke="#57d5bd" stroke-width="2"/>
+    <rect x="1320" y="594" width="200" height="82" rx="18" fill="#2f2a20" stroke="#f3c96b" stroke-width="2"/>
+  </g>
+  <g class="label">
+    <text x="1340" y="281" class="node-title" fill="#8ff0d8">Verified artifact</text>
+    <text x="1340" y="309" class="node-copy muted">Browser or Godot product</text>
+    <text x="1340" y="330" class="node-copy muted">Source + asset digests</text>
+    <text x="1340" y="351" class="node-copy muted">Real runtime screenshots</text>
+
+    <text x="1340" y="455" class="node-title" fill="#8ff0d8">Receipt chain</text>
+    <text x="1340" y="483" class="node-copy muted">Visual + Quest receipts</text>
+    <text x="1340" y="504" class="node-copy muted">Immutable evidence manifest</text>
+    <text x="1340" y="525" class="node-copy muted">Verified checkpoint</text>
+
+    <text x="1420" y="628" class="node-title" fill="#ffe2a1" text-anchor="middle">PASS or safe stop</text>
+    <text x="1420" y="652" class="node-copy" fill="#dec892" text-anchor="middle">Never a guessed completion</text>
+  </g>
+
+  <!-- Main flow arrows -->
+  <path class="flow" d="M195 312 V335"/>
+  <path class="flow" d="M195 434 V457"/>
+  <path class="gold-flow" d="M195 556 V579"/>
+  <path class="gold-flow" d="M310 644 C350 644 350 281 383 281"/>
+  <path class="flow" d="M505 330 V375"/>
+  <path class="flow" d="M505 480 V525"/>
+  <path class="flow" d="M620 588 H693"/>
+  <path class="flow" d="M815 330 V375"/>
+  <path class="flow" d="M815 480 V525"/>
+  <path class="flow" d="M930 588 C970 588 970 281 1003 281"/>
+  <path class="flow" d="M1125 330 V375"/>
+  <path class="gold-flow" d="M1240 431 H1313"/>
+  <path class="flow" d="M1420 372 V413"/>
+  <path class="gold-flow" d="M1420 546 V587"/>
+  <path class="flow dash" d="M1125 480 V525"/>
+  <path d="M1010 588 C970 588 970 690 815 690 C740 690 740 660 815 650" fill="none" stroke="#dc8cd8" stroke-width="3" stroke-dasharray="8 7" marker-end="url(#arrow)"/>
+  <text x="930" y="714" class="label small" fill="#dc8cd8" text-anchor="middle">REPAIR · bounded causal loop</text>
+
+  <!-- Google Cloud state/evidence plane -->
+  <rect x="365" y="780" width="900" height="72" rx="20" fill="#0b202b" stroke="#31586a"/>
+  <text x="395" y="810" class="label caps" fill="#7ed7ff">GOOGLE CLOUD STATE + EVIDENCE PLANE</text>
+  <text x="395" y="835" class="label node-copy muted">Firestore live projection</text>
+  <circle cx="575" cy="830" r="3" fill="#4dbdab"/>
+  <text x="595" y="835" class="label node-copy muted">Cloud Storage immutable briefs, assets, screenshots, receipts, manifests</text>
+  <path class="flow dash" d="M505 755 V773"/>
+  <path class="flow dash" d="M1125 755 V773"/>
+
+  <text x="70" y="842" class="label small muted">Authority is human-owned. Execution is agentic. Completion is evidence-owned.</text>
+</svg>

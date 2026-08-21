@@ -1,0 +1,32 @@
+{
+  "artifact_sha256": "5eb440e336e7356123980266fd8ff3355904bddab93c8d9bf7d41bb437064da2",
+  "plan_sha256": "c676277062371997bb29e1daaf0f94cf36e27e21fba8abaa9af14d715d20baf6",
+  "bundle_sha256": "85413af749609a370e6b643b9b72fd4f62b3a4599b6d6b546364f3da326929fe",
+  "asset_sha256": "40a7e5c4d3308d0410000d5d39cbb684c341c910d2e117b8e5738b9bc2b61007",
+  "sprite_atlas_sha256": "766137ca69effb4faf938970d4a7678fe021e324f1dd71deb73fa9f265cd267f",
+  "sprite_atlas_gate_sha256": "91c01acd8b1fad5fe056e7f8fccbb25bbc6afdae4048267514414ff0b02a7f0e",
+  "sprite_segmentation_contract_sha256": "16989e9fe363c23cf7b1305c66d612db5dc57e83b3d826e5e2721a0c186a5dea",
+  "toolpack_binding": {
+    "toolpack_id": "godot.gameplay",
+    "version": "1.4.0",
+    "manifest_sha256": "3cb606a3dd18393f5fe2d72a30a0349cd770f4ae3b1bdbbeb95e8f32197ca9f2"
+  },
+  "files": [
+    "KHALINOS_GAMEPLAY.json",
+    "KHALINOS_SPRITE_ATLAS.json",
+    "README.md",
+    "assets/sprite-atlas.png",
+    "assets/visual-foundation.png",
+    "project.godot",
+    "scenes/gameplay.tscn",
+    "scripts/khalinos_gameplay.gd",
+    "scripts/khalinos_gameplay_probe.gd"
+  ],
+  "receipt_ids": [
+    "VS-969dda8af8ca4a1f",
+    "QR-182fbb5d8ebd45da",
+    "QR-78a3118bc98c4424",
+    "QR-7cf60327abeb46a8"
+  ],
+  "source_archive": "gs://khalinos-agent-20260818-runs/runs/5f0964c8e3a0443197ab5b7e05b1a468/final/source.zip"
+}
