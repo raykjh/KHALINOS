@@ -243,6 +243,9 @@ criterion because no Quest is active during visual selection. Do not use type, s
 a different step schema, and never emit arbitrary JavaScript. The journey must
 exercise real controls and produce a meaningful rendered screenshot. Keep revision_summary
 concise and under 500 characters. Return only the required schema.
+If the payload contains bounded_repair, preserve the approved concept and trusted asset while
+correcting only the reported deterministic rendering issues. Return the complete five-file
+candidate again; do not widen its scope or change its visual thesis.
 """.strip()
 
 VISUAL_VERIFIER_INSTRUCTION = """

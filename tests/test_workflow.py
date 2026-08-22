@@ -534,6 +534,17 @@ async def test_visual_competition_continues_with_two_renderable_candidates(monke
     calls = {"count": 0}
 
     def evidence(*args, **kwargs):
+        if args[3]:
+            evidence_dir = args[2]
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            (evidence_dir / "journey-01.png").write_bytes(b"png")
+            return DeterministicEvidence(
+                passed=True,
+                checks={"runtime": True},
+                issues=[],
+                screenshot_names=["journey-01.png"],
+                criterion_evidence=runtime_criterion_evidence(args),
+            )
         calls["count"] += 1
         visual_candidate_two = calls["count"] == 2
         evidence_dir = args[2]
@@ -556,6 +567,55 @@ async def test_visual_competition_continues_with_two_renderable_candidates(monke
     receipt = json.loads((tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
     assert receipt["eligible_candidate_ids"] == ["V1", "V3"]
     assert list(receipt["selection"]["assessments"][index]["candidate_id"] for index in range(2)) == ["V1", "V3"]
+
+
+async def test_visual_competition_repairs_one_failed_candidate_when_only_one_passes(tmp_path: Path) -> None:
+    calls = {"count": 0}
+
+    def evidence(*args, **kwargs):
+        if args[3]:
+            evidence_dir = args[2]
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            (evidence_dir / "journey-01.png").write_bytes(b"png")
+            return DeterministicEvidence(
+                passed=True,
+                checks={"runtime": True},
+                issues=[],
+                screenshot_names=["journey-01.png"],
+                criterion_evidence=runtime_criterion_evidence(args),
+            )
+        calls["count"] += 1
+        passed = calls["count"] in {3, 4}
+        evidence_dir = args[2]
+        if passed:
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+            (evidence_dir / "journey-01.png").write_bytes(b"png")
+        return DeterministicEvidence(
+            passed=passed,
+            checks={"runtime": passed},
+            issues=[] if passed else ["candidate interaction was obscured"],
+            screenshot_names=["journey-01.png"] if passed else [],
+            criterion_evidence=runtime_criterion_evidence(args),
+        )
+
+    store, run_id = setup_run(tmp_path)
+    result = await execute_run(
+        run_id,
+        store=store,
+        team=FakeTeam(),
+        registry=ToolPackRegistry([toolpack_with_evidence(evidence)]),
+    )
+
+    assert result.status == RunStatus.PASSED
+    run_root = tmp_path / "runs" / run_id
+    repaired = json.loads(
+        (run_root / "visuals" / "V1" / "repair" / "attempt-1" / "deterministic_evidence.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert repaired["passed"]
+    receipt = json.loads((run_root / "visuals" / "selection_receipt.json").read_text(encoding="utf-8"))
+    assert receipt["eligible_candidate_ids"] == ["V1", "V3"]
 
 
 async def test_visual_asset_gate_rejects_forbidden_raw_image_before_browser_maker(tmp_path: Path) -> None:
