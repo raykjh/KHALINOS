@@ -437,7 +437,7 @@ async def execute_run(
         plan = plan.model_copy(update={"toolpack_binding": binding})
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Project Owner exceeded the approved Quest limit")
-        _validate_plan_authority(brief, plan)
+        plan = _bind_plan_authority(brief, plan)
         store.put_json(run_id, "quest_plan.json", plan.model_dump(mode="json"))
         existing_repair = record.work_mode == "existing_project_repair"
         if existing_repair:
