@@ -126,7 +126,7 @@ func simulate_step(delta: float) -> void:
             attack_clock = 0.0
             target["hp"] = float(target["hp"]) - float(combat["attack_damage"])
             total_attacks += 1
-            var vfx_role := "warrior_slash" if total_attacks % 2 == 1 else "archer_impact"
+            var vfx_role := "warrior_basic" if total_attacks % 2 == 1 else "archer_basic"
             shot_effects.append({"from": Vector2(190, 360), "to": Vector2(float(target["x"]), 360), "ttl": 0.45, "max_ttl": 0.45, "vfx_role": vfx_role})
             _play_audio("attack")
             _play_audio("hit")
@@ -206,8 +206,8 @@ func _draw() -> void:
     for effect in shot_effects:
         var effect_drawn := false
         if effect_player != null and effect_texture != null:
-            var anchor: Vector2 = effect["from"] if String(effect["vfx_role"]) == "warrior_slash" else effect["to"]
-            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, String(effect["vfx_role"]), Rect2(anchor - Vector2(64, 64), Vector2(128, 128)), float(effect["ttl"]), float(effect["max_ttl"]))
+            var anchor: Vector2 = effect["from"] + Vector2(128, 0) if String(effect["vfx_role"]) == "warrior_basic" else effect["to"]
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, String(effect["vfx_role"]), Rect2(anchor - Vector2(44, 44), Vector2(88, 88)), float(effect["ttl"]), float(effect["max_ttl"]))
         if not effect_drawn:
             CombatFeedback.draw_attack_line(
                 self, effect["from"], effect["to"], Color("fff2a8"), 7.0, false
@@ -256,8 +256,8 @@ func _initialize() -> void:
         "effect_receipt_present": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
         "effect_frame_animation_observed": (
             scene.effect_player == null
-            or scene.effect_player.frame_region(scene.effect_manifest, "archer_impact", 0.45, 0.45)
-            != scene.effect_player.frame_region(scene.effect_manifest, "archer_impact", 0.05, 0.45)
+            or scene.effect_player.frame_region(scene.effect_manifest, "archer_basic", 0.45, 0.45)
+            != scene.effect_player.frame_region(scene.effect_manifest, "archer_basic", 0.05, 0.45)
         ),
         "horizontal_lane_present": true,
         "movement_right": scene.progress_distance > initial_progress,

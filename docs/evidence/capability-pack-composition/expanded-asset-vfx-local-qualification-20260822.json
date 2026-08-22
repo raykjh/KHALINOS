@@ -1,0 +1,103 @@
+{
+  "schema_version": "khalinos-expanded-asset-vfx-local-qualification-v1",
+  "date": "2026-08-22",
+  "scope": "local_approved_godot_qualification_not_yet_cloud_production_evidence",
+  "aetherai_candidate_expansion": {
+    "license_id": "AetherAI-Free-Asset-License-2026-06-29",
+    "source_url": "https://www.aetherforgeai.com/ko/free-assets",
+    "downloaded_with": "user-authenticated Chrome session",
+    "new_32px_pastel_candidates": 30,
+    "category_counts": {
+      "buildings": 8,
+      "characters": 7,
+      "monsters": 8,
+      "props": 7
+    },
+    "supplemental_aggregate_sha256": "dc5da74128098690ae5340df794fedf6b8635c0718aafeb787e146d8e863898c",
+    "catalog_total": 384,
+    "catalog_sha256": "e12cac7471b3a9eba621d015ef00d6a8e75151a3300804608b6ddad9b4e1f654",
+    "style_counts": {
+      "32px": 280,
+      "32px-pastel": 30,
+      "40px-k-rpg": 74
+    },
+    "grade_counts": {
+      "A": 13,
+      "B": 366,
+      "C": 5
+    },
+    "active_binding_policy": "pastel additions remain grade-B reserves until a profile explicitly selects them",
+    "standalone_asset_pack_redistribution_allowed": false
+  },
+  "generated_vfx": {
+    "provider": "OpenAI built-in ImageGen",
+    "candidate_count": 12,
+    "families": ["warrior", "archer", "healer", "enemy"],
+    "candidates_per_family": 3,
+    "frames_per_candidate": 9,
+    "atlas": {
+      "path": "assets/combat-vfx-atlas.png",
+      "width": 2016,
+      "height": 672,
+      "byte_size": 1461555,
+      "sha256": "6664bcc6a272af1c4776c0006a3c8b9d9f329af0542d89424b06ed3b74d339f6"
+    },
+    "toolpack_chain": [
+      "godot.effect-selector@2.0.0",
+      "godot.effect-atlas@2.0.0",
+      "godot.vfx-player@2.0.0",
+      "godot.effect-receipt@2.0.0"
+    ],
+    "profile_binding_differences": {
+      "godot.trinity-top-down": {
+        "warrior_basic": "warrior_golden_slash",
+        "warrior_skill": "warrior_cyan_whirlwind",
+        "archer_basic": "archer_arrow_impact",
+        "archer_skill": "archer_violet_rain",
+        "healer_heal": "healer_restoration_pulse",
+        "healer_shield": "healer_golden_shield",
+        "healer_resurrection": "healer_blue_resurrection",
+        "enemy_melee": "enemy_claw_poison",
+        "enemy_caster": "enemy_purple_curse"
+      },
+      "godot.side-scroll-destination": {
+        "warrior_basic": "warrior_crimson_heavy",
+        "warrior_skill": "warrior_cyan_whirlwind",
+        "archer_basic": "archer_emerald_volley",
+        "archer_skill": "archer_violet_rain",
+        "healer_heal": "healer_blue_resurrection",
+        "healer_shield": "healer_golden_shield",
+        "healer_resurrection": "healer_restoration_pulse",
+        "enemy_melee": "enemy_red_bite",
+        "enemy_caster": "enemy_purple_curse"
+      }
+    }
+  },
+  "visual_adjustment": {
+    "trinity": "kept skill rings behind the party at 168px so hero silhouettes remain readable",
+    "side_scroll": "moved the heavy-strike center 128px ahead of the party and reduced it to 88px"
+  },
+  "local_profiles": {
+    "godot.trinity-top-down": {
+      "passed": true,
+      "checks": "58/58",
+      "issues": [],
+      "artifact_bundle_sha256": "a43542046b6624552e03bc9d15971866feeef468f4844ecec29ce10f1f01ff26",
+      "licensed_atlas_sha256": "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56",
+      "evidence_frame": "qualification-final-trinity/evidence/godot-gameplay-render00000070.png"
+    },
+    "godot.side-scroll-destination": {
+      "passed": true,
+      "checks": "30/30",
+      "issues": [],
+      "artifact_bundle_sha256": "81cbab9e6d08b30c2f47ca1093b5b5122a26b6674ed088cbab7aea21b4429f41",
+      "licensed_atlas_sha256": "3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e",
+      "evidence_frame": "qualification-final-side-scroll/evidence/side-scroll-render00000089.png"
+    }
+  },
+  "regression": {
+    "pytest": "182 passed, 5 warnings",
+    "max_agent_slots": 13
+  },
+  "boundary": "The local runs include the external AetherAI library. Cloud images do not bundle that source library; a Cloud requalification proves the repository-contained VFX path unless separately stated."
+}

@@ -32,7 +32,7 @@ ATLAS_COLUMNS = 4
 ATLAS_ROWS = 4
 ATLAS_CELL_SIZE = 128
 ATLAS_SIZE = ATLAS_COLUMNS * ATLAS_CELL_SIZE
-EXPECTED_CATALOG_SIZE = 354
+EXPECTED_CATALOG_SIZE = 384
 
 ProfileId = Literal["godot.trinity-top-down", "godot.side-scroll-destination"]
 AssetGrade = Literal["A", "B", "C"]
@@ -86,7 +86,7 @@ class GradedAsset(BaseModel):
     asset_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
     relative_path: str
     source_url: str = Field(pattern=r"^https://")
-    style: Literal["32px", "40px-k-rpg"]
+    style: Literal["32px", "32px-pastel", "40px-k-rpg"]
     category: str
     grade: AssetGrade
     sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -178,13 +178,17 @@ def grade_asset_library(root: Path) -> tuple[GradedAsset, ...]:
     graded: list[GradedAsset] = []
     candidates = [
         path
-        for style_root in (source_root / "32px", source_root / "40px-k-rpg")
+        for style_root in (
+            source_root / "32px",
+            source_root / "32px-pastel",
+            source_root / "40px-k-rpg",
+        )
         for path in style_root.rglob("*.png")
     ]
     for path in sorted(candidates):
         relative = _normalize_relative(path, source_root)
         parts = PurePosixPath(relative).parts
-        if len(parts) < 3 or parts[0] not in {"32px", "40px-k-rpg"}:
+        if len(parts) < 3 or parts[0] not in {"32px", "32px-pastel", "40px-k-rpg"}:
             raise PermissionError(f"licensed asset uses an unapproved library layout: {relative}")
         payload = path.read_bytes()
         try:
@@ -306,13 +310,22 @@ def build_licensed_art_bundle(root: Path, profile_id: ProfileId) -> LicensedArtB
     selection = {
         "schema_version": "khalinos-asset-selection-v1",
         "profile_id": profile_id,
-        "selector": "deterministic-grade-a-role-binding",
+        "selector": "catalog-grade-and-curated-role-binding-v2",
+        "candidate_catalog_size": len(entries),
+        "candidate_catalog_sha256": _canonical_sha256(
+            [item.model_dump(mode="json") for item in entries]
+        ),
+        "candidate_style_counts": {
+            style: sum(item.style == style for item in entries)
+            for style in ("32px", "32px-pastel", "40px-k-rpg")
+        },
         "assets": [item.model_dump(mode="json") for item in selected],
     }
     style = {
         "schema_version": "khalinos-style-composition-v1",
         "profile_id": profile_id,
         "style_id": "dark-expedition-pixel-v1",
+        "reserve_styles": ["32px", "32px-pastel", "40px-k-rpg"],
         "palette": ["#172027", "#2f4a3b", "#6e7f4d", "#d6a743", "#e6ded0"],
         "rules": [
             "adult-readable silhouettes",

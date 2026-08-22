@@ -90,14 +90,14 @@ GODOT_LICENSE_RECEIPT_PACK = CapabilityPackManifest(
 )
 GODOT_EFFECT_SELECTOR_PACK = CapabilityPackManifest(
     pack_id="godot.effect-selector",
-    version="1.0.0",
+    version="2.0.0",
     provides=("visual.effect.selection",),
     requires=("gameplay.combat-feedback",),
     text_paths=(EFFECT_SELECTION_PATH,),
 )
 GODOT_EFFECT_ATLAS_PACK = CapabilityPackManifest(
     pack_id="godot.effect-atlas",
-    version="1.0.0",
+    version="2.0.0",
     provides=("godot.visual.effect-atlas",),
     requires=("visual.effect.selection",),
     text_paths=(EFFECT_ATLAS_MANIFEST_PATH,),
@@ -105,14 +105,14 @@ GODOT_EFFECT_ATLAS_PACK = CapabilityPackManifest(
 )
 GODOT_VFX_PLAYER_PACK = CapabilityPackManifest(
     pack_id="godot.vfx-player",
-    version="1.0.0",
+    version="2.0.0",
     provides=("gameplay.vfx.playback",),
     requires=("godot.visual.effect-atlas",),
     text_paths=("scripts/khalinos_vfx_player.gd",),
 )
 GODOT_EFFECT_RECEIPT_PACK = CapabilityPackManifest(
     pack_id="godot.effect-receipt",
-    version="1.0.0",
+    version="2.0.0",
     provides=("evidence.effect-receipt",),
     requires=("gameplay.vfx.playback",),
     text_paths=(EFFECT_RECEIPT_PATH,),
@@ -379,11 +379,12 @@ static func draw_role(
 
 VFX_PLAYER_SCRIPT = r'''extends RefCounted
 
-const PACK_ID := "godot.vfx-player@1.0.0"
+const PACK_ID := "godot.vfx-player@2.0.0"
 
 static func slot_for(manifest: Dictionary, role: String) -> Dictionary:
+    var effect_id := String(manifest.get("bindings", {}).get(role, role))
     for slot in manifest.get("slots", []):
-        if String(slot.get("role", "")) == role:
+        if String(slot.get("effect_id", "")) == effect_id:
             return slot
     return {}
 
@@ -402,7 +403,12 @@ static func frame_region(
         return Rect2()
     var progress := clampf(1.0 - life / maxf(0.001, max_life), 0.0, 0.9999)
     var frame := mini(frames - 1, int(floor(progress * float(frames))))
-    return Rect2(frame * size, int(slot.get("row", 0)) * size, size, size)
+    return Rect2(
+        (int(slot.get("column_offset", 0)) + frame) * size,
+        int(slot.get("row", 0)) * size,
+        size,
+        size,
+    )
 
 static func draw_effect(
     canvas: CanvasItem,

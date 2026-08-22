@@ -25,14 +25,26 @@ def test_generated_effect_atlas_is_deterministic_and_receipt_bound() -> None:
 
     assert first.atlas.path == EFFECT_ATLAS_PATH
     assert first.atlas.sha256 == second.atlas.sha256
-    assert (first.atlas.width, first.atlas.height) == (1728, 768)
-    assert [item["role"] for item in first.atlas_manifest["slots"]] == [
-        "warrior_slash",
-        "archer_impact",
-        "healer_restoration",
-        "enemy_claw",
+    assert (first.atlas.width, first.atlas.height) == (2016, 672)
+    assert [item["effect_id"] for item in first.atlas_manifest["slots"]] == [
+        "warrior_golden_slash",
+        "warrior_cyan_whirlwind",
+        "warrior_crimson_heavy",
+        "archer_arrow_impact",
+        "archer_emerald_volley",
+        "archer_violet_rain",
+        "healer_restoration_pulse",
+        "healer_golden_shield",
+        "healer_blue_resurrection",
+        "enemy_claw_poison",
+        "enemy_red_bite",
+        "enemy_purple_curse",
     ]
     assert all(item["frames"] == 9 for item in first.atlas_manifest["slots"])
+    assert first.selection_manifest["candidate_count"] == 12
+    assert first.selection_manifest["candidates_per_family"] == 3
+    assert first.selection_manifest["bindings"]["warrior_skill"] == "warrior_cyan_whirlwind"
+    assert first.selection_manifest["bindings"]["healer_shield"] == "healer_golden_shield"
     assert first.receipt["passed"] is True
     assert first.receipt["output_atlas_sha256"] == first.atlas.sha256
     assert first.receipt["external_stock_asset_license_required"] is False
@@ -49,6 +61,10 @@ def test_both_profiles_share_exact_effect_bytes_but_keep_distinct_receipts() -> 
 
     assert trinity.atlas.sha256 == side.atlas.sha256
     assert trinity.selection_manifest["profile_id"] != side.selection_manifest["profile_id"]
+    assert trinity.selection_manifest["bindings"]["warrior_basic"] == "warrior_golden_slash"
+    assert side.selection_manifest["bindings"]["warrior_basic"] == "warrior_crimson_heavy"
+    assert trinity.selection_manifest["bindings"]["archer_basic"] == "archer_arrow_impact"
+    assert side.selection_manifest["bindings"]["archer_basic"] == "archer_emerald_volley"
     assert trinity.receipt["profile_id"] != side.receipt["profile_id"]
 
 

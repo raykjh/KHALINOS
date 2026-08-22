@@ -513,6 +513,7 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
             _apply_damage(_enemy_attack_damage(enemy))
             enemy.attack_clock = 0.9
             enemy_attack_effects.append({
+                "enemy_id": String(enemy.enemy_id),
                 "position": enemy.position,
                 "target": center,
                 "life": 0.32,
@@ -931,8 +932,8 @@ func verification_scenario() -> Dictionary:
         "effect_receipt_present": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
         "effect_frame_animation_observed": (
             effect_player == null
-            or effect_player.frame_region(effect_manifest, "warrior_slash", 0.60, 0.60)
-            != effect_player.frame_region(effect_manifest, "warrior_slash", 0.10, 0.60)
+            or effect_player.frame_region(effect_manifest, "warrior_skill", 0.60, 0.60)
+            != effect_player.frame_region(effect_manifest, "warrior_skill", 0.10, 0.60)
         ),
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
@@ -988,24 +989,30 @@ func _draw() -> void:
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     PresentationSkin.draw_top_down_arena(self, center, float(config.viewport_width), float(config.viewport_height))
     for effect in skill_effects:
-        var role := "healer_restoration" if String(effect.kind) in ["heal", "resurrection", "shield"] else ("warrior_slash" if String(effect.owner_hero_id) == "warrior" else "archer_impact")
+        var role := "warrior_skill"
+        match String(effect.kind):
+            "heal": role = "healer_heal"
+            "shield": role = "healer_shield"
+            "resurrection": role = "healer_resurrection"
+            _: role = "warrior_skill" if String(effect.owner_hero_id) == "warrior" else "archer_skill"
         var effect_drawn := false
         if effect_player != null and effect_texture != null:
-            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(center - Vector2(96, 96), Vector2(192, 192)), float(effect.life), float(effect.max_life))
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(center - Vector2(84, 84), Vector2(168, 168)), float(effect.life), float(effect.max_life))
         if not effect_drawn:
             CombatFeedback.draw_skill(self, effect, center)
     for effect in basic_attack_effects:
-        var role := "warrior_slash" if String(effect.owner_hero_id) == "warrior" else "archer_impact"
-        var anchor: Vector2 = effect.origin if role == "warrior_slash" else effect.target
+        var role := "warrior_basic" if String(effect.owner_hero_id) == "warrior" else "archer_basic"
+        var anchor: Vector2 = effect.origin if role == "warrior_basic" else effect.target
         var effect_drawn := false
         if effect_player != null and effect_texture != null:
-            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(anchor - Vector2(48, 48), Vector2(96, 96)), float(effect.life), float(effect.max_life))
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(anchor - Vector2(44, 44), Vector2(88, 88)), float(effect.life), float(effect.max_life))
         if not effect_drawn:
             CombatFeedback.draw_basic_attack(self, effect)
     for effect in enemy_attack_effects:
         var effect_drawn := false
         if effect_player != null and effect_texture != null:
-            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, "enemy_claw", Rect2(Vector2(effect.target) - Vector2(72, 72), Vector2(144, 144)), float(effect.life), float(effect.max_life))
+            var role := "enemy_caster" if String(effect.get("enemy_id", "")) == "goblin" else "enemy_melee"
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(Vector2(effect.target) - Vector2(56, 56), Vector2(112, 112)), float(effect.life), float(effect.max_life))
         if not effect_drawn:
             CombatFeedback.draw_enemy_attack(self, effect)
     var hero_index := 0
