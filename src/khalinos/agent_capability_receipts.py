@@ -193,20 +193,42 @@ def build_agent_capability_trace(
             "godot.project-core",
             "godot.top-down-auto-combat",
             "godot.combat-feedback",
+            "godot.presentation-skin",
+            "godot.audio-feedback",
         )
-        visual_ids = ("godot.visual-foundation", "godot.sprite-atlas")
+        visual_ids = ("godot.visual-foundation",)
         verifier_id = "godot.gameplay-probe"
-        include_sprite_gate = True
+        include_sprite_gate = "godot.sprite-atlas" in by_id
     else:
         maker_ids = (
             "godot.project-core",
             "godot.side-scroll-lane-combat",
             "godot.combat-feedback",
+            "godot.presentation-skin",
+            "godot.audio-feedback",
             "godot.destination-progression",
         )
         visual_ids = ("godot.visual-foundation",)
         verifier_id = "godot.side-scroll-probe"
         include_sprite_gate = False
+
+    licensed_visual_ids = tuple(
+        pack_id
+        for pack_id in (
+            "godot.asset-selector",
+            "godot.style-composer",
+            "godot.licensed-atlas",
+            "godot.license-receipt",
+            "godot.effect-selector",
+            "godot.effect-atlas",
+            "godot.vfx-player",
+            "godot.effect-receipt",
+        )
+        if pack_id in by_id
+    )
+    visual_ids = (*visual_ids, *licensed_visual_ids)
+    if "godot.sprite-atlas" in by_id:
+        visual_ids = (*visual_ids, "godot.sprite-atlas")
 
     all_bindings = tuple(_binding(manifest) for manifest in profile)
     maker_manifests = tuple(by_id[pack_id] for pack_id in maker_ids)
@@ -226,6 +248,21 @@ def build_agent_capability_trace(
 
     visual_output_sha = _authority_output_sha256(
         visual_manifests, composition, binary_sha256_by_path
+    )
+    visual_gate_ids = tuple(
+        pack_id
+        for pack_id in (
+            "godot.visual-foundation",
+            "godot.asset-selector",
+            "godot.style-composer",
+            "godot.licensed-atlas",
+            "godot.license-receipt",
+            "godot.effect-selector",
+            "godot.effect-atlas",
+            "godot.vfx-player",
+            "godot.effect-receipt",
+        )
+        if pack_id in by_id
     )
     receipts = [
         AgentCapabilityBindingReceipt(
@@ -279,7 +316,7 @@ def build_agent_capability_trace(
             agent_id="khalinos_visual_asset_verifier",
             role="visual_gate",
             operations=("observe", "verify"),
-            capability_pack_bindings=(_binding(by_id["godot.visual-foundation"]),),
+            capability_pack_bindings=tuple(_binding(by_id[item]) for item in visual_gate_ids),
             input_sha256=visual_output_sha,
             output_sha256=visual_output_sha,
             **execution("khalinos_visual_asset_verifier"),
@@ -288,7 +325,7 @@ def build_agent_capability_trace(
             agent_id="khalinos_visual_verifier",
             role="visual_selector",
             operations=("observe", "select"),
-            capability_pack_bindings=(_binding(by_id["godot.visual-foundation"]),),
+            capability_pack_bindings=tuple(_binding(by_id[item]) for item in visual_gate_ids),
             input_sha256=visual_output_sha,
             output_sha256=visual_output_sha,
             **execution("khalinos_visual_verifier"),

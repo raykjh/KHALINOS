@@ -61,6 +61,17 @@ The standalone diagram shows the full authority boundary, Gemini/ADK orchestrati
 - Godot visual-prototype selection has the same two-candidate minimum, but the host compiles every accepted PNG into bounded Godot scenes, imports the texture, proves scene loading and translucent composition, and captures three real 1280×720 frames through an isolated Xvfb display before multimodal selection.
 - Godot gameplay composition validates pack dependencies before materialization. The Trinity profile owns top-down survival mechanics, profession progression, gameplay probe, and sprite atlas; the side-scroll profile owns lane combat, destination progression, and its genre probe. Both consume `godot.combat-feedback`, which owns only attack-line, attack-range, basic-attack, skill/heal, and enemy-attack drawing primitives.
 - Every Godot Cloud result includes an Agent–Capability trace. The fixed ceiling remains 13 slots: Trinity activates 9 and side-scroll activates 8. The same accountable Maker slot consumes a different least-authority pack set for each profile; no new agent is invented to match a new genre.
+- Licensed visual inputs use an opt-in four-Pack chain: `Asset Selector → Style Composer → Godot Atlas → License Receipt`. `KHALINOS_LICENSED_ASSET_ROOT` must point to the approved external catalog; if set, catalog count, image decodability, selected source hashes, atlas digest, profile role binding, and the license receipt all fail closed. Original source assets are not shipped as a standalone KHALINOS asset pack. The generated game ZIP contains only the bounded composed atlas and its source/license receipts.
+
+### Licensed-art development qualification (local, not Cloud production evidence)
+
+The user-approved AetherAI library was regraded without deleting originals: 354 decoded PNGs produced 13 grade-A profile bindings, 336 grade-B reserves, and 5 preserved grade-C exclusions. Trinity selects 8 bounded roles; the side-scroll profile selects 13. Both compositions passed the approved local Godot 4.7.1 mechanics and display adapters with zero issues. The Trinity atlas SHA-256 is `310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56`; the side-scroll atlas SHA-256 is `3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e`. This is branch-local qualification only: it does not replace or enlarge the documented canonical Cloud PASS, and it does not claim standalone redistribution permission for the source library. The machine-readable result is [`licensed-art-local-qualification-20260822.json`](docs/evidence/capability-pack-composition/licensed-art-local-qualification-20260822.json).
+
+The AetherAI candidate library was subsequently expanded by 30 user-approved `32px-pastel` downloads: seven characters, eight monsters, seven props, and eight buildings. The originals remain outside the repository and are treated as grade-B reserves, not silently mixed into the active dark-expedition atlas. The hash-bound catalog now contains 384 candidates across three styles; the active Trinity and side-scroll bindings remain the visually compatible grade-A selections. This expansion is local qualification and does not claim standalone asset-pack redistribution permission.
+
+Generated combat feedback uses a second four-Pack chain: `Effect Selector → Effect Atlas → Godot VFX Player → Effect Receipt`. The candidate pool now contains 12 transparent ImageGen sheets—three each for warrior, archer, healer, and enemy feedback—with nine forward-playback frames per effect. The selector binds nine semantic combat roles per profile, and Trinity and side-scroll deliberately choose different basic attack, healing, and enemy-melee candidates. All candidates are hash-locked into a bounded 2016×672 atlas; the existing Visual Maker/Verifier slots record the expanded bindings without increasing the 13-agent ceiling. Local approved-Godot qualification passed Trinity 58/58 and side-scroll 30/30 after one placement-and-scale adjustment, with atlas-load, receipt, and frame-change checks; see [`expanded-asset-vfx-local-qualification-20260822.json`](docs/evidence/capability-pack-composition/expanded-asset-vfx-local-qualification-20260822.json).
+
+The same repository-contained VFX path then passed two fresh Cloud workflows on immutable image digest `sha256:760f091fc0a571d4e2b2bcdd4c9daa3d1e77db769ff4f1474b7462681dd8cfae`. Trinity run `b9b5ca6594124527a0f5380deb690394` passed 58/58 checks with 19 Gemini calls and three receipts; side-scroll run `6704c3029e4b49aa8f7b67491655fc58` passed 30/30 checks with 12 calls and three receipts. Both recorded zero runtime issues, profile-specific effect bindings, and different Agent–Capability compositions. Exact run, execution, artifact, bundle, trace, and failure-correction evidence is in [`expanded-vfx-cloud-qualification-20260822.json`](docs/evidence/capability-pack-composition/expanded-vfx-cloud-qualification-20260822.json). The external AetherAI reserve library was not bundled into this Cloud image and is not claimed by this PASS.
 - The model never emits binary asset fields. The trusted host validates and attaches exactly one `assets/visual-foundation.png` sidecar, while Makers receive only its path, digest, and dimensions.
 - Image generation retries only transient 429/5xx responses, at most twice with backoff. Content rejection, invalid output, and non-transient client errors stop immediately.
 - Generated Browser products cannot use external URLs, network calls, dynamic code loading, or files outside the five text files plus the one approved PNG. Prohibited external CSS imports are removed at the trusted promotion boundary before verification.
@@ -88,7 +99,7 @@ Live execution telemetry then passed a fresh side-scroll Cloud qualification on 
 
 The authenticated delivery path was requalified after exposing the selected visual foundation in the side-scroll render. Run `43fbc45542f247f9a9081a956da89da7` / execution `khalinos-worker-prmm6` visibly advanced through the presented agents, candidates, and M01–M06 milestones, passed 18/18 runtime checks, and exposed the owner-bound source download action. Its exact Cloud and digest record is [`visual-foundation-cloud-qualification-20260822.json`](docs/evidence/capability-pack-composition/visual-foundation-cloud-qualification-20260822.json).
 
-The current production API and Worker are deployed from the same SHA-verified Godot image so the UI, route contracts, and executable runtime cannot drift. The Worker uses 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 1.9.0 / `9339c4c3fdb2028c8b054f887d80190d844fba1add897893219d22ea206136da` and `godot.side-scroll-experiment` 0.4.0 / `b17c1fe5864b1c1cea828b588940761b6656bca69e24872a93474cf8b41e47d1`. Exact submission revision and digest evidence is recorded under [`docs/evidence/capability-pack-composition`](docs/evidence/capability-pack-composition).
+The current production API and Worker are deployed from the same SHA-verified Godot image so the UI, route contracts, and executable runtime cannot drift. The Worker uses 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 2.2.0 / `61f2d384df252a8170e260c7254d5d58f1d0dae7f6d2bc3cdb1be388f92147d5` and `godot.side-scroll-experiment` 0.7.0 / `08b49115d9e167c44c256a0b1b81d3560eef1da37f8d274882b33042c418170f`. Exact submission revision and digest evidence is recorded under [`docs/evidence/capability-pack-composition`](docs/evidence/capability-pack-composition).
 
 ## Local setup
 
@@ -175,18 +186,19 @@ Grant the API identity permission to run the fixed worker Job and act as its ide
 
 Trinity Survivors is a proof output, not KHALINOS's product boundary. The current bounded `godot.gameplay` ToolPack converted one immutable game brief into a playable Godot 4.7 vertical slice, executed its real mechanics and display runtimes, and completed only after deterministic checks and the role-separated Verifier passed. The Verifier is separated from planning and making inside KHALINOS; this is not a claim of an external audit organization.
 
-- Run ID: `78d1d06f2a034714b1d917ce6ce6f969`
+- Run ID: `b9b5ca6594124527a0f5380deb690394`
 - Result: `PASS` — `Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.`
-- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, Job `khalinos-worker`, execution `khalinos-worker-x74vs`
-- Worker image: `sha256:615da3f80441c55e3eb0fca598db0abe8d44d1dd6ea6fd1b7815ce780797a24c`
-- ToolPack: `godot.gameplay` 1.9.0, manifest SHA-256 `6c2ff6753c93ac8edcb0d4d7afb01b3ca1d9bdd3a6f9f48292ebfa25336397fb`
-- Agent work: 18 Gemini calls; three immutable receipts (one Visual Selection and two Quest receipts)
-- Runtime proof: 45 deterministic Godot mechanics, asset, sprite-atlas, shared-pack, and display checks passed; Sprite Gate passed; zero issues
-- Artifact SHA-256: `34116f1e4e6ee140e0287e152ac6572cb2638feef4a062c7260952e0d46ce482`
-- Bundle SHA-256: `828373b72792c5f2f17fe9ea9bb8b043ecf6ef56d3db1d2ae9dc779311bb6a0e`
-- Source ZIP SHA-256: `160ee614bfefa686830d708ef74876b59ac5bacadfc53c9c324c78a4ccbcf00c`
-- Sprite atlas SHA-256: `a4a9fbcea5d6f94f417651b41c33d53a798282428e1297189198df09ce38cf56`
-- Agent–Capability trace SHA-256: `71b566334c17d8ac8cda873c1a1f5eacfab75301cc8060408e2f9180ede5967a`
+- Cloud deployment: project `khalinos-agent-20260818`, region `asia-northeast3`, Job `khalinos-worker`, execution `khalinos-worker-mv48m`
+- Worker image: `sha256:760f091fc0a571d4e2b2bcdd4c9daa3d1e77db769ff4f1474b7462681dd8cfae`
+- ToolPack: `godot.gameplay` 2.2.0, manifest SHA-256 `61f2d384df252a8170e260c7254d5d58f1d0dae7f6d2bc3cdb1be388f92147d5`
+- Agent work: 19 Gemini calls; three immutable receipts (one Visual Selection and two Quest receipts)
+- Runtime proof: 58 deterministic Godot mechanics, audio, generated-effect, sprite-atlas, pack-load, and display checks passed; Sprite Gate passed; zero issues
+- Artifact SHA-256: `9c68e797ab92a9ccbd7f4466f284b8265529ae1d2d56c642723e2389daf3a8db`
+- Bundle SHA-256: `a6ecd2022f59a73d7cb38cd9852abafd459ceb86789303917152725968bc7e0f`
+- Source ZIP SHA-256: `9a38afec4b623078c7df66e260a2ae04b48a45983e0cbd29ee77846ded9c755a`
+- Sprite atlas SHA-256: `5c6b7110aa4311fa99e3846dbeaba4b1ce15758e47f6cd8de38b7c76a37c4614`
+- Generated-effect atlas SHA-256: `25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9`
+- Agent–Capability trace SHA-256: `7aed465fae95089ead7ae078bc56c607f0730dd162e7f60705ec0ce69f0fa5d3`
 
 ![Representative Trinity Survivors real Godot render from the retained earlier evidence set](docs/evidence/trinity-survivors/cloud-run-8be19784/godot-gameplay-render.png)
 
@@ -201,10 +213,10 @@ These are direct log and artifact measurements, not estimated labor or cost savi
 | Measure | Observed value |
 | --- | ---: |
 | Human interventions after immutable authorization | 0 |
-| Cloud Run Job duration | 8m 4.87s |
-| Gemini calls | 18 |
-| Generated source files | 10 |
-| Deterministic checks | 45/45 PASS |
+| Cloud Run Job duration | 14m 14.29s |
+| Gemini calls | 19 |
+| Generated source files | 17 |
+| Deterministic checks | 58/58 PASS |
 | Role-separated receipts | 3 |
 | Technical Repair rounds | 0 |
 | Final runtime issues | 0 |
@@ -215,18 +227,19 @@ The evidence proves a bounded vertical slice with executable mechanics, renderin
 
 The experimental side-scroll profile reuses the same project, visual-foundation, and combat-feedback boundaries while replacing Trinity's genre chain with lane combat, destination progression, and a side-scroll probe. This is evidence that fixed KHALINOS agent slots can consume different compatible pack combinations; it is not a claim that arbitrary game genres are already supported.
 
-- Run ID: `43fbc45542f247f9a9081a956da89da7`
+- Run ID: `6704c3029e4b49aa8f7b67491655fc58`
 - Result: `PASS` — `Godot side-scroll journey passed real mechanics, rendering, and independent verification.`
-- Cloud Run Job execution: `khalinos-worker-prmm6`, completed in 2m 38.47s
-- Qualified image: `sha256:e4878ec25980adadabff6317af192e7f94e8a476200d4007d69e1821c0df2c09`
-- ToolPack: `godot.side-scroll-experiment` 0.4.0, manifest SHA-256 `500e0d1621da4d8dfae6cb48198b0ad91b1702d13025f636389078d55cdd83d4`
+- Cloud Run Job execution: `khalinos-worker-hxbrj`, completed in 2m 42.43s
+- Qualified image: `sha256:760f091fc0a571d4e2b2bcdd4c9daa3d1e77db769ff4f1474b7462681dd8cfae`
+- ToolPack: `godot.side-scroll-experiment` 0.7.0, manifest SHA-256 `08b49115d9e167c44c256a0b1b81d3560eef1da37f8d274882b33042c418170f`
 - Agent work: 12 Gemini calls; three immutable receipts
-- Runtime proof: 18/18 deterministic mechanics, pack-load, and display checks passed; zero issues
-- Artifact SHA-256: `6821c108df25784ee74113a6909bf21825c6353d3b814528ac609102962f362c`
-- Bundle SHA-256: `d6925585c65fa33ff75844438f513043bed491461599e2141fbc7562e9749ab9`
-- Source ZIP SHA-256: `57ffd1c51a620940f4aeca4d72233ddd7c01c571d83084d9931a1524a4083cde`
-- Agent–Capability trace SHA-256: `b0ed27a8705b64294ff705b844e868739d215abdee76bc74b2140b10b70324b3`
-- Live presentation proof: the authenticated Chrome UI showed `Cloud Run Service → Gemini Project Owner → Deterministic Runtime V1/V2/V3 → Verified Result`; M01–M06 were all complete at PASS and the owner-bound source download action was visible
+- Runtime proof: 30/30 deterministic mechanics, audio, generated-effect, pack-load, and display checks passed; zero issues
+- Artifact SHA-256: `47ac899cb58b0f14e5932f6dd07ffc345931e012427d242286986aa0ae083125`
+- Bundle SHA-256: `af96d1f2b16c460ec8ce8ca55615cebeb4eca6046f837a44ba76d048fe18aa3f`
+- Source ZIP SHA-256: `fd80c873bddfb4ef2f898157cfef1a6f6be89ea8ef4278391e2f831f7076da9a`
+- Generated-effect atlas SHA-256: `25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9`
+- Agent–Capability trace SHA-256: `38418f68da0902ba1ad62525a2372e0e7f4fdfabf3768d6396343367b9c8935e`
+- Authenticated presentation proof remains separately preserved on run `43fbc45542f247f9a9081a956da89da7`: Chrome showed `Cloud Run Service → Gemini Project Owner → Deterministic Runtime V1/V2/V3 → Verified Result`, completed M01–M06, and exposed the owner-bound source download action
 
 ![Selected side-scroll visual foundation from the fresh Cloud PASS](docs/evidence/capability-pack-composition/side-scroll-visual-foundation-cloud-pass-43fbc455.png)
 

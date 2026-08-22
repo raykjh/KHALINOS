@@ -146,7 +146,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "1.9.0"
+    assert binding.version == "2.2.0"
 
 
 async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
@@ -209,6 +209,14 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     feedback_script = first.files["scripts/khalinos_combat_feedback.gd"]
     assert 'preload("res://scripts/khalinos_combat_feedback.gd")' in gameplay_script
     assert 'PACK_ID := "godot.combat-feedback@1.0.0"' in feedback_script
+    assert 'PACK_ID := "godot.presentation-skin@1.0.0"' in first.files[
+        "scripts/khalinos_presentation_skin.gd"
+    ]
+    assert 'PACK_ID := "godot.audio-feedback@1.0.0"' in first.files[
+        "scripts/khalinos_audio_feedback.gd"
+    ]
+    assert "PresentationSkin.draw_top_down_arena" in gameplay_script
+    assert 'AudioFeedback.play_cue(self, cue)' in gameplay_script
     assert "CombatFeedback.draw_basic_attack" in gameplay_script
     assert "CombatFeedback.draw_skill" in gameplay_script
     assert "CombatFeedback.draw_enemy_attack" in gameplay_script

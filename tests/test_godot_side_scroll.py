@@ -75,12 +75,14 @@ def test_side_scroll_reuses_common_packs_but_replaces_the_genre_chain() -> None:
         "godot.visual-foundation",
         "godot.side-scroll-lane-combat",
         "godot.combat-feedback",
+        "godot.presentation-skin",
+        "godot.audio-feedback",
         "godot.destination-progression",
         "godot.side-scroll-probe",
     )
     assert set(pack.pack_id for pack in GODOT_SIDE_SCROLL_PROFILE[2:]) & set(
         pack.pack_id for pack in GODOT_GAMEPLAY_BASE_PROFILE[2:]
-    ) == {"godot.combat-feedback"}
+    ) == {"godot.audio-feedback", "godot.combat-feedback", "godot.presentation-skin"}
 
 
 def test_side_scroll_compiler_is_deterministic_and_owns_exact_outputs(tmp_path: Path) -> None:
@@ -101,6 +103,14 @@ def test_side_scroll_compiler_is_deterministic_and_owns_exact_outputs(tmp_path: 
     assert 'PACK_ID := "godot.combat-feedback@1.0.0"' in first.files[
         "scripts/khalinos_combat_feedback.gd"
     ]
+    assert 'PACK_ID := "godot.presentation-skin@1.0.0"' in first.files[
+        "scripts/khalinos_presentation_skin.gd"
+    ]
+    assert 'PACK_ID := "godot.audio-feedback@1.0.0"' in first.files[
+        "scripts/khalinos_audio_feedback.gd"
+    ]
+    assert "PresentationSkin.draw_parallax" in first.files["scripts/khalinos_side_scroll.gd"]
+    assert 'AudioFeedback.play_cue(self, cue)' in first.files["scripts/khalinos_side_scroll.gd"]
     destination = tmp_path / "product"
     GODOT_SIDE_SCROLL_TOOLPACK.execution_adapter.materialize(first, destination)
     assert {path.as_posix() for path in destination.rglob("*") if path.is_file()} == {

@@ -33,6 +33,8 @@ def test_side_scroll_production_exposes_real_profile_actor_and_pack_subset() -> 
         "godot.project-core",
         "godot.side-scroll-lane-combat",
         "godot.combat-feedback",
+        "godot.presentation-skin",
+        "godot.audio-feedback",
         "godot.destination-progression",
     ]
     assert [item["state"] for item in telemetry["milestones"]] == [

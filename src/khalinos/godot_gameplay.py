@@ -12,13 +12,29 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
 from khalinos.godot_capability_packs import (
+    GODOT_ASSET_SELECTOR_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_LICENSED_ATLAS_PACK,
+    GODOT_LICENSE_RECEIPT_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
     GODOT_PROJECT_CORE_PACK,
+    GODOT_STYLE_COMPOSER_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
+    GODOT_EFFECT_ATLAS_PACK,
+    GODOT_EFFECT_RECEIPT_PACK,
+    GODOT_EFFECT_SELECTOR_PACK,
+    GODOT_VFX_PLAYER_PACK,
+    godot_audio_feedback_stage,
     godot_combat_feedback_stage,
+    godot_effect_stages,
+    godot_licensed_art_stages,
+    godot_presentation_skin_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
+from khalinos.generated_vfx_assets import EFFECT_ATLAS_PATH, EffectBundle
+from khalinos.licensed_visual_assets import LICENSED_ATLAS_PATH, LicensedArtBundle
 from khalinos.toolpacks import (
     CapabilityComposition,
     CapabilityPackManifest,
@@ -310,11 +326,13 @@ class CompiledGodotGameplay(BaseModel):
     asset: ArtifactAsset
     sprite_plan: SpriteAtlasPlan | None = None
     sprite_atlas: ArtifactAsset | None = None
+    licensed_art_atlas: ArtifactAsset | None = None
+    effect_atlas: ArtifactAsset | None = None
     sprite_contract_required: bool = False
     sprite_segmentation_contract_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    files: dict[str, str] = Field(min_length=6, max_length=12)
+    files: dict[str, str] = Field(min_length=6, max_length=21)
 
 
 def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
@@ -343,7 +361,11 @@ def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
 GAMEPLAY_SCRIPT = r'''extends Node2D
 
 const CombatFeedback = preload("res://scripts/khalinos_combat_feedback.gd")
+const PresentationSkin = preload("res://scripts/khalinos_presentation_skin.gd")
+const AudioFeedback = preload("res://scripts/khalinos_audio_feedback.gd")
 const COMBAT_FEEDBACK_PACK_ID := CombatFeedback.PACK_ID
+const PRESENTATION_SKIN_PACK_ID := PresentationSkin.PACK_ID
+const AUDIO_FEEDBACK_PACK_ID := AudioFeedback.PACK_ID
 
 var config: Dictionary
 var center := Vector2.ZERO
@@ -360,6 +382,7 @@ var hero_attack_clocks: Dictionary = {}
 var basic_attack_effects: Array[Dictionary] = []
 var skill_effects: Array[Dictionary] = []
 var enemy_attack_effects: Array[Dictionary] = []
+var audio_events := {"attack": 0, "hit": 0, "heal": 0, "victory": 0}
 var spawn_count := 0
 var started := false
 var choice_open := false
@@ -372,6 +395,12 @@ var victory := false
 var rng := RandomNumberGenerator.new()
 var sprite_manifest: Dictionary = {}
 var sprite_texture: Texture2D
+var licensed_art_manifest: Dictionary = {}
+var licensed_art_texture: Texture2D
+var licensed_art_helper
+var effect_manifest: Dictionary = {}
+var effect_texture: Texture2D
+var effect_player
 
 func _ready() -> void:
     config = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_GAMEPLAY.json"))
@@ -389,6 +418,16 @@ func _ready() -> void:
     if FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json"):
         sprite_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_SPRITE_ATLAS.json"))
         sprite_texture = load("res://assets/sprite-atlas.png")
+    if FileAccess.file_exists("res://KHALINOS_LICENSED_ATLAS.json"):
+        licensed_art_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_LICENSED_ATLAS.json"))
+        licensed_art_texture = load("res://assets/licensed-art-atlas.png")
+        licensed_art_helper = load("res://scripts/khalinos_licensed_art.gd")
+    if FileAccess.file_exists("res://KHALINOS_EFFECT_ATLAS.json"):
+        effect_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_EFFECT_ATLAS.json"))
+        effect_texture = load("res://assets/combat-vfx-atlas.png")
+        effect_player = load("res://scripts/khalinos_vfx_player.gd")
+    if OS.get_cmdline_user_args().has("--khalinos-capture-gameplay"):
+        _start_game()
     queue_redraw()
 
 func _sprite_region(sprite_id: String) -> Rect2:
@@ -440,6 +479,10 @@ func _start_game() -> void:
     started = true
     queue_redraw()
 
+func _play_audio(cue: String) -> void:
+    audio_events[cue] = int(audio_events.get(cue, 0)) + 1
+    AudioFeedback.play_cue(self, cue)
+
 func _start_button_rect() -> Rect2:
     return Rect2(float(config.viewport_width) / 2.0 - 130.0, float(config.viewport_height) / 2.0 + 48.0, 260.0, 58.0)
 
@@ -470,11 +513,13 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
             _apply_damage(_enemy_attack_damage(enemy))
             enemy.attack_clock = 0.9
             enemy_attack_effects.append({
+                "enemy_id": String(enemy.enemy_id),
                 "position": enemy.position,
                 "target": center,
                 "life": 0.32,
                 "max_life": 0.32,
             })
+            _play_audio("hit")
     _tick_basic_attacks(delta)
     _tick_abilities(delta)
     _update_combat_effects(delta)
@@ -492,6 +537,7 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
     elif elapsed >= float(config.session_seconds):
         ended = true
         victory = true
+        _play_audio("victory")
 
 func _party_defense() -> float:
     return float(_party_stats().defense)
@@ -595,6 +641,8 @@ func _tick_basic_attacks(delta: float) -> void:
             "life": 0.28,
             "max_life": 0.28,
         })
+        _play_audio("attack")
+        _play_audio("hit")
 
 func _tick_abilities(delta: float) -> void:
     for ability in config.abilities:
@@ -611,6 +659,10 @@ func _tick_abilities(delta: float) -> void:
             "life": 0.62,
             "max_life": 0.62,
         })
+        if String(ability.kind) in ["heal", "resurrection"]:
+            _play_audio("heal")
+        else:
+            _play_audio("attack")
         match ability.kind:
             "damage":
                 for enemy in enemies:
@@ -870,6 +922,19 @@ func verification_scenario() -> Dictionary:
     return {
         "schema_version": "khalinos-godot-gameplay-probe-v5",
         "combat_feedback_pack_loaded": COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
+        "presentation_skin_pack_loaded": PRESENTATION_SKIN_PACK_ID == "godot.presentation-skin@1.0.0",
+        "audio_feedback_pack_loaded": AUDIO_FEEDBACK_PACK_ID == "godot.audio-feedback@1.0.0",
+        "licensed_art_requested": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
+        "licensed_art_loaded": licensed_art_texture != null and licensed_art_helper != null,
+        "license_receipt_present": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
+        "effect_atlas_requested": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
+        "effect_atlas_loaded": effect_texture != null and effect_player != null,
+        "effect_receipt_present": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
+        "effect_frame_animation_observed": (
+            effect_player == null
+            or effect_player.frame_region(effect_manifest, "warrior_skill", 0.60, 0.60)
+            != effect_player.frame_region(effect_manifest, "warrior_skill", 0.10, 0.60)
+        ),
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
         "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
@@ -879,6 +944,10 @@ func verification_scenario() -> Dictionary:
         "heal_effect_visible": heal_effect_visible,
         "enemy_attack_effect_visible": enemy_attack_effect_visible,
         "enemy_attack_cooldown_enforced": enemy_attack_cooldown_enforced,
+        "attack_audio_events": int(audio_events.get("attack", 0)),
+        "hit_audio_events": int(audio_events.get("hit", 0)),
+        "heal_audio_events": int(audio_events.get("heal", 0)),
+        "victory_audio_events": int(audio_events.get("victory", 0)),
         "level_choice_prompted": level_choice_prompted,
         "enemy_visual_family": "green",
         "background_visual_treatment": "bright_readable",
@@ -918,12 +987,34 @@ func _draw() -> void:
         draw_line(Vector2(x, 0), Vector2(x, config.viewport_height), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     for y in range(0, int(config.viewport_height), 64):
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
+    PresentationSkin.draw_top_down_arena(self, center, float(config.viewport_width), float(config.viewport_height))
     for effect in skill_effects:
-        CombatFeedback.draw_skill(self, effect, center)
+        var role := "warrior_skill"
+        match String(effect.kind):
+            "heal": role = "healer_heal"
+            "shield": role = "healer_shield"
+            "resurrection": role = "healer_resurrection"
+            _: role = "warrior_skill" if String(effect.owner_hero_id) == "warrior" else "archer_skill"
+        var effect_drawn := false
+        if effect_player != null and effect_texture != null:
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(center - Vector2(84, 84), Vector2(168, 168)), float(effect.life), float(effect.max_life))
+        if not effect_drawn:
+            CombatFeedback.draw_skill(self, effect, center)
     for effect in basic_attack_effects:
-        CombatFeedback.draw_basic_attack(self, effect)
+        var role := "warrior_basic" if String(effect.owner_hero_id) == "warrior" else "archer_basic"
+        var anchor: Vector2 = effect.origin if role == "warrior_basic" else effect.target
+        var effect_drawn := false
+        if effect_player != null and effect_texture != null:
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(anchor - Vector2(44, 44), Vector2(88, 88)), float(effect.life), float(effect.max_life))
+        if not effect_drawn:
+            CombatFeedback.draw_basic_attack(self, effect)
     for effect in enemy_attack_effects:
-        CombatFeedback.draw_enemy_attack(self, effect)
+        var effect_drawn := false
+        if effect_player != null and effect_texture != null:
+            var role := "enemy_caster" if String(effect.get("enemy_id", "")) == "goblin" else "enemy_melee"
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(Vector2(effect.target) - Vector2(56, 56), Vector2(112, 112)), float(effect.life), float(effect.max_life))
+        if not effect_drawn:
+            CombatFeedback.draw_enemy_attack(self, effect)
     var hero_index := 0
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
@@ -937,8 +1028,13 @@ func _draw() -> void:
             if String(effect.owner_hero_id) == String(hero.hero_id):
                 attacking = true
                 position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
+        var licensed_hero_drawn := false
+        if licensed_art_helper != null and licensed_art_texture != null:
+            licensed_hero_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, String(hero.hero_id), Rect2(position - Vector2(30, 30), Vector2(60, 60)))
         var hero_region := _sprite_region(hero.hero_id)
-        if sprite_texture != null and hero_region.size != Vector2.ZERO:
+        if licensed_hero_drawn:
+            pass
+        elif sprite_texture != null and hero_region.size != Vector2.ZERO:
             draw_texture_rect_region(sprite_texture, Rect2(position - Vector2(28, 28), Vector2(56, 56)), hero_region)
         else:
             draw_circle(position, 16.0, Color(hero.color_hex))
@@ -947,13 +1043,18 @@ func _draw() -> void:
             draw_circle(position, 31.0, Color(1.0, 0.82, 0.28, 0.9), false, 4.0, true)
         hero_index += 1
     for enemy in enemies:
+        var licensed_enemy_drawn := false
+        if licensed_art_helper != null and licensed_art_texture != null:
+            licensed_enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, String(enemy.enemy_id), Rect2(enemy.position - Vector2(24, 24), Vector2(48, 48)), Color(0.72, 1.0, 0.72, 1.0))
         var enemy_region := _sprite_region(enemy.enemy_id)
-        if sprite_texture != null and enemy_region.size != Vector2.ZERO:
+        if licensed_enemy_drawn:
+            pass
+        elif sprite_texture != null and enemy_region.size != Vector2.ZERO:
             draw_texture_rect_region(sprite_texture, Rect2(enemy.position - Vector2(22, 22), Vector2(44, 44)), enemy_region, Color("8ee58a"))
         else:
             draw_circle(enemy.position, 14.0, Color("58b96a"))
         draw_circle(enemy.position, 24.0, Color(0.28, 0.78, 0.36, 0.68), false, 2.0, true)
-    draw_rect(Rect2(22, 18, 382, 64), Color(0.035, 0.055, 0.04, 0.88))
+    PresentationSkin.draw_hud_panel(self, Rect2(22, 18, 382, 64), Color("b8d88f"))
     _draw_label("TRINITY HP  %d / %d" % [max(0, int(shared_health)), int(shared_health_max)], Vector2(32, 42), 18, Color("f7f2df"))
     draw_rect(Rect2(31, 52, 354, 18), Color(0.08, 0.09, 0.08, 0.9))
     draw_rect(Rect2(34, 55, 348.0 * clamp(shared_health / max(1.0, shared_health_max), 0.0, 1.0), 12), Color("d95f4f"))
@@ -970,7 +1071,7 @@ func _draw() -> void:
 
 func _draw_skill_cooldowns() -> void:
     var panel_x := float(config.viewport_width) - 290.0
-    draw_rect(Rect2(panel_x, 76.0, 266.0, 30.0 + config.abilities.size() * 24.0), Color(0.035, 0.055, 0.04, 0.82))
+    PresentationSkin.draw_hud_panel(self, Rect2(panel_x, 76.0, 266.0, 30.0 + config.abilities.size() * 24.0), Color("d9b84f"))
     _draw_label("SKILL COOLDOWNS", Vector2(panel_x + 12.0, 98.0), 15, Color("fff0a8"))
     for index in range(config.abilities.size()):
         var ability: Dictionary = config.abilities[index]
@@ -1043,6 +1144,12 @@ func _probe() -> void:
     var receipt: Dictionary = instance.verification_scenario() if instance != null else {}
     receipt.passed = (
         receipt.get("combat_feedback_pack_loaded", false)
+        and receipt.get("presentation_skin_pack_loaded", false)
+        and receipt.get("audio_feedback_pack_loaded", false)
+        and receipt.get("attack_audio_events", 0) > 0
+        and receipt.get("hit_audio_events", 0) > 0
+        and receipt.get("heal_audio_events", 0) > 0
+        and receipt.get("victory_audio_events", 0) > 0
         and
         receipt.get("start_gate_present", false)
         and receipt.get("countdown_decrements", false)
@@ -1076,6 +1183,18 @@ func _probe() -> void:
             not FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json")
             or (receipt.get("sprite_atlas_loaded", false) and receipt.get("all_sprite_ids_mapped", false))
         )
+        and (
+            not receipt.get("licensed_art_requested", false)
+            or (receipt.get("licensed_art_loaded", false) and receipt.get("license_receipt_present", false))
+        )
+        and (
+            not receipt.get("effect_atlas_requested", false)
+            or (
+                receipt.get("effect_atlas_loaded", false)
+                and receipt.get("effect_receipt_present", false)
+                and receipt.get("effect_frame_animation_observed", false)
+            )
+        )
     )
     var target := FileAccess.open(output, FileAccess.WRITE)
     target.store_string(JSON.stringify(receipt))
@@ -1097,7 +1216,7 @@ GODOT_GAMEPLAY_PROBE_PACK = CapabilityPackManifest(
     pack_id="godot.gameplay-probe",
     version="1.0.0",
     provides=("evidence.gameplay-probe",),
-    requires=("gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.top-down", "godot.project"),
+    requires=("audio.feedback", "gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.top-down", "godot.project", "presentation.skin"),
     text_paths=("scripts/khalinos_gameplay_probe.gd",),
 )
 GODOT_SPRITE_ATLAS_PACK = CapabilityPackManifest(
@@ -1114,14 +1233,50 @@ GODOT_GAMEPLAY_BASE_PROFILE = (
     GODOT_VISUAL_FOUNDATION_PACK,
     GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_GAMEPLAY_PROBE_PACK,
 )
 GODOT_GAMEPLAY_SPRITE_PROFILE = GODOT_GAMEPLAY_BASE_PROFILE + (GODOT_SPRITE_ATLAS_PACK,)
+GODOT_GAMEPLAY_LICENSED_ART_PROFILE = (
+    GODOT_PROJECT_CORE_PACK,
+    GODOT_VISUAL_FOUNDATION_PACK,
+    GODOT_ASSET_SELECTOR_PACK,
+    GODOT_STYLE_COMPOSER_PACK,
+    GODOT_LICENSED_ATLAS_PACK,
+    GODOT_LICENSE_RECEIPT_PACK,
+    GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
+    GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
+    GODOT_GAMEPLAY_PROBE_PACK,
+)
+GODOT_GAMEPLAY_LICENSED_ART_SPRITE_PROFILE = GODOT_GAMEPLAY_LICENSED_ART_PROFILE + (
+    GODOT_SPRITE_ATLAS_PACK,
+)
+GODOT_GAMEPLAY_VFX_PACKS = (
+    GODOT_EFFECT_SELECTOR_PACK,
+    GODOT_EFFECT_ATLAS_PACK,
+    GODOT_VFX_PLAYER_PACK,
+    GODOT_EFFECT_RECEIPT_PACK,
+)
+GODOT_GAMEPLAY_VFX_SPRITE_PROFILE = (
+    GODOT_GAMEPLAY_BASE_PROFILE[:-1]
+    + GODOT_GAMEPLAY_VFX_PACKS
+    + (GODOT_GAMEPLAY_PROBE_PACK, GODOT_SPRITE_ATLAS_PACK)
+)
+GODOT_GAMEPLAY_LICENSED_ART_VFX_SPRITE_PROFILE = (
+    GODOT_GAMEPLAY_LICENSED_ART_PROFILE[:-1]
+    + GODOT_GAMEPLAY_VFX_PACKS
+    + (GODOT_GAMEPLAY_PROBE_PACK, GODOT_SPRITE_ATLAS_PACK)
+)
 
 
 def compose_godot_gameplay_capabilities(
     plan: GodotGameplayPlan,
     sprite_plan: SpriteAtlasPlan | None = None,
+    licensed_art: LicensedArtBundle | None = None,
+    effects: EffectBundle | None = None,
 ) -> CapabilityComposition:
     """Build Trinity through ordered packs without changing artifact bytes."""
 
@@ -1139,6 +1294,12 @@ def compose_godot_gameplay_capabilities(
             script_path="scripts/khalinos_gameplay.gd",
             node_name="Gameplay",
         ),
+    ]
+    if licensed_art is not None:
+        if licensed_art.profile_id != "godot.trinity-top-down":
+            raise PermissionError("Trinity profile received licensed art for another profile")
+        stages.extend(godot_licensed_art_stages(licensed_art))
+    stages.extend([
         CapabilityPackStage(
             manifest=GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
             text_files={
@@ -1147,11 +1308,19 @@ def compose_godot_gameplay_capabilities(
             },
         ),
         godot_combat_feedback_stage(),
+        godot_presentation_skin_stage(),
+        godot_audio_feedback_stage(),
+    ])
+    if effects is not None:
+        if effects.profile_id != "godot.trinity-top-down":
+            raise PermissionError("Trinity profile received effects for another profile")
+        stages.extend(godot_effect_stages(effects))
+    stages.extend([
         CapabilityPackStage(
             manifest=GODOT_GAMEPLAY_PROBE_PACK,
             text_files={"scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT},
         ),
-    ]
+    ])
     if sprite_plan is not None:
         stages.append(CapabilityPackStage(
             manifest=GODOT_SPRITE_ATLAS_PACK,
@@ -1171,6 +1340,8 @@ def compile_godot_gameplay(
     asset: ArtifactAsset,
     sprite_plan: SpriteAtlasPlan | None = None,
     sprite_atlas: ArtifactAsset | None = None,
+    licensed_art: LicensedArtBundle | None = None,
+    effects: EffectBundle | None = None,
     *,
     require_sprite_atlas: bool = False,
 ) -> CompiledGodotGameplay:
@@ -1194,11 +1365,13 @@ def compile_godot_gameplay(
         "asset_sha256": asset.sha256,
         "sprite_plan": sprite_plan.model_dump(mode="json") if sprite_plan else None,
         "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
+        "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
+        "effect_atlas_sha256": effects.atlas.sha256 if effects else None,
         "sprite_contract_required": require_sprite_atlas,
         "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
     })
-    composition = compose_godot_gameplay_capabilities(plan, sprite_plan)
-    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set())
+    composition = compose_godot_gameplay_capabilities(plan, sprite_plan, licensed_art, effects)
+    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set()) | ({LICENSED_ATLAS_PATH} if licensed_art is not None else set()) | ({EFFECT_ATLAS_PATH} if effects is not None else set())
     if set(composition.binary_paths) != expected_binary_paths:
         raise PermissionError("Godot Capability Pack binary bindings do not match approved assets")
     files = composition.text_files
@@ -1209,6 +1382,8 @@ def compile_godot_gameplay(
         asset=asset,
         sprite_plan=sprite_plan,
         sprite_atlas=sprite_atlas,
+        licensed_art_atlas=licensed_art.atlas if licensed_art else None,
+        effect_atlas=effects.atlas if effects else None,
         sprite_contract_required=require_sprite_atlas,
         sprite_segmentation_contract_sha256=segmentation_contract_sha256,
         plan_sha256=plan_sha,
@@ -1217,6 +1392,8 @@ def compile_godot_gameplay(
             "files": files,
             "asset_sha256": asset.sha256,
             "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
+            "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
+            "effect_atlas_sha256": effects.atlas.sha256 if effects else None,
             "sprite_contract_required": require_sprite_atlas,
             "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
         }),

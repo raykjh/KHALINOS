@@ -1,0 +1,88 @@
+{
+  "schema_version": "khalinos-expanded-vfx-cloud-qualification-v1",
+  "date": "2026-08-22",
+  "repository": {
+    "remote": "raykjh/KHALINOS",
+    "branch": "agent/presentation-audio-packs",
+    "commit": "617112d9af92a475621dfb245706253c3ec11dbc"
+  },
+  "cloud": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "build_id": "27a61456-ccd2-4a28-960b-743e54581993",
+    "image": "asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/khalinos:617112d-expanded-vfx",
+    "image_digest": "sha256:760f091fc0a571d4e2b2bcdd4c9daa3d1e77db769ff4f1474b7462681dd8cfae",
+    "api_revision": "khalinos-00050-tqz",
+    "worker_job": "khalinos-worker",
+    "worker": {
+      "memory": "8Gi",
+      "cpu": "2",
+      "timeout_seconds": 1800,
+      "max_retries": 0
+    }
+  },
+  "effect_contract": {
+    "provider": "OpenAI built-in ImageGen",
+    "candidate_count": 12,
+    "families": ["warrior", "archer", "healer", "enemy"],
+    "candidates_per_family": 3,
+    "frames_per_candidate": 9,
+    "effect_atlas_sha256": "25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9",
+    "selector": "profile-role-binding-from-three-candidates-per-family-v2"
+  },
+  "profiles": {
+    "godot.trinity-top-down": {
+      "run_id": "b9b5ca6594124527a0f5380deb690394",
+      "execution_id": "khalinos-worker-mv48m",
+      "status": "passed",
+      "message": "Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.",
+      "model_calls": 19,
+      "receipt_count": 3,
+      "deterministic_checks": "58/58",
+      "issues": [],
+      "selected_visual_candidate": "V1",
+      "artifact_sha256": "9c68e797ab92a9ccbd7f4466f284b8265529ae1d2d56c642723e2389daf3a8db",
+      "bundle_sha256": "a6ecd2022f59a73d7cb38cd9852abafd459ceb86789303917152725968bc7e0f",
+      "source_zip_sha256": "9a38afec4b623078c7df66e260a2ae04b48a45983e0cbd29ee77846ded9c755a",
+      "sprite_atlas_sha256": "5c6b7110aa4311fa99e3846dbeaba4b1ce15758e47f6cd8de38b7c76a37c4614",
+      "agent_capability_trace_sha256": "7aed465fae95089ead7ae078bc56c607f0730dd162e7f60705ec0ce69f0fa5d3",
+      "composition_sha256": "751246f900789f738a7927ed8be7c144f542f30d5e3eddd0c24a4f1e97252e4d",
+      "active_agent_count": 9,
+      "source_archive": "gs://khalinos-agent-20260818-runs/runs/b9b5ca6594124527a0f5380deb690394/final/source.zip",
+      "render_evidence": "gs://khalinos-agent-20260818-runs/runs/b9b5ca6594124527a0f5380deb690394/sprites/final/evidence/godot-gameplay-render00000089.png",
+      "started_at": "2026-08-22T09:47:59.141658Z",
+      "completed_at": "2026-08-22T10:02:13.427473Z"
+    },
+    "godot.side-scroll-destination": {
+      "run_id": "6704c3029e4b49aa8f7b67491655fc58",
+      "execution_id": "khalinos-worker-hxbrj",
+      "status": "passed",
+      "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification.",
+      "model_calls": 12,
+      "receipt_count": 3,
+      "deterministic_checks": "30/30",
+      "issues": [],
+      "selected_visual_candidate": "V2",
+      "artifact_sha256": "47ac899cb58b0f14e5932f6dd07ffc345931e012427d242286986aa0ae083125",
+      "bundle_sha256": "af96d1f2b16c460ec8ce8ca55615cebeb4eca6046f837a44ba76d048fe18aa3f",
+      "source_zip_sha256": "fd80c873bddfb4ef2f898157cfef1a6f6be89ea8ef4278391e2f831f7076da9a",
+      "agent_capability_trace_sha256": "38418f68da0902ba1ad62525a2372e0e7f4fdfabf3768d6396343367b9c8935e",
+      "composition_sha256": "be46199b0ac5bbdb6e85819cada751474cd9c491e868ba2d8a66be026faa7aca",
+      "active_agent_count": 8,
+      "source_archive": "gs://khalinos-agent-20260818-runs/runs/6704c3029e4b49aa8f7b67491655fc58/final/source.zip",
+      "render_evidence": "gs://khalinos-agent-20260818-runs/runs/6704c3029e4b49aa8f7b67491655fc58/visuals/V2/evidence/side-scroll-render00000089.png",
+      "started_at": "2026-08-22T09:53:19.144852Z",
+      "completed_at": "2026-08-22T09:56:01.573253Z"
+    }
+  },
+  "structural_failure_preserved": {
+    "run_id": "d5f6734930a542a390f168c4aff68808",
+    "execution_id": "khalinos-worker-htt9l",
+    "status": "failed",
+    "cause": "The direct qualification harness queued a run without first creating the owner project record required for final checkpoint publication.",
+    "correction": "Create the same owner-bound ProjectRecord used by the authenticated UI before dispatch; the corrected run 6704c3029e4b49aa8f7b67491655fc58 then passed without changing product code.",
+    "blind_retry": false
+  },
+  "aetherai_boundary": "The 30 newly downloaded AetherAI 32px-pastel candidates remain in the external licensed library as grade-B reserves and were not copied into the Cloud image. This Cloud qualification proves the repository-contained generated VFX and profile binding path, not use or redistribution of those external originals.",
+  "verdict": "Both profile-specific Cloud workflows passed real Godot mechanics, rendering, effect-atlas animation checks, and same-environment independent verification on one immutable image digest."
+}

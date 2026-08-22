@@ -1,0 +1,49 @@
+{
+  "schema_version": "khalinos-licensed-art-local-qualification-v1",
+  "date": "2026-08-22",
+  "scope": "local_development_qualification_not_cloud_production_evidence",
+  "provider": "AetherAI",
+  "license_id": "AetherAI-Free-Asset-License-2026-06-29",
+  "source_assets_redistributed_as_standalone_pack": false,
+  "toolpack_chain": [
+    "godot.asset-selector@1.0.0",
+    "godot.style-composer@1.0.0",
+    "godot.licensed-atlas@1.0.0",
+    "godot.license-receipt@1.0.0"
+  ],
+  "catalog": {
+    "decoded_pngs": 354,
+    "grade_counts": {
+      "A": 13,
+      "B": 336,
+      "C": 5
+    },
+    "originals_preserved": true
+  },
+  "profiles": {
+    "godot.trinity-top-down": {
+      "selected_roles": 8,
+      "atlas_sha256": "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56",
+      "artifact_bundle_sha256": "279e5d09c200f7a6305471b6b16100b0972aef3b04811dee597b8ef75c9e2ac3",
+      "runtime_passed": true,
+      "issues": [],
+      "display_frames": 30,
+      "evidence_frame": "godot-gameplay-render00000029.png"
+    },
+    "godot.side-scroll-destination": {
+      "selected_roles": 13,
+      "atlas_sha256": "3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e",
+      "artifact_bundle_sha256": "c638c307e50e06953380ae604259cbcdfeb2d48d02802eb071b3492806b1f88e",
+      "runtime_passed": true,
+      "issues": [],
+      "display_frames": 90,
+      "evidence_frame": "side-scroll-render00000089.png"
+    }
+  },
+  "regression": {
+    "passed": 179,
+    "failed": 0,
+    "warnings": 5
+  },
+  "boundary": "The catalog is supplied through KHALINOS_LICENSED_ASSET_ROOT. A configured but invalid catalog fails closed. An absent setting preserves the existing Cloud profile behavior."
+}
