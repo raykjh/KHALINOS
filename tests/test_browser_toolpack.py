@@ -68,6 +68,18 @@ def test_gemini_browser_schema_remains_strict_while_kernel_bundle_is_generic() -
     assert "assets" not in BrowserArtifactBundle.model_json_schema()["properties"]
 
 
+def test_gemini_browser_schema_bounds_verbose_freeform_summary() -> None:
+    values = browser_bundle().file_map()
+    model_output = BrowserArtifactBundle.model_validate(
+        {
+            "revision_summary": "Summary prose. " * 100,
+            "files": [{"path": path, "content": content} for path, content in values.items()],
+        }
+    )
+
+    assert len(model_output.revision_summary) == 500
+
+
 def test_trusted_promotion_removes_external_css_import_without_touching_product_css() -> None:
     values = browser_bundle().file_map()
     values["styles.css"] = (
