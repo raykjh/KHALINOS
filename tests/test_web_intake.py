@@ -65,7 +65,10 @@ def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
     assert 'id="milestoneTrail"' in html
     assert 'id="horseCargo"' in html
     assert "[hidden] { display:none!important; }" in html
-    assert "record.status==='passed'&&record.project_id&&!godot" in html
+    assert "record.status==='passed'&&record.project_id" in html
+    assert "Download verified source" in html
+    assert "/source.zip`" in html
+    assert "function downloadProject(projectId)" in html
     assert "actual cost" not in html.lower()
 
 

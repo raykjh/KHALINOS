@@ -349,7 +349,7 @@
             </aside>
           </div>
           <div class="milestone-trail" id="milestoneTrail"></div>
-          <div class="actions" id="resultActions" hidden><button id="playResult">Play verified result</button><button class="secondary" id="improveResult">Improve this project</button></div>
+          <div class="actions" id="resultActions" hidden><button id="playResult">Play verified result</button><button id="downloadResult">Download verified source</button><button class="secondary" id="improveResult">Improve this project</button></div>
         </div>
       </div>
     </section>
@@ -417,12 +417,19 @@ async function loadProjects(reveal=false){
   if(!authCredential)return;
   const response=await fetch('/api/projects',{headers:authHeaders()});if(!response.ok)throw new Error('Project Library could not be loaded.');
   const projects=await response.json();projectLibraryRecords=projects;const library=$('#projectLibrary');if(reveal)library.hidden=false;
-  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'&&['browser','web'].includes(item.project_kind)?`<button data-play-project="${item.project_id}">Play result</button>`:''}${['browser','web'].includes(item.project_kind)?`<button class="secondary" data-improve-project="${item.project_id}">Improve</button>`:''}</div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
+  library.innerHTML=projects.length?projects.map(item=>`<div class="project-row"><div><strong>${escapeHtml(item.display_name)}</strong><br><span>${item.project_kind.toUpperCase()} · ${item.latest_status.toUpperCase()} · ${item.latest_receipt_ids.length} receipts</span></div><div class="actions">${item.latest_status==='passed'&&['browser','web'].includes(item.project_kind)?`<button data-play-project="${item.project_id}">Play result</button>`:''}${item.latest_status==='passed'?`<button data-download-project="${item.project_id}">Download source</button>`:''}${['browser','web'].includes(item.project_kind)?`<button class="secondary" data-improve-project="${item.project_id}">Improve</button>`:''}</div></div>`).join(''):'<p>No KHALINOS projects yet.</p>';
   library.querySelectorAll('[data-play-project]').forEach(button=>button.addEventListener('click',()=>playProject(button.dataset.playProject)));
+  library.querySelectorAll('[data-download-project]').forEach(button=>button.addEventListener('click',()=>downloadProject(button.dataset.downloadProject)));
   library.querySelectorAll('[data-improve-project]').forEach(button=>button.addEventListener('click',()=>selectProject(projects.find(item=>item.project_id===button.dataset.improveProject))));
 }
 async function artifactBundle(projectId){
   const response=await fetch(`/api/projects/${projectId}/artifact`,{headers:authHeaders()});const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));return JSON.parse(text);
+}
+async function downloadProject(projectId){
+  try{
+    const response=await fetch(`/api/projects/${projectId}/source.zip`,{headers:authHeaders()});if(!response.ok)throw new Error(apiError(response,await response.text()));
+    const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');link.href=url;link.download=`khalinos-${projectId}.zip`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(error){alert(`Verified source could not be downloaded: ${error.message}`);}
 }
 async function playProject(projectId){
   const preview=window.open('about:blank','_blank');if(!preview){alert('Allow pop-ups for KHALINOS to open the verified result.');return;}preview.opener=null;preview.document.title='Loading verified result…';
@@ -588,7 +595,7 @@ function renderRun(record){
   $('#architectureFlow').innerHTML=telemetry.stages.map((stage,index)=>{const state=index<telemetry.stage.index?'done':index===telemetry.stage.index?(terminal&&record.status!=='passed'?'stopped':'active'):'';return `<div class="arch-stage ${state}"><small>${state==='done'?'✓ COMPLETE':state==='active'?'● NOW':state==='stopped'?'■ STOPPED':'○ WAITING'}</small><strong>${escapeHtml(stage.label)}</strong></div>`;}).join('');
   $('#milestoneTrail').innerHTML=telemetry.milestones.map(item=>`<div class="milestone ${item.state}"><b>${escapeHtml(item.id)}${item.state==='complete'?' ✓':item.state==='active'?' ●':''}</b><span>${escapeHtml(item.label)}</span></div>`).join('');
   $('#horseCargo').innerHTML=telemetry.milestones.filter(item=>item.state==='complete').map(item=>`<span class="cargo">${escapeHtml(item.id)}</span>`).join('');
-  const playable=record.status==='passed'&&record.project_id&&!godot;$('#resultActions').hidden=!playable;if(playable){$('#playResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}
+  const downloadable=record.status==='passed'&&record.project_id;const playable=downloadable&&!godot;$('#resultActions').hidden=!downloadable;$('#playResult').hidden=!playable;if(downloadable){$('#downloadResult').dataset.projectId=record.project_id;$('#improveResult').dataset.projectId=record.project_id;}if(playable)$('#playResult').dataset.projectId=record.project_id;
   document.querySelectorAll('.station').forEach(station=>{
     const role=station.dataset.role;station.classList.remove('active','done','blocked','failed');const state=station.querySelector('.station-state');
     if(skipped.has(role)){state.textContent='Not required';return;}
@@ -600,6 +607,7 @@ function renderRun(record){
   clearInterval(elapsedTimer);if(!terminal)elapsedTimer=setInterval(()=>{if(latestRunRecord){$('#runElapsed').textContent=elapsed(latestRunRecord);$('#cloudHeartbeat').textContent=heartbeat(latestRunRecord);}},1000);
 }
 $('#playResult').addEventListener('click',event=>playProject(event.currentTarget.dataset.projectId));
+$('#downloadResult').addEventListener('click',event=>downloadProject(event.currentTarget.dataset.projectId));
 $('#improveResult').addEventListener('click',async event=>{const projectId=event.currentTarget.dataset.projectId;show('materials');chooseWork('existing');await loadProjects(true);const project=projectLibraryRecords.find(item=>item.project_id===projectId);if(project)await selectProject(project);});
 async function poll(runId){
   try{const response=await fetch(`/api/runs/${runId}`,{headers:authHeaders()});const record=await response.json();renderRun(record);if(['passed','blocked','failed'].includes(record.status)){await loadProjects();return;}pollTimer=setTimeout(()=>poll(runId),3000);}catch(error){$('#campHeadline').textContent='Status check failed ·';$('#campMessage').textContent=error.message;}

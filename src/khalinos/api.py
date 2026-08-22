@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
@@ -282,6 +282,41 @@ def get_project_artifact(
     if project.latest_status != RunStatus.PASSED or project.source_snapshot is None:
         raise HTTPException(status_code=409, detail="project has no verified playable result")
     return CloudRunStore().read_bundle_archive(project.source_snapshot).model_dump(mode="json")
+
+
+@app.get("/api/projects/{project_id}/source.zip")
+def get_project_source(
+    project_id: str,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> Response:
+    """Return the owner-bound verified source ZIP for Browser or Godot results."""
+
+    try:
+        project = CloudProjectStore().read_owned(project_id, identity.owner_id)
+        store = CloudRunStore()
+        run = store.read_record(project.latest_run_id)
+    except (FileNotFoundError, PermissionError) as exc:
+        raise HTTPException(status_code=404, detail="project not found") from exc
+    if (
+        project.latest_status != RunStatus.PASSED
+        or run.status != RunStatus.PASSED
+        or run.project_id != project.project_id
+        or run.owner_id != identity.owner_id
+    ):
+        raise HTTPException(status_code=409, detail="project has no verified downloadable result")
+    try:
+        payload = store.read_source_archive(run.run_id)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail="verified source archive is unavailable") from exc
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="khalinos-{project.project_id}.zip"',
+            "X-KHALINOS-Run-ID": run.run_id,
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @app.post("/api/uploads", status_code=201)
