@@ -339,6 +339,8 @@ def verify_bundle(
                             raise ValueError("right_click requires a bounded CSS selector")
                         page.locator(value).click(button="right")
                     elif action == "press":
+                        if value == " ":
+                            value = "Space"
                         if not isinstance(value, str) or not value.strip() or len(value) > 80:
                             raise ValueError("press requires a bounded keyboard key")
                         page.keyboard.press(value)

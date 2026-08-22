@@ -187,6 +187,21 @@ def test_select_option_is_a_bounded_typed_action(tmp_path: Path) -> None:
     assert evidence.passed
 
 
+def test_literal_space_press_is_canonicalized_to_spacebar(tmp_path: Path) -> None:
+    journeys = [{
+        "name": "toggle the focused checkbox with space",
+        "steps": [
+            {"click": "#safe"},
+            {"press": " "},
+            {"assert_state": {"selector": "#safe", "state": "checked"}},
+        ],
+    }]
+
+    evidence = run_verification(tmp_path, contract_bundle(journeys), [])
+
+    assert evidence.passed
+
+
 def test_legacy_option_click_dispatches_the_select_change_event(tmp_path: Path) -> None:
     journeys = [{
         "name": "legacy option selector",
