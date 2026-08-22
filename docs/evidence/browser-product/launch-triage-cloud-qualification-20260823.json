@@ -1,0 +1,101 @@
+{
+  "schema_version": "khalinos-cloud-qualification-v1",
+  "scope": "authenticated_browser_product_generation_and_delivery",
+  "qualified_commit": "54461ff",
+  "cloud_build_id": "75356e65-7bfe-470c-8e0e-d452504ffb0e",
+  "cloud_project": "khalinos-agent-20260818",
+  "cloud_region": "asia-northeast3",
+  "api_revision": "khalinos-00061-8qm",
+  "worker_job": "khalinos-worker",
+  "worker_execution": "khalinos-worker-rfszp",
+  "image_digest": "sha256:add7641bb299676e8002fb7455131599b9746b39097227841c79e77a4fef79c9",
+  "worker_shape": {
+    "memory": "8Gi",
+    "cpu": 2,
+    "timeout_seconds": 1800,
+    "max_retries": 0
+  },
+  "run": {
+    "run_id": "32b5306b2c984683b406012b4ffb79f6",
+    "status": "passed",
+    "message": "Every Quest passed deterministic runtime checks and independent verification.",
+    "duration_seconds": 344,
+    "model": "gemini-3.5-flash",
+    "framework": "Google ADK 2.6.2",
+    "gemini_calls": 19,
+    "quest_count": 3,
+    "receipt_ids": [
+      "VS-2c68302caf7a48e1",
+      "QR-840bf55dbbf74da1",
+      "QR-01d49e2605f04850",
+      "QR-44a5084c9f134333"
+    ],
+    "repair_rounds_per_quest": 0
+  },
+  "toolpack_binding": {
+    "toolpack_id": "browser.product",
+    "version": "1.4.1",
+    "manifest_sha256": "df548578e2b597bc3c56943ae77b92c1813424d0413f5f5ce657c5571f1521b9"
+  },
+  "runtime_verification": {
+    "checks_per_quest": 12,
+    "final_checks_passed": 12,
+    "final_checks_total": 12,
+    "issues": 0,
+    "checks": {
+      "exact_authorized_files": true,
+      "bounded_size": true,
+      "no_external_network_or_dynamic_code": true,
+      "html_document": true,
+      "local_assets_linked": true,
+      "accessible_controls": true,
+      "responsive_layout_320px": true,
+      "no_placeholders": true,
+      "trusted_visual_assets_loaded": true,
+      "browser_journeys": true,
+      "criterion_runtime_coverage": true,
+      "console_clean": true
+    },
+    "criteria": {
+      "add_final_qa_and_increment_total": true,
+      "complete_final_qa_and_increment_completed": true,
+      "high_filter_hides_non_high": true,
+      "empty_filter_state_visible": true
+    }
+  },
+  "visual_selection": {
+    "selected_candidate": "V1",
+    "eligible_candidates": ["V1", "V3"],
+    "bounded_repairs": ["V1:1"],
+    "selected_artifact_sha256": "5ef809328c4a2eb0ed6687509cb7f526745ffc28b8a5deec8cee7ff03ab271cf",
+    "selected_asset_sha256": "a1898266facc0b959587bd172282965fd91161b7e8703ed35e9ddebe27ccdab2"
+  },
+  "digests": {
+    "artifact_sha256": "01a23976f61dc81cc5fc3cda28cb9bc279f233ad7e9f372ee46785d30198a3cc",
+    "source_zip_sha256": "d47e8783785d7683dbad7f2b4a3ff6df9a0317d2726e95a92c40349202cd1fde",
+    "source_zip_size_bytes": 1076321,
+    "source_entry_count": 6
+  },
+  "local_regression": {
+    "passed": 196,
+    "failed": 0,
+    "warnings": 5
+  },
+  "failure_corrections": [
+    "Bound overlong model revision summaries before schema validation.",
+    "Canonicalized literal spacebar actions to Space.",
+    "Added one evidence-driven visual repair per failed candidate until two candidates qualify.",
+    "Made browser class assertions tolerate omitted empty excludes and visible contains assertions case-insensitive.",
+    "Bound an omitted journey label only when the trusted host has exactly one active immutable criterion.",
+    "Connected the existing trusted-host Quest authority binder to the Browser workflow so paraphrased or repeated model criteria cannot alter the approved contract."
+  ],
+  "delivery": {
+    "play_action_opened_in_chrome": true,
+    "play_url_kind": "blob",
+    "automated_blob_dom_inspection": false,
+    "automated_blob_dom_inspection_reason": "Chrome control URL policy blocked DOM automation on the blob URL; no workaround was attempted.",
+    "owner_bound_download_available": true,
+    "local_zip": "C:\\memory R\\Launch-Triage-Board-KHALINOS-PASS.zip"
+  },
+  "claim_boundary": "This proves one bounded offline Browser product was autonomously generated and passed real selector-bound journeys, responsive rendering, trusted-asset loading, network isolation, and console checks. It does not prove arbitrary web-app generation or external organizational independence."
+}
