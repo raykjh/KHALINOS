@@ -68,7 +68,14 @@ def test_queue_run_selects_toolpack_from_exact_project_kind_and_work_mode(monkey
 
     monkeypatch.setattr(api, "CloudRunStore", FakeStore)
     monkeypatch.setattr(api.APPROVED_TOOLPACKS, "select", select)
-    monkeypatch.setattr(api, "dispatch_run", lambda run_id: {"execution": run_id})
+    monkeypatch.setattr(api, "dispatch_run", lambda run_id: {
+        "run_id": run_id,
+        "project_id": "khalinos-test",
+        "region": "asia-northeast3",
+        "job_name": "khalinos-worker",
+        "operation_name": "projects/khalinos-test/operations/op-1",
+        "asynchronous": True,
+    })
     brief = UserBrief(
         project_name="Route Observatory",
         goal="Create a bounded offline Godot topology with an arrival and verified result screen.",
@@ -93,6 +100,9 @@ def test_queue_run_selects_toolpack_from_exact_project_kind_and_work_mode(monkey
         GODOT_TOPOLOGY_TOOLPACK.manifest.output.authorized_paths
     )
     assert result["record"]["work_mode"] == "new_product_build"
+    assert result["record"]["cloud_project_id"] == "khalinos-test"
+    assert result["record"]["telemetry"]["profile"]["id"] == "godot.topology"
+    assert result["record"]["telemetry"]["cloud"]["job_name"] == "khalinos-worker"
     assert captured["brief"].max_repairs_per_quest == 0
 
 

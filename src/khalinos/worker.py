@@ -18,9 +18,14 @@ def main() -> int:
     run_id = os.environ.get("KHALINOS_RUN_ID", "")
     if not SAFE_RUN_ID.fullmatch(run_id):
         raise ValueError("KHALINOS_RUN_ID is missing or invalid")
+    store = CloudRunStore()
+    execution_id = os.environ.get("CLOUD_RUN_EXECUTION", "")
+    if execution_id:
+        record = store.read_record(run_id)
+        store.update(record.model_copy(update={"cloud_execution_id": execution_id}))
     result = asyncio.run(execute_authorized_run(
         run_id,
-        store=CloudRunStore(),
+        store=store,
         team=AgentTeam(),
         registry=APPROVED_TOOLPACKS,
         project_store=CloudProjectStore(),

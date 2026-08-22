@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
+from khalinos.execution_telemetry import execution_telemetry
 from khalinos.auth import AuthenticationUnavailable, Identity, InvalidIdentity, authenticate_bearer, google_client_id
 from khalinos.intake import answer_intake, authorized_brief, inspect_materials, reroute_intake, restart_intake, source_payloads, start_intake
 from khalinos.intake_storage import CloudIntakeStore
@@ -209,7 +210,16 @@ def queue_run(
     except Exception:
         store.update(record.model_copy(update={"status": RunStatus.FAILED, "message": "Cloud dispatch failed."}))
         raise
-    return {"record": record.model_dump(mode="json"), "dispatch": dispatch}
+    record = record.model_copy(update={
+        "cloud_project_id": str(dispatch.get("project_id", "")),
+        "cloud_region": str(dispatch.get("region", "")),
+        "cloud_job_name": str(dispatch.get("job_name", "")),
+        "cloud_operation_name": str(dispatch.get("operation_name", "")),
+    })
+    store.update(record)
+    payload = record.model_dump(mode="json")
+    payload["telemetry"] = execution_telemetry(record)
+    return {"record": payload, "dispatch": dispatch}
 
 
 @app.get("/api/runs/{run_id}")
@@ -220,7 +230,9 @@ def get_run(run_id: str, identity: Annotated[Identity, Depends(require_identity)
         raise HTTPException(status_code=404, detail="run not found") from exc
     if record.owner_id != identity.owner_id:
         raise HTTPException(status_code=404, detail="run not found")
-    return record.model_dump(mode="json")
+    payload = record.model_dump(mode="json")
+    payload["telemetry"] = execution_telemetry(record)
+    return payload
 
 
 @app.get("/api/config")

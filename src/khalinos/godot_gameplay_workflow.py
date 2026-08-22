@@ -162,11 +162,23 @@ async def execute_godot_gameplay_run(
             if not gate.approved:
                 evidence_payload[concept.candidate_id] = {"passed": False, "issues": gate.issues}
                 continue
+            record = record.model_copy(update={
+                "status": RunStatus.EXECUTING,
+                "message": f"Trusted Accountable Maker is composing gameplay candidate {concept.candidate_id} from the bound Capability Packs.",
+                "model_calls": team.call_count,
+            })
+            store.update(record)
             artifact = compile_godot_gameplay(decision.gameplay, concept, asset)
             with tempfile.TemporaryDirectory(prefix=f"khalinos-gameplay-{run_id}-{concept.candidate_id}-") as temporary:
                 root = Path(temporary) / "product"
                 evidence_dir = Path(temporary) / "evidence"
                 toolpack.execution_adapter.materialize(artifact, root)
+                record = record.model_copy(update={
+                    "status": RunStatus.RUNTIME_CHECKING,
+                    "message": f"Deterministic Runtime is checking real mechanics and rendering for gameplay candidate {concept.candidate_id}.",
+                    "model_calls": team.call_count,
+                })
+                store.update(record)
                 deterministic = await asyncio.to_thread(
                     toolpack.evidence_adapter.verify,
                     artifact,
@@ -270,6 +282,12 @@ async def execute_godot_gameplay_run(
         store.put_bytes(run_id, f"sprites/composed/{sprite_atlas.path}", sprite_atlas.bytes(), sprite_atlas.media_type)
         store.put_json(run_id, "sprites/composed/gate.json", sprite_gate.model_dump(mode="json"))
 
+        record = record.model_copy(update={
+            "status": RunStatus.EXECUTING,
+            "message": "Trusted Accountable Maker is binding the approved sprite atlas into the final gameplay artifact.",
+            "model_calls": team.call_count,
+        })
+        store.update(record)
         artifact = compile_godot_gameplay(
             decision.gameplay,
             artifact.concept,
@@ -282,6 +300,12 @@ async def execute_godot_gameplay_run(
             root = Path(temporary) / "product"
             evidence_dir = Path(temporary) / "evidence"
             toolpack.execution_adapter.materialize(artifact, root)
+            record = record.model_copy(update={
+                "status": RunStatus.RUNTIME_CHECKING,
+                "message": "Deterministic Runtime is checking the final sprite-bound gameplay artifact.",
+                "model_calls": team.call_count,
+            })
+            store.update(record)
             deterministic = await asyncio.to_thread(
                 toolpack.evidence_adapter.verify,
                 artifact,

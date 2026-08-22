@@ -170,6 +170,12 @@ async def execute_godot_side_scroll_run(
             if not gate.approved:
                 evidence_payload[concept.candidate_id] = {"passed": False, "issues": gate.issues}
                 continue
+            record = record.model_copy(update={
+                "status": RunStatus.EXECUTING,
+                "message": f"Trusted Accountable Maker is composing side-scroll candidate {concept.candidate_id} from the bound Capability Packs.",
+                "model_calls": team.call_count,
+            })
+            store.update(record)
             artifact = compile_godot_side_scroll(decision.gameplay, concept, asset)
             with tempfile.TemporaryDirectory(
                 prefix=f"khalinos-side-scroll-{run_id}-{concept.candidate_id}-"
@@ -177,6 +183,12 @@ async def execute_godot_side_scroll_run(
                 root = Path(temporary) / "product"
                 evidence_dir = Path(temporary) / "evidence"
                 toolpack.execution_adapter.materialize(artifact, root)
+                record = record.model_copy(update={
+                    "status": RunStatus.RUNTIME_CHECKING,
+                    "message": f"Deterministic Runtime is checking real mechanics and rendering for side-scroll candidate {concept.candidate_id}.",
+                    "model_calls": team.call_count,
+                })
+                store.update(record)
                 deterministic = await asyncio.to_thread(
                     toolpack.evidence_adapter.verify,
                     artifact,
