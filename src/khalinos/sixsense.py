@@ -153,6 +153,23 @@ _GODOT_GAMEPLAY_OUTPUTS = [
     "scripts/khalinos_gameplay_probe.gd",
 ]
 
+_GODOT_SIDE_SCROLL_OUTPUTS = [
+    "KHALINOS_DESTINATION.json",
+    "KHALINOS_SIDE_SCROLL.json",
+    "README.md",
+    "assets/visual-foundation.png",
+    "project.godot",
+    "scenes/gameplay.tscn",
+    "scripts/khalinos_combat_feedback.gd",
+    "scripts/khalinos_side_scroll.gd",
+    "scripts/khalinos_side_scroll_probe.gd",
+]
+
+_GODOT_SIDE_SCROLL_CRITERIA = [
+    "The party advances right and defeats approaching enemies automatically in the horizontal lane.",
+    "The horizontal journey reaches its declared destination and reports a rendered victory state.",
+]
+
 
 def _explicit_gameplay_criteria(
     record: IntakeRecord,
@@ -175,6 +192,25 @@ def bind_preview_to_profile(
 ) -> OutcomePreview:
     """Bind model-authored preview details to the already approved execution profile."""
 
+    if record.requested_toolpack_id == "godot.side-scroll-experiment":
+        acceptance = list(dict.fromkeys([
+            *_GODOT_SIDE_SCROLL_CRITERIA,
+            *preview.recommended_brief.acceptance_criteria,
+        ]))[:10]
+        completion = list(dict.fromkeys([
+            *_GODOT_SIDE_SCROLL_CRITERIA,
+            *preview.completion_and_quality,
+        ]))[:10]
+        brief = preview.recommended_brief.model_copy(update={
+            "max_repairs_per_quest": 0,
+            "toolpack_binding": record.requested_toolpack_binding,
+            "authorized_output_files": _GODOT_SIDE_SCROLL_OUTPUTS,
+            "acceptance_criteria": acceptance,
+        })
+        return preview.model_copy(update={
+            "recommended_brief": brief,
+            "completion_and_quality": completion,
+        })
     if record.requested_toolpack_id != "godot.gameplay":
         return preview
     explicit = _explicit_gameplay_criteria(record, source_payloads)
@@ -196,6 +232,40 @@ def validate_preview_profile(
 ) -> None:
     """Fail closed when a preview silently narrows an approved gameplay route."""
 
+    if record.requested_toolpack_id == "godot.side-scroll-experiment":
+        all_text = " ".join([
+            preview.final_result,
+            *preview.required_enablers,
+            *preview.exclusions_and_preservation,
+            *preview.operating_context,
+            *preview.completion_and_quality,
+            *preview.authority_budget_and_delivery,
+            preview.recommended_brief.goal,
+            *preview.recommended_brief.acceptance_criteria,
+        ]).casefold()
+        forbidden = (
+            "screen-and-overlay topology prototype",
+            "no gameplay mechanics",
+            "without gameplay mechanics",
+            "no input loops",
+            "topology-only",
+        )
+        if any(term in all_text for term in forbidden):
+            raise ValueError("Godot side-scroll Preview cannot be narrowed to a topology-only outcome")
+        criteria = " ".join(preview.recommended_brief.acceptance_criteria).casefold()
+        required_groups = (
+            ("horizontal", "side-scroll", "side scroll"),
+            ("enemy", "enemies", "combat", "attack"),
+            ("destination",),
+            ("victory",),
+        )
+        if not all(any(term in criteria for term in group) for group in required_groups):
+            raise ValueError("Godot side-scroll Preview must bind horizontal combat and destination victory")
+        if preview.recommended_brief.authorized_output_files != _GODOT_SIDE_SCROLL_OUTPUTS:
+            raise ValueError("Godot side-scroll Preview output surface must match the approved ToolPack")
+        if preview.recommended_brief.toolpack_binding != record.requested_toolpack_binding:
+            raise ValueError("Godot side-scroll Preview must carry the approved ToolPack binding")
+        return
     if record.requested_toolpack_id != "godot.gameplay":
         return
     all_text = " ".join([
@@ -314,6 +384,21 @@ class SixSenseAgent:
                 "maximum_duration_minutes": 30,
                 "scope_rule": "bind completion only to mechanics executed by the deterministic gameplay probe and visible real Godot render",
                 "visual_competition": "three Nano Banana candidates, raw asset gate, real gameplay renders, independent multimodal selection",
+            }
+        elif record.requested_toolpack_id == "godot.side-scroll-experiment":
+            execution_profile = {
+                "profile_id": "godot.side-scroll-destination.new-product",
+                "scope": "a bounded playable offline Godot 4.7.1 2D horizontal auto-combat journey",
+                "files": ["data-driven side-scroll and destination manifests", "trusted Godot scene and scripts", "one trusted PNG visual foundation", "runtime and render evidence"],
+                "technologies": ["Godot 4.7.1", "Nano Banana", "trusted side-scroll compiler", "headless mechanics probe", "real display-backed PNG capture"],
+                "supported_outcomes": ["continuous rightward travel", "horizontal lane combat", "enemy spawning", "automatic attacks", "enemy defeat", "destination progress", "victory", "visible combat feedback", "rendered gameplay evidence"],
+                "forbidden": ["3D", "multiplayer", "network services", "platform jumping", "open world", "arbitrary plugins or scripts", "existing-project repair", "production-ready full game claim"],
+                "quest_limit": "2 to 5",
+                "repair_limit_per_quest": "0",
+                "maximum_run_budget_usd": 5,
+                "maximum_duration_minutes": 30,
+                "scope_rule": "bind completion to horizontal combat and destination mechanics executed by the deterministic side-scroll probe and visible real Godot renders",
+                "visual_competition": "three Nano Banana candidates, raw asset gate, real side-scroll gameplay renders, independent multimodal selection",
             }
         elif record.requested_toolpack_id == "godot.visual-prototype":
             execution_profile = {

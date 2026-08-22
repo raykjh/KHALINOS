@@ -560,6 +560,84 @@ def test_gameplay_preview_is_bound_to_exact_output_surface_and_mechanics() -> No
     ]
 
 
+def test_side_scroll_preview_is_bound_to_gameplay_scope_and_exact_output_surface() -> None:
+    binding = ToolPackBinding(
+        toolpack_id="godot.side-scroll-experiment",
+        version="0.4.0",
+        manifest_sha256="b" * 64,
+    )
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="d" * 32,
+        project_name="Roadbound Heroes",
+        goal=(
+            "Create a playable Godot side-scrolling horizontal auto-combat journey where "
+            "the party defeats enemies and reaches a destination victory."
+        ),
+        requested_project_kind="godot",
+        requested_toolpack_id="godot.side-scroll-experiment",
+        requested_toolpack_binding=binding,
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+    )
+    candidate = preview().model_copy(update={
+        "final_result": "A bounded playable Godot horizontal auto-combat journey with rendered evidence.",
+        "recommended_brief": preview().recommended_brief.model_copy(update={
+            "goal": "Create a bounded playable Godot horizontal auto-combat destination journey.",
+        }),
+    })
+
+    bound = bind_preview_to_profile(record, candidate)
+    validate_decision(record, SenseDecision(
+        status="ready",
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+        preview=bound,
+    ))
+
+    assert bound.recommended_brief.max_repairs_per_quest == 0
+    assert bound.recommended_brief.toolpack_binding == binding
+    assert bound.recommended_brief.authorized_output_files == [
+        "KHALINOS_DESTINATION.json",
+        "KHALINOS_SIDE_SCROLL.json",
+        "README.md",
+        "assets/visual-foundation.png",
+        "project.godot",
+        "scenes/gameplay.tscn",
+        "scripts/khalinos_combat_feedback.gd",
+        "scripts/khalinos_side_scroll.gd",
+        "scripts/khalinos_side_scroll_probe.gd",
+    ]
+    criteria = " ".join(bound.recommended_brief.acceptance_criteria)
+    assert "horizontal lane" in criteria
+    assert "destination" in criteria
+
+
+def test_side_scroll_preview_cannot_collapse_back_to_topology() -> None:
+    binding = ToolPackBinding(
+        toolpack_id="godot.side-scroll-experiment",
+        version="0.4.0",
+        manifest_sha256="c" * 64,
+    )
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="c" * 32,
+        project_name="Roadbound Heroes",
+        goal="Create a playable Godot horizontal auto-combat destination journey.",
+        requested_project_kind="godot",
+        requested_toolpack_id="godot.side-scroll-experiment",
+        requested_toolpack_binding=binding,
+        resolved_dimensions=ALL_SENSE_DIMENSIONS,
+    )
+    collapsed = bind_preview_to_profile(record, preview().model_copy(update={
+        "final_result": "A bounded Godot screen-and-overlay topology prototype.",
+        "exclusions_and_preservation": ["No gameplay mechanics or input loops are included."],
+    }))
+
+    with pytest.raises(ValueError, match="topology-only"):
+        validate_decision(record, SenseDecision(
+            status="ready",
+            resolved_dimensions=ALL_SENSE_DIMENSIONS,
+            preview=collapsed,
+        ))
+
+
 def test_trinity_preview_binds_every_explicit_probe_requirement() -> None:
     record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
         intake_id="f" * 32,
