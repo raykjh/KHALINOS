@@ -30,6 +30,6 @@
 - [ ] PR from `agent/presentation-audio-packs` to `main` reviewed and merged
 - [ ] Full local regression PASS
 - [ ] GitHub CI PASS
-- [ ] Annotated `v0.6.0-hackathon-rc3` tag points to final `main`
+- [ ] Annotated `v0.6.0-hackathon-rc4` tag points to final `main`
 - [ ] Public `/health`, README links, architecture PNG, and evidence JSON rechecked after merge
 - [ ] Recording tabs and local Godot outputs prepared without starting the recorded Cloud run

@@ -49,7 +49,7 @@ Before recording, open the side-scroll project in the Godot editor but do not ru
 
 ## Evidence anchors
 
-- Release candidate tag: `v0.6.0-hackathon-rc3`
+- Release candidate tag: `v0.6.0-hackathon-rc4`
 - Latest image digest: `sha256:760f091fc0a571d4e2b2bcdd4c9daa3d1e77db769ff4f1474b7462681dd8cfae`
 - Trinity PASS: `b9b5ca6594124527a0f5380deb690394`, 58/58 checks
 - Side-scroll PASS: `6704c3029e4b49aa8f7b67491655fc58`, 30/30 checks
