@@ -123,7 +123,11 @@ def _assertion_summary(page, action: str, value: object) -> str:
         locator = page.locator(selector).first
         locator.wait_for(state="visible")
         observed = (locator.text_content() or "").strip()
-        passed = observed == expected if operator == "eq" else expected in observed
+        passed = (
+            observed == expected
+            if operator == "eq"
+            else expected.casefold() in observed.casefold()
+        )
         if not passed:
             raise AssertionError(f"text {observed!r} does not satisfy {operator} {expected!r} for {selector}")
         return f"assert_text selector={selector!r} observed={observed!r} {operator} {expected!r}"

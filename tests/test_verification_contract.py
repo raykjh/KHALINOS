@@ -216,6 +216,25 @@ def test_assert_class_defaults_missing_excludes_to_empty(tmp_path: Path) -> None
     assert evidence.passed
 
 
+def test_contains_text_matches_visible_wording_without_case_sensitivity(tmp_path: Path) -> None:
+    journeys = [{
+        "name": "visible status wording",
+        "steps": [
+            {
+                "assert_text": {
+                    "selector": "#status",
+                    "operator": "contains",
+                    "value": "READY",
+                }
+            },
+        ],
+    }]
+
+    evidence = run_verification(tmp_path, contract_bundle(journeys), [])
+
+    assert evidence.passed
+
+
 def test_legacy_option_click_dispatches_the_select_change_event(tmp_path: Path) -> None:
     journeys = [{
         "name": "legacy option selector",
