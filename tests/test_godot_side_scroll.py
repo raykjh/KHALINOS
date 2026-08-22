@@ -96,6 +96,8 @@ def test_side_scroll_compiler_is_deterministic_and_owns_exact_outputs(tmp_path: 
     assert 'preload("res://scripts/khalinos_combat_feedback.gd")' in first.files[
         "scripts/khalinos_side_scroll.gd"
     ]
+    assert "Color(0.74, 0.90, 0.94, 0.38)" in first.files["scripts/khalinos_side_scroll.gd"]
+    assert 'Color("bde6ef")' not in first.files["scripts/khalinos_side_scroll.gd"]
     assert 'PACK_ID := "godot.combat-feedback@1.0.0"' in first.files[
         "scripts/khalinos_combat_feedback.gd"
     ]
