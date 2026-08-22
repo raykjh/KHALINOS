@@ -8,7 +8,7 @@ Screen: authenticated KHALINOS Outcome Preview for the side-scroll destination p
 
 Narration:
 
-> Most coding agents make the user supervise every step. KHALINOS turns one authorized goal into a bounded build, then refuses to call it complete without runtime proof. I pre-staged only the intake to fit four minutes; execution has not started. I will authorize it now.
+> KHALINOS turns one authorized goal into a bounded build and refuses completion without runtime proof. Only intake is pre-staged; execution has not started. I authorize it now.
 
 Action: click **Authorize and execute** by 0:12.
 
