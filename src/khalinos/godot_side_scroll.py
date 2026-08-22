@@ -108,9 +108,11 @@ func _nearest_enemy():
 func _draw() -> void:
     var width := float(combat.get("viewport_width", 960))
     var height := float(combat.get("viewport_height", 540))
-    draw_rect(Rect2(0, 0, width, height), Color("bde6ef"), true)
-    draw_rect(Rect2(0, height * 0.58, width, height * 0.42), Color("d6c58b"), true)
-    draw_rect(Rect2(0, height * 0.72, width, height * 0.12), Color("907d57"), true)
+    # Preserve lane readability without hiding the selected visual-foundation
+    # texture behind an opaque procedural backdrop.
+    draw_rect(Rect2(0, 0, width, height), Color(0.74, 0.90, 0.94, 0.38), true)
+    draw_rect(Rect2(0, height * 0.58, width, height * 0.42), Color(0.84, 0.77, 0.55, 0.58), true)
+    draw_rect(Rect2(0, height * 0.72, width, height * 0.12), Color(0.56, 0.49, 0.34, 0.72), true)
     for index in range(7):
         var offset := fmod(float(index * 180) - progress_distance * 0.35, width + 180.0) - 90.0
         draw_circle(Vector2(offset, height * 0.53), 48, Color("79aa68"))

@@ -45,21 +45,30 @@ def test_intake_ui_explains_static_detection_and_executable_limit() -> None:
 
 def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
     html = WEB.read_text(encoding="utf-8")
-    assert "Approved estimate" in html
+    assert "Cloud heartbeat" in html
     assert "Gemini calls" in html
     assert 'id="agentCamp"' in html
     assert 'id="handoffHorse"' in html
     assert "🐎" in html
     assert "Project Owner" in html
     assert "Technical Repair" in html
-    assert "Independent Verifier" in html
+    assert "Role-separated Verifier" in html
     assert "function renderRun(record)" in html
     assert "record.message" in html
-    assert "Gers are working agents" in html
-    assert "Deterministic gate" in html
-    assert "Verified deliverable" in html
+    assert "Each lit station reflects persisted Cloud state" in html
+    assert "Trusted host gate" in html
+    assert "Digest-bound" in html
+    assert "Selected profile" in html
+    assert "Composed Capability Packs" in html
+    assert "Google Cloud execution" in html
+    assert "Now working" in html
+    assert 'id="milestoneTrail"' in html
+    assert 'id="horseCargo"' in html
     assert "[hidden] { display:none!important; }" in html
-    assert "record.status==='passed'&&record.project_id&&!godot" in html
+    assert "record.status==='passed'&&record.project_id" in html
+    assert "Download verified source" in html
+    assert "/source.zip`" in html
+    assert "function downloadProject(projectId)" in html
     assert "actual cost" not in html.lower()
 
 
@@ -111,9 +120,9 @@ def test_execution_camp_shows_branching_verification_and_repair_loop() -> None:
     assert 'class="flow-lines"' in html
     assert 'data-role="runtime"' in html
     assert "Runtime Check" in html
-    assert "EXISTING PROJECT" in html
+    assert "Bounded loop" in html
     assert "REPAIR" in html
-    assert "runtime_checking:'runtime'" in html
+    assert "actor.includes('runtime')" in html
 
 
 def test_passed_project_can_be_opened_from_result_and_library() -> None:

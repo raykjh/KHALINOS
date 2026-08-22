@@ -25,5 +25,11 @@ def dispatch_run(run_id: str) -> dict[str, str | bool]:
     )
     operation = run_v2.JobsClient().run_job(request=request)
     operation_name = getattr(getattr(operation, "operation", None), "name", "")
-    return {"run_id": run_id, "operation_name": operation_name, "asynchronous": True}
-
+    return {
+        "run_id": run_id,
+        "project_id": project,
+        "region": region,
+        "job_name": job,
+        "operation_name": operation_name,
+        "asynchronous": True,
+    }

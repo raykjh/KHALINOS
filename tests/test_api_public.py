@@ -13,6 +13,9 @@ from khalinos.models import (
     RouteRecommendation,
     RouteRecommendationRequest,
     UserBrief,
+    ProjectRecord,
+    RunRecord,
+    RunStatus,
 )
 
 
@@ -39,6 +42,55 @@ def test_private_playable_artifact_fails_closed_without_identity(monkeypatch) ->
     response = client.get(f"/api/projects/{'a' * 32}/artifact")
     assert response.status_code == 503
     assert response.json()["detail"] == "Google sign-in is not configured"
+
+
+def test_verified_godot_source_download_is_owner_and_run_bound(monkeypatch) -> None:
+    project_id = "a" * 32
+    run_id = "b" * 32
+    owner_id = "owner-123"
+    project = ProjectRecord(
+        project_id=project_id,
+        owner_id=owner_id,
+        display_name="Roadbound Heroes",
+        project_kind="godot",
+        latest_run_id=run_id,
+        latest_status=RunStatus.PASSED,
+    )
+    run = RunRecord(
+        run_id=run_id,
+        brief_sha256="c" * 64,
+        status=RunStatus.PASSED,
+        message="Verified source is ready for its owner.",
+        owner_id=owner_id,
+        project_id=project_id,
+    )
+
+    class FakeProjects:
+        def read_owned(self, selected_project_id, selected_owner_id):
+            assert (selected_project_id, selected_owner_id) == (project_id, owner_id)
+            return project
+
+    class FakeRuns:
+        def read_record(self, selected_run_id):
+            assert selected_run_id == run_id
+            return run
+
+        def read_source_archive(self, selected_run_id):
+            assert selected_run_id == run_id
+            return b"PK\x03\x04verified"
+
+    monkeypatch.setattr(api, "CloudProjectStore", FakeProjects)
+    monkeypatch.setattr(api, "CloudRunStore", FakeRuns)
+
+    response = api.get_project_source(
+        project_id,
+        Identity(owner_id=owner_id, email="owner@example.com", name="Owner"),
+    )
+
+    assert response.media_type == "application/zip"
+    assert response.body == b"PK\x03\x04verified"
+    assert response.headers["x-khalinos-run-id"] == run_id
+    assert response.headers["cache-control"] == "private, no-store"
 
 
 def test_public_config_exposes_only_the_oauth_client_identifier(monkeypatch) -> None:
@@ -68,7 +120,14 @@ def test_queue_run_selects_toolpack_from_exact_project_kind_and_work_mode(monkey
 
     monkeypatch.setattr(api, "CloudRunStore", FakeStore)
     monkeypatch.setattr(api.APPROVED_TOOLPACKS, "select", select)
-    monkeypatch.setattr(api, "dispatch_run", lambda run_id: {"execution": run_id})
+    monkeypatch.setattr(api, "dispatch_run", lambda run_id: {
+        "run_id": run_id,
+        "project_id": "khalinos-test",
+        "region": "asia-northeast3",
+        "job_name": "khalinos-worker",
+        "operation_name": "projects/khalinos-test/operations/op-1",
+        "asynchronous": True,
+    })
     brief = UserBrief(
         project_name="Route Observatory",
         goal="Create a bounded offline Godot topology with an arrival and verified result screen.",
@@ -93,6 +152,9 @@ def test_queue_run_selects_toolpack_from_exact_project_kind_and_work_mode(monkey
         GODOT_TOPOLOGY_TOOLPACK.manifest.output.authorized_paths
     )
     assert result["record"]["work_mode"] == "new_product_build"
+    assert result["record"]["cloud_project_id"] == "khalinos-test"
+    assert result["record"]["telemetry"]["profile"]["id"] == "godot.topology"
+    assert result["record"]["telemetry"]["cloud"]["job_name"] == "khalinos-worker"
     assert captured["brief"].max_repairs_per_quest == 0
 
 

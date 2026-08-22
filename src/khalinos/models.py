@@ -684,6 +684,11 @@ class RunRecord(BaseModel):
     cloud_services: list[str] = Field(
         default_factory=lambda: ["Vertex AI", "Cloud Run", "Cloud Storage", "Firestore"]
     )
+    cloud_project_id: str = ""
+    cloud_region: str = ""
+    cloud_job_name: str = ""
+    cloud_operation_name: str = ""
+    cloud_execution_id: str = ""
     model_calls: int = 0
     owner_id: str = ""
     project_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")

@@ -16,6 +16,8 @@ Long-running coding agents often fail in one of two ways: they improvise beyond 
 
 KHALINOS replaces conversational handoffs with adaptive outcome discovery, an immutable approved brief, receipt-gated Quests, bounded repair, and a final evidence chain. After the user authorizes the Outcome Preview, the Cloud workflow completes or stops safely without a coding assistant designing, fixing, or approving intermediate work.
 
+Once deployed, KHALINOS performs an approved run without Codex or another development assistant in the execution path. Extending KHALINOS itself—adding a new profile, changing a Capability Pack, fixing SixSense, or deploying a new release—remains ordinary product development and is not claimed as self-modification.
+
 ## SixSense outcome discovery
 
 SixSense is not a fixed six-question survey. It always checks six dimensions but asks only when a missing choice could materially change feasibility, scope, visual direction, quality, authority, or cost:
@@ -82,7 +84,11 @@ The separate Godot visual-prototype path passed isolated Cloud qualification on 
 
 The composed Godot path passed two fresh Cloud qualifications on one Worker image, `sha256:615da3f80441c55e3eb0fca598db0abe8d44d1dd6ea6fd1b7815ce780797a24c`. Trinity run `78d1d06f2a034714b1d917ce6ce6f969` passed 45/45 deterministic mechanics, asset, sprite-atlas, pack-load, and display checks; the side-scroll run `fe2f3493c6af432e9ebd0b0c61852dcf` passed 18/18 horizontal movement, automatic combat, destination, pack-load, and display checks. Both had zero runtime issues and `cloud_workflow_execution` Agent–Capability traces. The comparison receipt is preserved in [`docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json`](docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json).
 
-The public API remains Cloud Run revision `khalinos-00042-jfb` on its prior service image. The separately deployed Worker generation `55` uses the qualified Godot image above with 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 1.9.0 / `6c2ff6753c93ac8edcb0d4d7afb01b3ca1d9bdd3a6f9f48292ebfa25336397fb` and `godot.side-scroll-experiment` 0.4.0 / `9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962`.
+Live execution telemetry then passed a fresh side-scroll Cloud qualification on run `36dd87aa06bf43d49f3c819287b6a20b` / execution `khalinos-worker-vrv5n`. Persisted state moved the presented horse through Owner, Visual, Runtime, Maker, Verifier, and Result roles while milestone cargo advanced from M01 through M06. The run passed 18/18 deterministic checks with zero issues, 12 Gemini calls, and three receipts. The machine-readable qualification, including three causally corrected safe stops, is preserved in [`docs/evidence/capability-pack-composition/live-execution-telemetry-cloud-qualification-20260822.json`](docs/evidence/capability-pack-composition/live-execution-telemetry-cloud-qualification-20260822.json).
+
+The authenticated delivery path was requalified after exposing the selected visual foundation in the side-scroll render. Run `43fbc45542f247f9a9081a956da89da7` / execution `khalinos-worker-prmm6` visibly advanced through the presented agents, candidates, and M01–M06 milestones, passed 18/18 runtime checks, and exposed the owner-bound source download action. Its exact Cloud and digest record is [`visual-foundation-cloud-qualification-20260822.json`](docs/evidence/capability-pack-composition/visual-foundation-cloud-qualification-20260822.json).
+
+The current production API and Worker are deployed from the same SHA-verified Godot image so the UI, route contracts, and executable runtime cannot drift. The Worker uses 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 1.9.0 / `9339c4c3fdb2028c8b054f887d80190d844fba1add897893219d22ea206136da` and `godot.side-scroll-experiment` 0.4.0 / `b17c1fe5864b1c1cea828b588940761b6656bca69e24872a93474cf8b41e47d1`. Exact submission revision and digest evidence is recorded under [`docs/evidence/capability-pack-composition`](docs/evidence/capability-pack-composition).
 
 ## Local setup
 
@@ -108,7 +114,7 @@ Set a unique project and bucket name, then enable the required services:
 $env:KHALINOS_PROJECT="YOUR_PROJECT_ID"
 $env:KHALINOS_REGION="asia-northeast3"
 $env:KHALINOS_BUCKET="$env:KHALINOS_PROJECT-runs"
-$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/runtime:0.6.0"
+$env:KHALINOS_IMAGE="$env:KHALINOS_REGION-docker.pkg.dev/$env:KHALINOS_PROJECT/khalinos/worker:0.6.0-hackathon"
 
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com firestore.googleapis.com storage.googleapis.com --project=$env:KHALINOS_PROJECT
 gcloud artifacts repositories create khalinos --repository-format=docker --location=$env:KHALINOS_REGION --project=$env:KHALINOS_PROJECT
@@ -138,9 +144,9 @@ gcloud projects add-iam-policy-binding $env:KHALINOS_PROJECT --member="serviceAc
 Build and deploy:
 
 ```powershell
-gcloud builds submit --project=$env:KHALINOS_PROJECT --tag=$env:KHALINOS_IMAGE
+gcloud builds submit --project=$env:KHALINOS_PROJECT --config=cloudbuild.godot.yaml --substitutions="_IMAGE=$env:KHALINOS_IMAGE"
 
-gcloud run jobs deploy khalinos-worker --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --image=$env:KHALINOS_IMAGE --service-account=$worker --command=python --args="-m" --args="khalinos.worker" --set-env-vars="GOOGLE_CLOUD_PROJECT=$env:KHALINOS_PROJECT,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=TRUE,KHALINOS_BUCKET=$env:KHALINOS_BUCKET,KHALINOS_MODEL=gemini-3.5-flash" --task-timeout=1800 --max-retries=0 --memory=2Gi --cpu=2
+gcloud run jobs deploy khalinos-worker --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --image=$env:KHALINOS_IMAGE --service-account=$worker --command=python --args="-m" --args="khalinos.worker" --set-env-vars="GOOGLE_CLOUD_PROJECT=$env:KHALINOS_PROJECT,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=TRUE,KHALINOS_BUCKET=$env:KHALINOS_BUCKET,KHALINOS_MODEL=gemini-3.5-flash" --task-timeout=1800 --max-retries=0 --memory=8Gi --cpu=2
 
 gcloud run deploy khalinos --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --image=$env:KHALINOS_IMAGE --service-account=$api --set-env-vars="GOOGLE_CLOUD_PROJECT=$env:KHALINOS_PROJECT,KHALINOS_REGION=$env:KHALINOS_REGION,KHALINOS_BUCKET=$env:KHALINOS_BUCKET,KHALINOS_WORKER_JOB=khalinos-worker,KHALINOS_MODEL=gemini-3.5-flash,KHALINOS_PUBLIC_ORIGIN=https://YOUR_CLOUD_RUN_HOST" --min=0 --max=2 --memory=512Mi --cpu=1 --allow-unauthenticated
 ```
@@ -151,7 +157,7 @@ Create an External Google OAuth Web client for the deployed HTTPS origin and set
 gcloud run services update khalinos --project=$env:KHALINOS_PROJECT --region=$env:KHALINOS_REGION --update-env-vars="KHALINOS_GOOGLE_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
 ```
 
-The service remains publicly reachable so the Judge Demo and landing page load, but every private API validates the Google ID token and checks the stored `owner_id`. The Worker needs no end-user token; it receives only an immutable run ID and writes the verified checkpoint to the already owner-bound project record.
+The service remains publicly reachable so the Judge Demo and landing page load, but every private API validates the Google ID token and checks the stored `owner_id`. The Worker needs no end-user token; it receives only an immutable run ID and writes the verified checkpoint to the already owner-bound project record. A passed Browser result can be played in an isolated browser tab, and every passed Browser or Godot project exposes an owner-bound **Download verified source** action.
 
 Grant the API identity permission to run the fixed worker Job and act as its identity using the narrowest organization policy available. Verify the deployed `/health` response, submit one brief through the UI, and observe the Cloud Run execution, Vertex AI calls, Firestore state changes, Cloud Storage evidence, and final receipt chain.
 
@@ -209,16 +215,22 @@ The evidence proves a bounded vertical slice with executable mechanics, renderin
 
 The experimental side-scroll profile reuses the same project, visual-foundation, and combat-feedback boundaries while replacing Trinity's genre chain with lane combat, destination progression, and a side-scroll probe. This is evidence that fixed KHALINOS agent slots can consume different compatible pack combinations; it is not a claim that arbitrary game genres are already supported.
 
-- Run ID: `fe2f3493c6af432e9ebd0b0c61852dcf`
+- Run ID: `43fbc45542f247f9a9081a956da89da7`
 - Result: `PASS` — `Godot side-scroll journey passed real mechanics, rendering, and independent verification.`
-- Cloud Run Job execution: `khalinos-worker-2ppkr`, completed in 2m 16.72s
-- ToolPack: `godot.side-scroll-experiment` 0.4.0, manifest SHA-256 `9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962`
+- Cloud Run Job execution: `khalinos-worker-prmm6`, completed in 2m 38.47s
+- Qualified image: `sha256:e4878ec25980adadabff6317af192e7f94e8a476200d4007d69e1821c0df2c09`
+- ToolPack: `godot.side-scroll-experiment` 0.4.0, manifest SHA-256 `500e0d1621da4d8dfae6cb48198b0ad91b1702d13025f636389078d55cdd83d4`
 - Agent work: 12 Gemini calls; three immutable receipts
 - Runtime proof: 18/18 deterministic mechanics, pack-load, and display checks passed; zero issues
-- Artifact SHA-256: `1c014a4c5b7205290615cc9382778e5d0e91ca6a53f6e3f2ab11df89692c4745`
-- Bundle SHA-256: `3c73c963cb06f80bb9f7ba55f994b3dd6a2593e57814acec7ade1e5f099d9ade`
-- Source ZIP SHA-256: `42e98c7d65225a578c921b24be032b1295d793b0a924e557f095957fa5953e94`
-- Agent–Capability trace SHA-256: `7c6cdaaee496192a29af6900a463306a4182622fead603f4abd0133487e48f83`
+- Artifact SHA-256: `6821c108df25784ee74113a6909bf21825c6353d3b814528ac609102962f362c`
+- Bundle SHA-256: `d6925585c65fa33ff75844438f513043bed491461599e2141fbc7562e9749ab9`
+- Source ZIP SHA-256: `57ffd1c51a620940f4aeca4d72233ddd7c01c571d83084d9931a1524a4083cde`
+- Agent–Capability trace SHA-256: `b0ed27a8705b64294ff705b844e868739d215abdee76bc74b2140b10b70324b3`
+- Live presentation proof: the authenticated Chrome UI showed `Cloud Run Service → Gemini Project Owner → Deterministic Runtime V1/V2/V3 → Verified Result`; M01–M06 were all complete at PASS and the owner-bound source download action was visible
+
+![Selected side-scroll visual foundation from the fresh Cloud PASS](docs/evidence/capability-pack-composition/side-scroll-visual-foundation-cloud-pass-43fbc455.png)
+
+The layer correction makes the generated foundations visible, and the Visual Verifier distinguished V1's forest, V2's mountain/celestial direction, and V3's misty woodland direction. The honest boundary remains: characters, enemies, and typography are prototype-level geometric presentation, not polished custom pixel art. The PASS proves mechanics, rendering, destination victory, receipt-gated verification, and truthful live telemetry—not commercial game polish.
 
 | Profile | Active fixed slots | Accountable Maker packs | Genre-specific verifier |
 | --- | ---: | --- | --- |

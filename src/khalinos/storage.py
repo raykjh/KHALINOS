@@ -26,6 +26,7 @@ class RunStore(Protocol):
     def put_bytes(self, run_id: str, relative: str, payload: bytes, content_type: str) -> str: ...
     def put_bundle_archive(self, run_id: str, bundle: ArtifactBundle) -> ArchiveSnapshot: ...
     def read_bundle_archive(self, snapshot: ArchiveSnapshot) -> ArtifactBundle: ...
+    def read_source_archive(self, run_id: str) -> bytes: ...
 
 
 class LocalRunStore:
@@ -104,6 +105,15 @@ class LocalRunStore:
         if snapshot.bucket != "local":
             raise ValueError("local run store cannot read a Cloud snapshot")
         return bundle_from_browser_zip(Path(snapshot.object_name), snapshot)
+
+    def read_source_archive(self, run_id: str) -> bytes:
+        record = self.read_record(run_id)
+        if record.status != RunStatus.PASSED:
+            raise ValueError("run has no verified source archive")
+        target = self._run(run_id) / "final" / "source.zip"
+        if not target.is_file():
+            raise FileNotFoundError(f"verified source archive is missing for run {run_id}")
+        return target.read_bytes()
 
 
 class CloudRunStore:
@@ -214,3 +224,14 @@ class CloudRunStore:
             if admitted.sha256 != snapshot.sha256:
                 raise ValueError("source archive digest no longer matches the approved snapshot")
             return bundle_from_browser_zip(target, snapshot)
+
+    def read_source_archive(self, run_id: str) -> bytes:
+        """Read the verified final source ZIP from its immutable run path."""
+
+        record = self.read_record(run_id)
+        if record.status != RunStatus.PASSED:
+            raise ValueError("run has no verified source archive")
+        blob = self._blob(run_id, "final/source.zip")
+        if not blob.exists():
+            raise FileNotFoundError(f"verified source archive is missing for run {run_id}")
+        return blob.download_as_bytes()

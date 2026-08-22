@@ -1,0 +1,119 @@
+{
+  "schema_version": "khalinos-cloud-qualification-v1",
+  "scope": "authenticated_ui_side_scroll_visual_foundation_delivery",
+  "qualified_commit": "c0a4d5c",
+  "cloud_build_id": "1c5d4ea3-670f-4eb3-bd3f-6972b54a172e",
+  "cloud_project": "khalinos-agent-20260818",
+  "cloud_region": "asia-northeast3",
+  "api_revision": "khalinos-visual-c0a4d5c",
+  "worker_job": "khalinos-worker",
+  "worker_execution": "khalinos-worker-prmm6",
+  "cloud_operation": "projects/khalinos-agent-20260818/locations/asia-northeast3/operations/c5caffbb-412e-48cb-8e86-d2cce15100c6",
+  "image_digest": "sha256:e4878ec25980adadabff6317af192e7f94e8a476200d4007d69e1821c0df2c09",
+  "worker_shape": {
+    "memory": "8Gi",
+    "cpu": 2,
+    "timeout_seconds": 1800,
+    "max_retries": 0
+  },
+  "run": {
+    "run_id": "43fbc45542f247f9a9081a956da89da7",
+    "project_id": "a3c34aaf1006427ea00fa4ef73cc8cc3",
+    "status": "passed",
+    "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification.",
+    "duration_seconds": 158.47,
+    "model": "gemini-3.5-flash",
+    "framework": "Google ADK 2.6.2",
+    "gemini_calls": 12,
+    "receipt_ids": [
+      "VS-839befebd1b34d64",
+      "QR-64cc7154f2ac4877",
+      "QR-af833b85a82243b4"
+    ],
+    "repair_rounds": 0
+  },
+  "runtime_verification": {
+    "passed_checks": 18,
+    "total_checks": 18,
+    "issues": 0,
+    "render_frames": 90,
+    "render_dimensions": "1152x640",
+    "probe": {
+      "movement_right": true,
+      "enemy_spawned": true,
+      "auto_attack_fired": true,
+      "enemy_defeated": true,
+      "destination_reached": true,
+      "victory": true
+    }
+  },
+  "digests": {
+    "artifact_sha256": "6821c108df25784ee74113a6909bf21825c6353d3b814528ac609102962f362c",
+    "plan_sha256": "0b6f8511a7657e9b74208d44af481f4989c9f918ea0b74c79e3db9dcba586377",
+    "bundle_sha256": "d6925585c65fa33ff75844438f513043bed491461599e2141fbc7562e9749ab9",
+    "asset_sha256": "ce924cf1eb18ef562a93f4f5274fa2794f6d2a498114fbd99164f608a97f0702",
+    "source_zip_sha256": "57ffd1c51a620940f4aeca4d72233ddd7c01c571d83084d9931a1524a4083cde",
+    "agent_capability_trace_sha256": "b0ed27a8705b64294ff705b844e868739d215abdee76bc74b2140b10b70324b3",
+    "composition_sha256": "8f95e546cdb176b520bbb70a0061e04f2b65b9894e33a78752fb3a27ef210350",
+    "evidence_sha256": "6e3a2df61eab836d44d87dd8ee9ab1a930ada51229c92e0d4f5bcc23b1e0d1dd"
+  },
+  "visual_selection": {
+    "selected_candidate": "V1",
+    "eligible_candidates": ["V1", "V2", "V3"],
+    "candidate_asset_digests_are_distinct": true,
+    "candidate_render_theses_are_visibly_distinct": true,
+    "selected_reason": "V1 most closely matched the approved Retro Pixel Forest direction.",
+    "truthful_boundary": "The generated forest foundation is visible and candidates are distinguishable, but characters, enemies, and typography remain prototype-level geometric presentation rather than polished custom pixel art."
+  },
+  "authenticated_ui_observations": [
+    {
+      "status": "queued",
+      "actor": "Cloud Run Service",
+      "milestones": ["M01"],
+      "gemini_calls": 0
+    },
+    {
+      "status": "planning",
+      "actor": "Gemini Project Owner",
+      "milestones": ["M01", "M02"],
+      "gemini_calls": 0
+    },
+    {
+      "status": "runtime_checking",
+      "actor": "Deterministic Runtime",
+      "candidate": "V1",
+      "gemini_calls": 5
+    },
+    {
+      "status": "runtime_checking",
+      "actor": "Deterministic Runtime",
+      "candidate": "V2",
+      "gemini_calls": 7
+    },
+    {
+      "status": "runtime_checking",
+      "actor": "Deterministic Runtime",
+      "candidate": "V3",
+      "gemini_calls": 9
+    },
+    {
+      "status": "passed",
+      "actor": "Verified Result",
+      "milestones": ["M01", "M02", "M03", "M04", "M05", "M06"],
+      "gemini_calls": 12,
+      "verifier": "passed",
+      "source_download_action_visible": true
+    }
+  ],
+  "agent_capability_binding": {
+    "max_agent_slots": 13,
+    "active_agent_slots": 8,
+    "profile_id": "godot.side-scroll-destination",
+    "execution_scope": "cloud_workflow_execution"
+  },
+  "local_regression": {
+    "passed": 176,
+    "failed": 0
+  },
+  "autonomy_boundary": "After user authorization, this Cloud workflow completed without Codex or another development assistant in its execution path. Adding profiles, changing Capability Packs, fixing SixSense, and deploying KHALINOS remain ordinary product development and are not self-modification claims."
+}

@@ -8,10 +8,11 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from khalinos.cloud import dispatch_run
+from khalinos.execution_telemetry import execution_telemetry
 from khalinos.auth import AuthenticationUnavailable, Identity, InvalidIdentity, authenticate_bearer, google_client_id
 from khalinos.intake import answer_intake, authorized_brief, inspect_materials, reroute_intake, restart_intake, source_payloads, start_intake
 from khalinos.intake_storage import CloudIntakeStore
@@ -209,7 +210,16 @@ def queue_run(
     except Exception:
         store.update(record.model_copy(update={"status": RunStatus.FAILED, "message": "Cloud dispatch failed."}))
         raise
-    return {"record": record.model_dump(mode="json"), "dispatch": dispatch}
+    record = record.model_copy(update={
+        "cloud_project_id": str(dispatch.get("project_id", "")),
+        "cloud_region": str(dispatch.get("region", "")),
+        "cloud_job_name": str(dispatch.get("job_name", "")),
+        "cloud_operation_name": str(dispatch.get("operation_name", "")),
+    })
+    store.update(record)
+    payload = record.model_dump(mode="json")
+    payload["telemetry"] = execution_telemetry(record)
+    return {"record": payload, "dispatch": dispatch}
 
 
 @app.get("/api/runs/{run_id}")
@@ -220,7 +230,9 @@ def get_run(run_id: str, identity: Annotated[Identity, Depends(require_identity)
         raise HTTPException(status_code=404, detail="run not found") from exc
     if record.owner_id != identity.owner_id:
         raise HTTPException(status_code=404, detail="run not found")
-    return record.model_dump(mode="json")
+    payload = record.model_dump(mode="json")
+    payload["telemetry"] = execution_telemetry(record)
+    return payload
 
 
 @app.get("/api/config")
@@ -270,6 +282,41 @@ def get_project_artifact(
     if project.latest_status != RunStatus.PASSED or project.source_snapshot is None:
         raise HTTPException(status_code=409, detail="project has no verified playable result")
     return CloudRunStore().read_bundle_archive(project.source_snapshot).model_dump(mode="json")
+
+
+@app.get("/api/projects/{project_id}/source.zip")
+def get_project_source(
+    project_id: str,
+    identity: Annotated[Identity, Depends(require_identity)],
+) -> Response:
+    """Return the owner-bound verified source ZIP for Browser or Godot results."""
+
+    try:
+        project = CloudProjectStore().read_owned(project_id, identity.owner_id)
+        store = CloudRunStore()
+        run = store.read_record(project.latest_run_id)
+    except (FileNotFoundError, PermissionError) as exc:
+        raise HTTPException(status_code=404, detail="project not found") from exc
+    if (
+        project.latest_status != RunStatus.PASSED
+        or run.status != RunStatus.PASSED
+        or run.project_id != project.project_id
+        or run.owner_id != identity.owner_id
+    ):
+        raise HTTPException(status_code=409, detail="project has no verified downloadable result")
+    try:
+        payload = store.read_source_archive(run.run_id)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail="verified source archive is unavailable") from exc
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="khalinos-{project.project_id}.zip"',
+            "X-KHALINOS-Run-ID": run.run_id,
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @app.post("/api/uploads", status_code=201)
