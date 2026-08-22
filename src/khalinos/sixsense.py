@@ -202,6 +202,16 @@ def bind_preview_to_profile(
             "recommended_brief": brief,
             "completion_and_quality": _GODOT_SIDE_SCROLL_CRITERIA,
         })
+    if record.requested_toolpack_id == "browser.product":
+        acceptance = list(dict.fromkeys(preview.completion_and_quality))[:10]
+        brief = preview.recommended_brief.model_copy(update={
+            "toolpack_binding": record.requested_toolpack_binding,
+            "acceptance_criteria": acceptance,
+        })
+        return preview.model_copy(update={
+            "recommended_brief": brief,
+            "completion_and_quality": acceptance,
+        })
     if record.requested_toolpack_id != "godot.gameplay":
         return preview
     explicit = _explicit_gameplay_criteria(record, source_payloads)

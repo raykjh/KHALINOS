@@ -202,6 +202,20 @@ def test_literal_space_press_is_canonicalized_to_spacebar(tmp_path: Path) -> Non
     assert evidence.passed
 
 
+def test_assert_class_defaults_missing_excludes_to_empty(tmp_path: Path) -> None:
+    journeys = [{
+        "name": "flag class is present",
+        "steps": [
+            {"click": "#flag"},
+            {"assert_class": {"selector": "#flag", "includes": ["flagged"]}},
+        ],
+    }]
+
+    evidence = run_verification(tmp_path, contract_bundle(journeys), [])
+
+    assert evidence.passed
+
+
 def test_legacy_option_click_dispatches_the_select_change_event(tmp_path: Path) -> None:
     journeys = [{
         "name": "legacy option selector",

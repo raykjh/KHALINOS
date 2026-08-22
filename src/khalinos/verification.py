@@ -167,6 +167,8 @@ def _assertion_summary(page, action: str, value: object) -> str:
             raise AssertionError(f"attribute {name}={actual!r} does not satisfy {operator} {expected!r}")
         return f"assert_attribute selector={selector!r} {name} observed={actual!r} {operator} {expected!r}"
     if action == "assert_class":
+        if set(value) == {"selector", "includes"}:
+            value = {**value, "excludes": []}
         if set(value) != {"selector", "includes", "excludes"}:
             raise ValueError("assert_class requires selector, includes, and excludes")
         includes = value["includes"]
