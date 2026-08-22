@@ -1,0 +1,49 @@
+{
+  "schema_version": "khalinos-generated-vfx-local-qualification-v1",
+  "date": "2026-08-22",
+  "scope": "local_development_qualification_not_cloud_production_evidence",
+  "provider": "OpenAI built-in ImageGen",
+  "source_effects": {
+    "warrior_slash": "898768eeec2a19459ccf75f1d024da29a8c928f29a15287988e41191d309aa88",
+    "archer_impact": "09551b0e8fca79485180737a05c1982a8942c0a2e080fc4c88c18b5281e1e326",
+    "healer_restoration": "24442b755c5a9003a8ba35e4a9ced72189111408a9fee94482a86cae684fdd22",
+    "enemy_claw": "8714571f851a0be8f8365d4c1c342bcbdd4e9194578827df10305f59b600a1e9"
+  },
+  "toolpack_chain": [
+    "godot.effect-selector@1.0.0",
+    "godot.effect-atlas@1.0.0",
+    "godot.vfx-player@1.0.0",
+    "godot.effect-receipt@1.0.0"
+  ],
+  "atlas": {
+    "path": "assets/combat-vfx-atlas.png",
+    "dimensions": [1728, 768],
+    "effects": 4,
+    "frames_per_effect": 9,
+    "sha256": "35093b8b9cf8d5eb5acc8a0dab028023ebefae3f56a46936d87d8bbd052dd0e9"
+  },
+  "profiles": {
+    "godot.trinity-top-down": {
+      "artifact_bundle_sha256": "ad54b28b8a7142c486db1ca9109e002c2e2de87f4cfd8c6d62f453f32c482ac2",
+      "runtime_passed": true,
+      "issues": [],
+      "display_frames": 90,
+      "evidence_frame": "godot-gameplay-render00000053.png"
+    },
+    "godot.side-scroll-destination": {
+      "artifact_bundle_sha256": "436c802f090629dd4d3b1abf5b6591a41c0046c3629d4007319f310bc7c3c7fd",
+      "runtime_passed": true,
+      "issues": [],
+      "display_frames": 90,
+      "evidence_frame": "side-scroll-render00000089.png"
+    }
+  },
+  "verification": {
+    "atlas_loaded": true,
+    "receipt_present": true,
+    "frame_animation_observed": true,
+    "existing_agent_slots_reused": true,
+    "max_agent_slots": 13
+  },
+  "boundary": "This record proves local approved-Godot execution only. It does not replace the canonical Cloud PASS until a separately authorized Cloud deployment and run complete."
+}

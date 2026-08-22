@@ -14,6 +14,13 @@ from khalinos.licensed_visual_assets import (
     STYLE_COMPOSITION_PATH,
     LicensedArtBundle,
 )
+from khalinos.generated_vfx_assets import (
+    EFFECT_ATLAS_MANIFEST_PATH,
+    EFFECT_ATLAS_PATH,
+    EFFECT_RECEIPT_PATH,
+    EFFECT_SELECTION_PATH,
+    EffectBundle,
+)
 from khalinos.visual_assets import ASSET_PATH
 
 
@@ -80,6 +87,35 @@ GODOT_LICENSE_RECEIPT_PACK = CapabilityPackManifest(
     provides=("evidence.asset-license-receipt",),
     requires=("godot.visual.licensed-atlas",),
     text_paths=(LICENSE_RECEIPT_PATH,),
+)
+GODOT_EFFECT_SELECTOR_PACK = CapabilityPackManifest(
+    pack_id="godot.effect-selector",
+    version="1.0.0",
+    provides=("visual.effect.selection",),
+    requires=("gameplay.combat-feedback",),
+    text_paths=(EFFECT_SELECTION_PATH,),
+)
+GODOT_EFFECT_ATLAS_PACK = CapabilityPackManifest(
+    pack_id="godot.effect-atlas",
+    version="1.0.0",
+    provides=("godot.visual.effect-atlas",),
+    requires=("visual.effect.selection",),
+    text_paths=(EFFECT_ATLAS_MANIFEST_PATH,),
+    binary_paths=(EFFECT_ATLAS_PATH,),
+)
+GODOT_VFX_PLAYER_PACK = CapabilityPackManifest(
+    pack_id="godot.vfx-player",
+    version="1.0.0",
+    provides=("gameplay.vfx.playback",),
+    requires=("godot.visual.effect-atlas",),
+    text_paths=("scripts/khalinos_vfx_player.gd",),
+)
+GODOT_EFFECT_RECEIPT_PACK = CapabilityPackManifest(
+    pack_id="godot.effect-receipt",
+    version="1.0.0",
+    provides=("evidence.effect-receipt",),
+    requires=("gameplay.vfx.playback",),
+    text_paths=(EFFECT_RECEIPT_PATH,),
 )
 
 
@@ -341,6 +377,53 @@ static func draw_role(
 '''
 
 
+VFX_PLAYER_SCRIPT = r'''extends RefCounted
+
+const PACK_ID := "godot.vfx-player@1.0.0"
+
+static func slot_for(manifest: Dictionary, role: String) -> Dictionary:
+    for slot in manifest.get("slots", []):
+        if String(slot.get("role", "")) == role:
+            return slot
+    return {}
+
+static func frame_region(
+    manifest: Dictionary,
+    role: String,
+    life: float,
+    max_life: float,
+) -> Rect2:
+    var slot := slot_for(manifest, role)
+    if slot.is_empty():
+        return Rect2()
+    var frames := int(slot.get("frames", 0))
+    var size := int(slot.get("frame_size", 0))
+    if frames <= 0 or size <= 0:
+        return Rect2()
+    var progress := clampf(1.0 - life / maxf(0.001, max_life), 0.0, 0.9999)
+    var frame := mini(frames - 1, int(floor(progress * float(frames))))
+    return Rect2(frame * size, int(slot.get("row", 0)) * size, size, size)
+
+static func draw_effect(
+    canvas: CanvasItem,
+    texture: Texture2D,
+    manifest: Dictionary,
+    role: String,
+    destination: Rect2,
+    life: float,
+    max_life: float,
+    modulate := Color.WHITE,
+) -> bool:
+    if texture == null:
+        return false
+    var region := frame_region(manifest, role, life, max_life)
+    if region.size == Vector2.ZERO:
+        return false
+    canvas.draw_texture_rect_region(texture, destination, region, modulate)
+    return true
+'''
+
+
 def godot_project_core_stage(
     *,
     project_name: str,
@@ -428,5 +511,30 @@ def godot_licensed_art_stages(bundle: LicensedArtBundle) -> tuple[CapabilityPack
         CapabilityPackStage(
             manifest=GODOT_LICENSE_RECEIPT_PACK,
             text_files={LICENSE_RECEIPT_PATH: text[LICENSE_RECEIPT_PATH]},
+        ),
+    )
+
+
+def godot_effect_stages(bundle: EffectBundle) -> tuple[CapabilityPackStage, ...]:
+    """Bind generated combat VFX through selection, atlas, playback, and receipt stages."""
+
+    text = bundle.text_files()
+    return (
+        CapabilityPackStage(
+            manifest=GODOT_EFFECT_SELECTOR_PACK,
+            text_files={EFFECT_SELECTION_PATH: text[EFFECT_SELECTION_PATH]},
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_EFFECT_ATLAS_PACK,
+            text_files={EFFECT_ATLAS_MANIFEST_PATH: text[EFFECT_ATLAS_MANIFEST_PATH]},
+            binary_paths=(EFFECT_ATLAS_PATH,),
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_VFX_PLAYER_PACK,
+            text_files={"scripts/khalinos_vfx_player.gd": VFX_PLAYER_SCRIPT},
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_EFFECT_RECEIPT_PACK,
+            text_files={EFFECT_RECEIPT_PATH: text[EFFECT_RECEIPT_PATH]},
         ),
     )

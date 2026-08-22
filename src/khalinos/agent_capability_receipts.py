@@ -219,6 +219,10 @@ def build_agent_capability_trace(
             "godot.style-composer",
             "godot.licensed-atlas",
             "godot.license-receipt",
+            "godot.effect-selector",
+            "godot.effect-atlas",
+            "godot.vfx-player",
+            "godot.effect-receipt",
         )
         if pack_id in by_id
     )
@@ -253,6 +257,10 @@ def build_agent_capability_trace(
             "godot.style-composer",
             "godot.licensed-atlas",
             "godot.license-receipt",
+            "godot.effect-selector",
+            "godot.effect-atlas",
+            "godot.vfx-player",
+            "godot.effect-receipt",
         )
         if pack_id in by_id
     )

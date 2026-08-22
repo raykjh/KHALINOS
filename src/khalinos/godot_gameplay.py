@@ -21,13 +21,19 @@ from khalinos.godot_capability_packs import (
     GODOT_PROJECT_CORE_PACK,
     GODOT_STYLE_COMPOSER_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
+    GODOT_EFFECT_ATLAS_PACK,
+    GODOT_EFFECT_RECEIPT_PACK,
+    GODOT_EFFECT_SELECTOR_PACK,
+    GODOT_VFX_PLAYER_PACK,
     godot_audio_feedback_stage,
     godot_combat_feedback_stage,
+    godot_effect_stages,
     godot_licensed_art_stages,
     godot_presentation_skin_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
+from khalinos.generated_vfx_assets import EFFECT_ATLAS_PATH, EffectBundle
 from khalinos.licensed_visual_assets import LICENSED_ATLAS_PATH, LicensedArtBundle
 from khalinos.toolpacks import (
     CapabilityComposition,
@@ -321,11 +327,12 @@ class CompiledGodotGameplay(BaseModel):
     sprite_plan: SpriteAtlasPlan | None = None
     sprite_atlas: ArtifactAsset | None = None
     licensed_art_atlas: ArtifactAsset | None = None
+    effect_atlas: ArtifactAsset | None = None
     sprite_contract_required: bool = False
     sprite_segmentation_contract_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    files: dict[str, str] = Field(min_length=6, max_length=17)
+    files: dict[str, str] = Field(min_length=6, max_length=21)
 
 
 def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
@@ -391,6 +398,9 @@ var sprite_texture: Texture2D
 var licensed_art_manifest: Dictionary = {}
 var licensed_art_texture: Texture2D
 var licensed_art_helper
+var effect_manifest: Dictionary = {}
+var effect_texture: Texture2D
+var effect_player
 
 func _ready() -> void:
     config = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_GAMEPLAY.json"))
@@ -412,6 +422,10 @@ func _ready() -> void:
         licensed_art_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_LICENSED_ATLAS.json"))
         licensed_art_texture = load("res://assets/licensed-art-atlas.png")
         licensed_art_helper = load("res://scripts/khalinos_licensed_art.gd")
+    if FileAccess.file_exists("res://KHALINOS_EFFECT_ATLAS.json"):
+        effect_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_EFFECT_ATLAS.json"))
+        effect_texture = load("res://assets/combat-vfx-atlas.png")
+        effect_player = load("res://scripts/khalinos_vfx_player.gd")
     if OS.get_cmdline_user_args().has("--khalinos-capture-gameplay"):
         _start_game()
     queue_redraw()
@@ -912,6 +926,14 @@ func verification_scenario() -> Dictionary:
         "licensed_art_requested": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
         "licensed_art_loaded": licensed_art_texture != null and licensed_art_helper != null,
         "license_receipt_present": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
+        "effect_atlas_requested": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
+        "effect_atlas_loaded": effect_texture != null and effect_player != null,
+        "effect_receipt_present": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
+        "effect_frame_animation_observed": (
+            effect_player == null
+            or effect_player.frame_region(effect_manifest, "warrior_slash", 0.60, 0.60)
+            != effect_player.frame_region(effect_manifest, "warrior_slash", 0.10, 0.60)
+        ),
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
         "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
@@ -966,11 +988,26 @@ func _draw() -> void:
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     PresentationSkin.draw_top_down_arena(self, center, float(config.viewport_width), float(config.viewport_height))
     for effect in skill_effects:
-        CombatFeedback.draw_skill(self, effect, center)
+        var role := "healer_restoration" if String(effect.kind) in ["heal", "resurrection", "shield"] else ("warrior_slash" if String(effect.owner_hero_id) == "warrior" else "archer_impact")
+        var effect_drawn := false
+        if effect_player != null and effect_texture != null:
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(center - Vector2(96, 96), Vector2(192, 192)), float(effect.life), float(effect.max_life))
+        if not effect_drawn:
+            CombatFeedback.draw_skill(self, effect, center)
     for effect in basic_attack_effects:
-        CombatFeedback.draw_basic_attack(self, effect)
+        var role := "warrior_slash" if String(effect.owner_hero_id) == "warrior" else "archer_impact"
+        var anchor: Vector2 = effect.origin if role == "warrior_slash" else effect.target
+        var effect_drawn := false
+        if effect_player != null and effect_texture != null:
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, role, Rect2(anchor - Vector2(48, 48), Vector2(96, 96)), float(effect.life), float(effect.max_life))
+        if not effect_drawn:
+            CombatFeedback.draw_basic_attack(self, effect)
     for effect in enemy_attack_effects:
-        CombatFeedback.draw_enemy_attack(self, effect)
+        var effect_drawn := false
+        if effect_player != null and effect_texture != null:
+            effect_drawn = effect_player.draw_effect(self, effect_texture, effect_manifest, "enemy_claw", Rect2(Vector2(effect.target) - Vector2(72, 72), Vector2(144, 144)), float(effect.life), float(effect.max_life))
+        if not effect_drawn:
+            CombatFeedback.draw_enemy_attack(self, effect)
     var hero_index := 0
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
@@ -1143,6 +1180,14 @@ func _probe() -> void:
             not receipt.get("licensed_art_requested", false)
             or (receipt.get("licensed_art_loaded", false) and receipt.get("license_receipt_present", false))
         )
+        and (
+            not receipt.get("effect_atlas_requested", false)
+            or (
+                receipt.get("effect_atlas_loaded", false)
+                and receipt.get("effect_receipt_present", false)
+                and receipt.get("effect_frame_animation_observed", false)
+            )
+        )
     )
     var target := FileAccess.open(output, FileAccess.WRITE)
     target.store_string(JSON.stringify(receipt))
@@ -1202,12 +1247,29 @@ GODOT_GAMEPLAY_LICENSED_ART_PROFILE = (
 GODOT_GAMEPLAY_LICENSED_ART_SPRITE_PROFILE = GODOT_GAMEPLAY_LICENSED_ART_PROFILE + (
     GODOT_SPRITE_ATLAS_PACK,
 )
+GODOT_GAMEPLAY_VFX_PACKS = (
+    GODOT_EFFECT_SELECTOR_PACK,
+    GODOT_EFFECT_ATLAS_PACK,
+    GODOT_VFX_PLAYER_PACK,
+    GODOT_EFFECT_RECEIPT_PACK,
+)
+GODOT_GAMEPLAY_VFX_SPRITE_PROFILE = (
+    GODOT_GAMEPLAY_BASE_PROFILE[:-1]
+    + GODOT_GAMEPLAY_VFX_PACKS
+    + (GODOT_GAMEPLAY_PROBE_PACK, GODOT_SPRITE_ATLAS_PACK)
+)
+GODOT_GAMEPLAY_LICENSED_ART_VFX_SPRITE_PROFILE = (
+    GODOT_GAMEPLAY_LICENSED_ART_PROFILE[:-1]
+    + GODOT_GAMEPLAY_VFX_PACKS
+    + (GODOT_GAMEPLAY_PROBE_PACK, GODOT_SPRITE_ATLAS_PACK)
+)
 
 
 def compose_godot_gameplay_capabilities(
     plan: GodotGameplayPlan,
     sprite_plan: SpriteAtlasPlan | None = None,
     licensed_art: LicensedArtBundle | None = None,
+    effects: EffectBundle | None = None,
 ) -> CapabilityComposition:
     """Build Trinity through ordered packs without changing artifact bytes."""
 
@@ -1241,6 +1303,12 @@ def compose_godot_gameplay_capabilities(
         godot_combat_feedback_stage(),
         godot_presentation_skin_stage(),
         godot_audio_feedback_stage(),
+    ])
+    if effects is not None:
+        if effects.profile_id != "godot.trinity-top-down":
+            raise PermissionError("Trinity profile received effects for another profile")
+        stages.extend(godot_effect_stages(effects))
+    stages.extend([
         CapabilityPackStage(
             manifest=GODOT_GAMEPLAY_PROBE_PACK,
             text_files={"scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT},
@@ -1266,6 +1334,7 @@ def compile_godot_gameplay(
     sprite_plan: SpriteAtlasPlan | None = None,
     sprite_atlas: ArtifactAsset | None = None,
     licensed_art: LicensedArtBundle | None = None,
+    effects: EffectBundle | None = None,
     *,
     require_sprite_atlas: bool = False,
 ) -> CompiledGodotGameplay:
@@ -1290,11 +1359,12 @@ def compile_godot_gameplay(
         "sprite_plan": sprite_plan.model_dump(mode="json") if sprite_plan else None,
         "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
         "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
+        "effect_atlas_sha256": effects.atlas.sha256 if effects else None,
         "sprite_contract_required": require_sprite_atlas,
         "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
     })
-    composition = compose_godot_gameplay_capabilities(plan, sprite_plan, licensed_art)
-    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set()) | ({LICENSED_ATLAS_PATH} if licensed_art is not None else set())
+    composition = compose_godot_gameplay_capabilities(plan, sprite_plan, licensed_art, effects)
+    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set()) | ({LICENSED_ATLAS_PATH} if licensed_art is not None else set()) | ({EFFECT_ATLAS_PATH} if effects is not None else set())
     if set(composition.binary_paths) != expected_binary_paths:
         raise PermissionError("Godot Capability Pack binary bindings do not match approved assets")
     files = composition.text_files
@@ -1306,6 +1376,7 @@ def compile_godot_gameplay(
         sprite_plan=sprite_plan,
         sprite_atlas=sprite_atlas,
         licensed_art_atlas=licensed_art.atlas if licensed_art else None,
+        effect_atlas=effects.atlas if effects else None,
         sprite_contract_required=require_sprite_atlas,
         sprite_segmentation_contract_sha256=segmentation_contract_sha256,
         plan_sha256=plan_sha,
@@ -1315,6 +1386,7 @@ def compile_godot_gameplay(
             "asset_sha256": asset.sha256,
             "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
             "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
+            "effect_atlas_sha256": effects.atlas.sha256 if effects else None,
             "sprite_contract_required": require_sprite_atlas,
             "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
         }),

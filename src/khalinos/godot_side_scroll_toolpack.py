@@ -21,6 +21,12 @@ from khalinos.licensed_visual_assets import (
     LICENSED_ATLAS_PATH,
     STYLE_COMPOSITION_PATH,
 )
+from khalinos.generated_vfx_assets import (
+    EFFECT_ATLAS_MANIFEST_PATH,
+    EFFECT_ATLAS_PATH,
+    EFFECT_RECEIPT_PATH,
+    EFFECT_SELECTION_PATH,
+)
 from khalinos.toolpacks import (
     CapabilityDeclaration,
     EvidenceContract,
@@ -52,6 +58,12 @@ LICENSED_ART_PATHS = {
     LICENSE_RECEIPT_PATH,
     "scripts/khalinos_licensed_art.gd",
 }
+EFFECT_PATHS = {
+    EFFECT_SELECTION_PATH,
+    EFFECT_ATLAS_MANIFEST_PATH,
+    EFFECT_RECEIPT_PATH,
+    "scripts/khalinos_vfx_player.gd",
+}
 
 
 def _file_sha256(path: Path) -> str:
@@ -70,7 +82,7 @@ def _canonical_sha256(value: object) -> str:
 
 
 def _validate_artifact(artifact: CompiledGodotSideScroll) -> None:
-    expected_paths = SIDE_SCROLL_PATHS | (LICENSED_ART_PATHS if artifact.licensed_art_atlas is not None else set())
+    expected_paths = SIDE_SCROLL_PATHS | (LICENSED_ART_PATHS if artifact.licensed_art_atlas is not None else set()) | (EFFECT_PATHS if artifact.effect_atlas is not None else set())
     if set(artifact.files) != expected_paths:
         raise PermissionError("Godot side-scroll artifact exceeds its declared output surface")
     if artifact.asset.path != ASSET_PATH or artifact.asset.media_type != "image/png":
@@ -85,11 +97,20 @@ def _validate_artifact(artifact: CompiledGodotSideScroll) -> None:
         receipt = json.loads(artifact.files[LICENSE_RECEIPT_PATH])
         if not receipt.get("passed") or receipt.get("output_atlas_sha256") != artifact.licensed_art_atlas.sha256:
             raise PermissionError("Godot side-scroll license receipt does not bind the selected atlas")
+    if artifact.effect_atlas is not None:
+        if artifact.effect_atlas.path != EFFECT_ATLAS_PATH:
+            raise PermissionError("Godot side-scroll effect atlas uses an unapproved path")
+        if hashlib.sha256(artifact.effect_atlas.bytes()).hexdigest() != artifact.effect_atlas.sha256:
+            raise PermissionError("Godot side-scroll effect atlas digest changed after approval")
+        receipt = json.loads(artifact.files[EFFECT_RECEIPT_PATH])
+        if not receipt.get("passed") or receipt.get("output_atlas_sha256") != artifact.effect_atlas.sha256:
+            raise PermissionError("Godot side-scroll effect receipt does not bind the atlas")
     plan_sha = _canonical_sha256({
         "plan": artifact.plan.model_dump(mode="json"),
         "concept": artifact.concept.model_dump(mode="json"),
         "asset_sha256": artifact.asset.sha256,
         "licensed_art_sha256": artifact.licensed_art_atlas.sha256 if artifact.licensed_art_atlas else None,
+        "effect_atlas_sha256": artifact.effect_atlas.sha256 if artifact.effect_atlas else None,
     })
     if artifact.plan_sha256 != plan_sha:
         raise PermissionError("Godot side-scroll plan digest changed after compilation")
@@ -98,10 +119,11 @@ def _validate_artifact(artifact: CompiledGodotSideScroll) -> None:
         "files": artifact.files,
         "asset_sha256": artifact.asset.sha256,
         "licensed_art_sha256": artifact.licensed_art_atlas.sha256 if artifact.licensed_art_atlas else None,
+        "effect_atlas_sha256": artifact.effect_atlas.sha256 if artifact.effect_atlas else None,
     })
     if artifact.bundle_sha256 != bundle_sha:
         raise PermissionError("Godot side-scroll bundle digest changed after compilation")
-    binaries = [artifact.asset, *([artifact.licensed_art_atlas] if artifact.licensed_art_atlas else [])]
+    binaries = [artifact.asset, *([artifact.licensed_art_atlas] if artifact.licensed_art_atlas else []), *([artifact.effect_atlas] if artifact.effect_atlas else [])]
     total = sum(len(item.encode("utf-8")) for item in artifact.files.values()) + sum(len(item.bytes()) for item in binaries)
     if len(artifact.files) + len(binaries) > GODOT_SIDE_SCROLL_MANIFEST.output.max_file_count:
         raise PermissionError("Godot side-scroll artifact exceeds its file-count limit")
@@ -124,6 +146,10 @@ def _validate_materialized(artifact: CompiledGodotSideScroll, root: Path) -> Non
         atlas = (destination / LICENSED_ATLAS_PATH).resolve()
         if not atlas.is_file() or _file_sha256(atlas) != artifact.licensed_art_atlas.sha256:
             raise PermissionError("materialized Godot side-scroll licensed atlas changed after approval")
+    if artifact.effect_atlas is not None:
+        atlas = (destination / EFFECT_ATLAS_PATH).resolve()
+        if not atlas.is_file() or _file_sha256(atlas) != artifact.effect_atlas.sha256:
+            raise PermissionError("materialized Godot side-scroll effect atlas changed after approval")
 
 
 class GodotSideScrollExecutionAdapter:
@@ -141,6 +167,8 @@ class GodotSideScrollExecutionAdapter:
         }
         if artifact.licensed_art_atlas is not None:
             payloads[artifact.licensed_art_atlas.path] = artifact.licensed_art_atlas.bytes()
+        if artifact.effect_atlas is not None:
+            payloads[artifact.effect_atlas.path] = artifact.effect_atlas.bytes()
         try:
             for raw_path, payload in payloads.items():
                 relative = PurePosixPath(raw_path)
@@ -252,6 +280,13 @@ class GodotSideScrollEvidenceAdapter:
                 artifact.licensed_art_atlas is None
                 or _file_sha256(root / LICENSED_ATLAS_PATH) == artifact.licensed_art_atlas.sha256
             ),
+            "effect_atlas_loaded": artifact.effect_atlas is None or receipt.get("effect_atlas_loaded") is True,
+            "effect_receipt_present": artifact.effect_atlas is None or receipt.get("effect_receipt_present") is True,
+            "effect_frame_animation_observed": artifact.effect_atlas is None or receipt.get("effect_frame_animation_observed") is True,
+            "trusted_effect_atlas_materialized": (
+                artifact.effect_atlas is None
+                or _file_sha256(root / EFFECT_ATLAS_PATH) == artifact.effect_atlas.sha256
+            ),
             "display_render_process": rendered.returncode == 0,
             "display_render_frames": len(frames) == 90,
             "display_render_dimensions": dimensions == (artifact.plan.viewport_width, artifact.plan.viewport_height),
@@ -279,6 +314,7 @@ GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES = (
     "godot_side_scroll.py",
     "godot_side_scroll_toolpack.py",
     "godot_side_scroll_workflow.py",
+    "generated_vfx_assets.py",
     "licensed_visual_assets.py",
     "run_router.py",
     "toolpacks.py",
@@ -287,7 +323,7 @@ GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES = (
 
 GODOT_SIDE_SCROLL_MANIFEST = ToolPackManifest(
     toolpack_id="godot.side-scroll-experiment",
-    version="0.5.0",
+    version="0.6.0",
     display_name="Godot Side-scroll Composition Experiment",
     description="Composes a bounded horizontal auto-combat journey from reusable Godot Capability Packs and verifies mechanics in the approved runtime.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_SIDE_SCROLL_IMPLEMENTATION_SOURCES),
@@ -314,13 +350,16 @@ GODOT_SIDE_SCROLL_MANIFEST = ToolPackManifest(
     ),
     output=OutputContract(
         artifact_kind="godot.side-scroll-experiment",
-        authorized_paths=tuple(sorted(SIDE_SCROLL_PATHS | LICENSED_ART_PATHS | {ASSET_PATH, LICENSED_ATLAS_PATH})),
-        max_file_count=17,
-        max_total_bytes=5_000_000,
+        authorized_paths=tuple(sorted(SIDE_SCROLL_PATHS | LICENSED_ART_PATHS | EFFECT_PATHS | {ASSET_PATH, LICENSED_ATLAS_PATH, EFFECT_ATLAS_PATH})),
+        max_file_count=22,
+        max_total_bytes=8_000_000,
     ),
     evidence=EvidenceContract(
         adapter_id=GodotSideScrollEvidenceAdapter.adapter_id,
         evidence_types=(
+            "effect.atlas.loaded",
+            "effect.frame.animation",
+            "effect.receipt",
             "gameplay.audio.feedback",
             "gameplay.auto-attack",
             "gameplay.destination",
