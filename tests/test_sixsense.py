@@ -608,6 +608,8 @@ def test_side_scroll_preview_is_bound_to_gameplay_scope_and_exact_output_surface
     criteria = " ".join(bound.recommended_brief.acceptance_criteria)
     assert "horizontal lane" in criteria
     assert "destination" in criteria
+    assert "formation" not in criteria.casefold()
+    assert bound.completion_and_quality == bound.recommended_brief.acceptance_criteria
 
 
 def test_side_scroll_preview_cannot_collapse_back_to_topology() -> None:

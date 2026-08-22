@@ -193,23 +193,15 @@ def bind_preview_to_profile(
     """Bind model-authored preview details to the already approved execution profile."""
 
     if record.requested_toolpack_id == "godot.side-scroll-experiment":
-        acceptance = list(dict.fromkeys([
-            *_GODOT_SIDE_SCROLL_CRITERIA,
-            *preview.recommended_brief.acceptance_criteria,
-        ]))[:10]
-        completion = list(dict.fromkeys([
-            *_GODOT_SIDE_SCROLL_CRITERIA,
-            *preview.completion_and_quality,
-        ]))[:10]
         brief = preview.recommended_brief.model_copy(update={
             "max_repairs_per_quest": 0,
             "toolpack_binding": record.requested_toolpack_binding,
             "authorized_output_files": _GODOT_SIDE_SCROLL_OUTPUTS,
-            "acceptance_criteria": acceptance,
+            "acceptance_criteria": _GODOT_SIDE_SCROLL_CRITERIA,
         })
         return preview.model_copy(update={
             "recommended_brief": brief,
-            "completion_and_quality": completion,
+            "completion_and_quality": _GODOT_SIDE_SCROLL_CRITERIA,
         })
     if record.requested_toolpack_id != "godot.gameplay":
         return preview
