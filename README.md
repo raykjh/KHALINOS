@@ -82,7 +82,9 @@ The separate Godot visual-prototype path passed isolated Cloud qualification on 
 
 The composed Godot path passed two fresh Cloud qualifications on one Worker image, `sha256:615da3f80441c55e3eb0fca598db0abe8d44d1dd6ea6fd1b7815ce780797a24c`. Trinity run `78d1d06f2a034714b1d917ce6ce6f969` passed 45/45 deterministic mechanics, asset, sprite-atlas, pack-load, and display checks; the side-scroll run `fe2f3493c6af432e9ebd0b0c61852dcf` passed 18/18 horizontal movement, automatic combat, destination, pack-load, and display checks. Both had zero runtime issues and `cloud_workflow_execution` Agent–Capability traces. The comparison receipt is preserved in [`docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json`](docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json).
 
-The public API remains Cloud Run revision `khalinos-00042-jfb` on its prior service image. The separately deployed Worker generation `55` uses the qualified Godot image above with 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 1.9.0 / `6c2ff6753c93ac8edcb0d4d7afb01b3ca1d9bdd3a6f9f48292ebfa25336397fb` and `godot.side-scroll-experiment` 0.4.0 / `9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962`.
+Live execution telemetry then passed a fresh side-scroll Cloud qualification on run `36dd87aa06bf43d49f3c819287b6a20b` / execution `khalinos-worker-vrv5n`. Persisted state moved the presented horse through Owner, Visual, Runtime, Maker, Verifier, and Result roles while milestone cargo advanced from M01 through M06. The run passed 18/18 deterministic checks with zero issues, 12 Gemini calls, and three receipts. The machine-readable qualification, including three causally corrected safe stops, is preserved in [`docs/evidence/capability-pack-composition/live-execution-telemetry-cloud-qualification-20260822.json`](docs/evidence/capability-pack-composition/live-execution-telemetry-cloud-qualification-20260822.json).
+
+The public API is Cloud Run revision `khalinos-ui5a9e4fd` on image `sha256:bf7c3c4f3d375183e61d267a6ea9462628f0efea2e6d2102b7d2a106686000d6`. The separately deployed Worker uses the Godot-qualified image `sha256:9c80e6c0e67f17c1c9ee541f28b11e12d2ce3dcf242a4d83d883ca7ecbf9c329` with 8 GiB memory, 2 CPU, a 1,800-second timeout, and zero automatic retries. An exact single ToolPack fit is bound before SixSense; the compatibility page appears only for unsupported or genuinely ambiguous decisions. Explicit New project inputs remain references and cannot silently convert the intake to existing-project work. The current composed Godot bindings are `godot.gameplay` 1.9.0 / `9339c4c3fdb2028c8b054f887d80190d844fba1add897893219d22ea206136da` and `godot.side-scroll-experiment` 0.4.0 / `b17c1fe5864b1c1cea828b588940761b6656bca69e24872a93474cf8b41e47d1`.
 
 ## Local setup
 
@@ -209,16 +211,19 @@ The evidence proves a bounded vertical slice with executable mechanics, renderin
 
 The experimental side-scroll profile reuses the same project, visual-foundation, and combat-feedback boundaries while replacing Trinity's genre chain with lane combat, destination progression, and a side-scroll probe. This is evidence that fixed KHALINOS agent slots can consume different compatible pack combinations; it is not a claim that arbitrary game genres are already supported.
 
-- Run ID: `fe2f3493c6af432e9ebd0b0c61852dcf`
+- Run ID: `36dd87aa06bf43d49f3c819287b6a20b`
 - Result: `PASS` — `Godot side-scroll journey passed real mechanics, rendering, and independent verification.`
-- Cloud Run Job execution: `khalinos-worker-2ppkr`, completed in 2m 16.72s
-- ToolPack: `godot.side-scroll-experiment` 0.4.0, manifest SHA-256 `9b0a42c4b2692c96174c9c611cdbf29751731091329180e21ed2d68fc2230962`
+- Cloud Run Job execution: `khalinos-worker-vrv5n`, completed in 2m 14.87s
+- ToolPack: `godot.side-scroll-experiment` 0.4.0, manifest SHA-256 `b17c1fe5864b1c1cea828b588940761b6656bca69e24872a93474cf8b41e47d1`
 - Agent work: 12 Gemini calls; three immutable receipts
 - Runtime proof: 18/18 deterministic mechanics, pack-load, and display checks passed; zero issues
-- Artifact SHA-256: `1c014a4c5b7205290615cc9382778e5d0e91ca6a53f6e3f2ab11df89692c4745`
-- Bundle SHA-256: `3c73c963cb06f80bb9f7ba55f994b3dd6a2593e57814acec7ade1e5f099d9ade`
-- Source ZIP SHA-256: `42e98c7d65225a578c921b24be032b1295d793b0a924e557f095957fa5953e94`
-- Agent–Capability trace SHA-256: `7c6cdaaee496192a29af6900a463306a4182622fead603f4abd0133487e48f83`
+- Artifact SHA-256: `f9b2d8d1df2a2ef73c2711b32314d4f5f6c2f595916e290825f3080bd05a5c96`
+- Bundle SHA-256: `30f4bab70bc608f6329d29c9f8d970b9ebe0f3f9a11ba7e24dca9b85007fa078`
+- Source ZIP SHA-256: `0f5bece6676ed4768a20ba061aee3a6569b7d08c00c057b12b8a4515672ea4ca`
+- Agent–Capability trace SHA-256: `c4db6ba9cdbd6c32328af9df189b936f345edf8691786f67aed4b17bdb515321`
+- Live presentation proof: persisted actor state moved the horse through `owner → visual → runtime → maker → runtime → visual → verifier → result`; M01–M06 were all complete at PASS
+
+The Visual Verifier also recorded a negative result that remains part of the evidence boundary: all three candidate renders were visually identical generic placeholders and did not realize their separate visual theses. The Cloud PASS therefore proves mechanics, rendering, destination victory, receipt-gated verification, and truthful live telemetry—not polished or distinctive visual quality.
 
 | Profile | Active fixed slots | Accountable Maker packs | Genre-specific verifier |
 | --- | ---: | --- | --- |

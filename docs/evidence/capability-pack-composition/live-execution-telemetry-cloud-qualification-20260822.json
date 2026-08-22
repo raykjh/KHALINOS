@@ -1,0 +1,178 @@
+{
+  "schema_version": "khalinos-live-execution-telemetry-cloud-qualification-v1",
+  "qualified_commit": "5a9e4fdba2862bdc7d778b1284dfd9fc27dd5466",
+  "remote_branch": "agent/capability-pack-composition",
+  "cloud": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "service": "khalinos",
+    "service_revision": "khalinos-ui5a9e4fd",
+    "service_image_digest": "sha256:bf7c3c4f3d375183e61d267a6ea9462628f0efea2e6d2102b7d2a106686000d6",
+    "deployed_ui_sha256": "e12ba92f2556da941c950af2c1977cb5d82256e4ca55a06fd5beca618f33f8f9",
+    "worker_job": "khalinos-worker",
+    "worker_image_digest": "sha256:9c80e6c0e67f17c1c9ee541f28b11e12d2ce3dcf242a4d83d883ca7ecbf9c329",
+    "worker_memory": "8Gi",
+    "worker_cpu": 2,
+    "worker_timeout_seconds": 1800,
+    "worker_max_retries": 0,
+    "godot_runtime": "4.7.1-stable"
+  },
+  "qualification": {
+    "profile_id": "godot.side-scroll-destination",
+    "run_id": "36dd87aa06bf43d49f3c819287b6a20b",
+    "operation": "projects/khalinos-agent-20260818/locations/asia-northeast3/operations/6858578c-d544-4309-b160-12b9a3bf35fb",
+    "execution": "khalinos-worker-vrv5n",
+    "duration": "2m14.87s",
+    "status": "passed",
+    "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification.",
+    "brief_sha256": "487dec4a60fb67c720f48fe8e2bf3711cd19a2be5679ad9f8b382e57c41b6e20",
+    "toolpack_binding": {
+      "toolpack_id": "godot.side-scroll-experiment",
+      "version": "0.4.0",
+      "manifest_sha256": "b17c1fe5864b1c1cea828b588940761b6656bca69e24872a93474cf8b41e47d1"
+    },
+    "model_calls": 12,
+    "receipt_ids": [
+      "VS-b1eff50113ce4b24",
+      "QR-90c41d18a8454806",
+      "QR-dcd61d232b2c416c"
+    ],
+    "deterministic_checks_passed": 18,
+    "deterministic_checks_total": 18,
+    "issues": [],
+    "artifact_sha256": "f9b2d8d1df2a2ef73c2711b32314d4f5f6c2f595916e290825f3080bd05a5c96",
+    "bundle_sha256": "30f4bab70bc608f6329d29c9f8d970b9ebe0f3f9a11ba7e24dca9b85007fa078",
+    "source_zip_sha256": "0f5bece6676ed4768a20ba061aee3a6569b7d08c00c057b12b8a4515672ea4ca",
+    "agent_capability_trace_sha256": "c4db6ba9cdbd6c32328af9df189b936f345edf8691786f67aed4b17bdb515321",
+    "cloud_storage_root": "gs://khalinos-agent-20260818-runs/runs/36dd87aa06bf43d49f3c819287b6a20b/"
+  },
+  "live_telemetry_proof": {
+    "source_of_truth": "Firestore RunRecord states enriched by deterministic execution_telemetry mapping",
+    "sample_count": 14,
+    "horse_role_sequence": [
+      "owner",
+      "visual",
+      "runtime",
+      "visual",
+      "maker",
+      "runtime",
+      "visual",
+      "runtime",
+      "visual",
+      "verifier",
+      "result"
+    ],
+    "key_transitions": [
+      {
+        "status": "queued",
+        "actor_id": "cloud_run_service",
+        "horse_role": "owner",
+        "active_milestone": "M02",
+        "completed_milestones": ["M01"],
+        "model_calls": 0
+      },
+      {
+        "status": "planning",
+        "actor_id": "khalinos_godot_gameplay_owner",
+        "horse_role": "owner",
+        "active_milestone": "M02",
+        "completed_milestones": ["M01"],
+        "model_calls": 0
+      },
+      {
+        "status": "visualizing",
+        "actor_id": "khalinos_visual_director",
+        "horse_role": "visual",
+        "active_milestone": "M03",
+        "completed_milestones": ["M01", "M02"],
+        "active_capability_packs": ["godot.visual-foundation"],
+        "model_calls": 2
+      },
+      {
+        "status": "runtime_checking",
+        "actor_id": "khalinos_deterministic_runtime",
+        "horse_role": "runtime",
+        "active_milestone": "M03",
+        "completed_milestones": ["M01", "M02"],
+        "active_capability_packs": ["godot.side-scroll-probe"],
+        "model_calls": 5
+      },
+      {
+        "status": "executing",
+        "actor_id": "khalinos_accountable_maker",
+        "horse_role": "maker",
+        "active_milestone": "M03",
+        "completed_milestones": ["M01", "M02"],
+        "active_capability_packs": [
+          "godot.project-core",
+          "godot.side-scroll-lane-combat",
+          "godot.combat-feedback",
+          "godot.destination-progression"
+        ],
+        "model_calls": 7
+      },
+      {
+        "status": "visual_selecting",
+        "actor_id": "khalinos_visual_verifier",
+        "horse_role": "visual",
+        "active_milestone": "M03",
+        "completed_milestones": ["M01", "M02"],
+        "model_calls": 9
+      },
+      {
+        "status": "verifying",
+        "actor_id": "khalinos_independent_verifier",
+        "horse_role": "verifier",
+        "active_milestone": "M05",
+        "completed_milestones": ["M01", "M02", "M03", "M04"],
+        "model_calls": 10
+      },
+      {
+        "status": "passed",
+        "actor_id": "verified_result",
+        "horse_role": "result",
+        "active_milestone": null,
+        "completed_milestones": ["M01", "M02", "M03", "M04", "M05", "M06"],
+        "model_calls": 12
+      }
+    ],
+    "conclusion": "The UI horse destination, active agent, active Capability Packs, and M01-M06 cargo are derived from persisted Cloud workflow state; the final Cloud execution exercised and changed each represented phase through PASS."
+  },
+  "failure_recovery": [
+    {
+      "run_id": "97ddfdf9362c47af952506209387d16b",
+      "execution": "khalinos-worker-vq548",
+      "status": "failed",
+      "message": "PermissionError: ToolPack binding does not match the approved manifest",
+      "cause": "The historical PASS record carried the historical ToolPack manifest digest.",
+      "correction": "Resolve and seal the current approved registry binding instead of reusing a stale binding."
+    },
+    {
+      "run_id": "fde5dcfbad654288ad23aaa9b85463d8",
+      "execution": "khalinos-worker-cz6h5",
+      "status": "failed",
+      "message": "PermissionError: run and approved brief must carry the same ToolPack binding",
+      "cause": "The RunRecord binding was current but the immutable brief still carried the historical binding.",
+      "correction": "Re-seal both the RunRecord and immutable brief with the same approved binding, then recompute the brief digest."
+    },
+    {
+      "run_id": "595ae2daca184c448bcd83f5af2db89d",
+      "execution": "khalinos-worker-68kdj",
+      "status": "failed",
+      "message": "PermissionError: approved Godot executable is unavailable",
+      "cause": "The API Dockerfile was mistakenly used for the Worker image and does not contain the approved Godot runtime.",
+      "correction": "Build with cloudbuild.godot.yaml and Dockerfile.godot, whose Godot executable and segmentation model are digest-verified."
+    }
+  ],
+  "visual_truth_boundary": {
+    "selected_candidate_id": "V1",
+    "eligible_candidate_ids": ["V1", "V2", "V3"],
+    "assessment": "The Visual Verifier reported that all three rendered candidates were visually identical, generic flat placeholders and did not realize their distinct design theses.",
+    "claim_boundary": "This qualification proves real horizontal movement, automatic combat, destination victory, rendering, receipts, live workflow telemetry, and safe stops. It does not prove polished or distinctive visual production quality."
+  },
+  "local_regression": {
+    "tests_passed": 173,
+    "tests_failed": 0,
+    "warnings": 5
+  }
+}
