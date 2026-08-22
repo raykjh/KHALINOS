@@ -348,6 +348,10 @@ class GodotGameplayEvidenceAdapter:
             "probe_passed": receipt.get("passed") is True,
             "trusted_asset_materialized": _file_sha256(root / ASSET_PATH) == artifact.asset.sha256,
             "licensed_art_loaded": artifact.licensed_art_atlas is None or receipt.get("licensed_art_loaded") is True,
+            "licensed_profile_roles_bound": (
+                artifact.licensed_art_atlas is None
+                or receipt.get("licensed_profile_roles_bound") is True
+            ),
             "license_receipt_present": artifact.licensed_art_atlas is None or receipt.get("license_receipt_present") is True,
             "trusted_licensed_atlas_materialized": (
                 artifact.licensed_art_atlas is None
@@ -405,7 +409,7 @@ GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES = (
 
 GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     toolpack_id="godot.gameplay",
-    version="2.2.0",
+    version="2.5.0",
     display_name="Godot Gameplay Vertical Slice ToolPack",
     description="Compiles bounded data-driven 2D gameplay plans with Nano Banana visual foundations and proves real mechanics in Godot runtime and rendered evidence.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, GODOT_GAMEPLAY_IMPLEMENTATION_SOURCES),

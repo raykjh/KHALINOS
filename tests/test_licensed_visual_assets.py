@@ -8,6 +8,7 @@ import khalinos.licensed_visual_assets as licensed
 from khalinos.licensed_visual_assets import (
     LICENSED_ATLAS_PATH,
     build_licensed_art_bundle,
+    configured_licensed_art_bundle,
     grade_asset_library,
     grading_manifest,
 )
@@ -79,6 +80,41 @@ def test_profile_bundles_are_deterministic_and_license_bound(tmp_path: Path, mon
         licensed.LICENSED_ATLAS_MANIFEST_PATH,
         licensed.LICENSE_RECEIPT_PATH,
     }
+
+
+def test_clean_environment_uses_qualified_bundled_profile_atlases(monkeypatch) -> None:
+    monkeypatch.delenv("KHALINOS_LICENSED_ASSET_ROOT", raising=False)
+
+    trinity = configured_licensed_art_bundle("godot.trinity-top-down")
+    side = configured_licensed_art_bundle("godot.side-scroll-destination")
+
+    assert trinity.atlas.sha256 == "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56"
+    assert side.atlas.sha256 == "3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e"
+    assert len(trinity.selected_assets) == 8
+    assert len(side.selected_assets) == 13
+    assert all(bundle.license_receipt["passed"] is True for bundle in (trinity, side))
+
+
+def test_bundled_profile_fails_closed_when_atlas_changes(tmp_path: Path) -> None:
+    source = Path(licensed.__file__).resolve().parent / "assets" / "licensed" / "trinity"
+    for name in (
+        licensed.ASSET_SELECTION_PATH,
+        licensed.STYLE_COMPOSITION_PATH,
+        licensed.LICENSED_ATLAS_MANIFEST_PATH,
+        licensed.LICENSE_RECEIPT_PATH,
+        "licensed-art-atlas.png",
+    ):
+        (tmp_path / name).write_bytes((source / name).read_bytes())
+    (tmp_path / "licensed-art-atlas.png").write_bytes(
+        (tmp_path / "licensed-art-atlas.png").read_bytes() + b"changed"
+    )
+
+    try:
+        licensed._load_bundled_licensed_art_bundle(tmp_path, "godot.trinity-top-down")
+    except PermissionError as exc:
+        assert "does not match its manifest" in str(exc)
+    else:
+        raise AssertionError("tampered bundled atlas must fail closed")
 
 
 def test_side_scroll_binds_the_license_chain_to_existing_visual_agents(

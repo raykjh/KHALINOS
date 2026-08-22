@@ -34,6 +34,11 @@ ATLAS_CELL_SIZE = 128
 ATLAS_SIZE = ATLAS_COLUMNS * ATLAS_CELL_SIZE
 EXPECTED_CATALOG_SIZE = 384
 
+_BUNDLED_PROFILE_DIRECTORIES: dict[str, str] = {
+    "godot.trinity-top-down": "trinity",
+    "godot.side-scroll-destination": "side-scroll",
+}
+
 ProfileId = Literal["godot.trinity-top-down", "godot.side-scroll-destination"]
 AssetGrade = Literal["A", "B", "C"]
 
@@ -383,15 +388,107 @@ def build_licensed_art_bundle(root: Path, profile_id: ProfileId) -> LicensedArtB
     )
 
 
-def configured_licensed_art_bundle(profile_id: ProfileId) -> LicensedArtBundle | None:
-    """Resolve an approved external library without bundling source assets in KHALINOS.
+def _load_bundled_licensed_art_bundle(root: Path, profile_id: ProfileId) -> LicensedArtBundle:
+    """Load and revalidate one bounded, game-integrated atlas preset."""
 
-    The environment variable is intentionally opt-in.  If it is present, an
-    invalid or incomplete catalog fails closed instead of silently falling back
-    to unlicensed or mismatched art.
+    def load_json(name: str) -> dict[str, object]:
+        path = root / name
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PermissionError(f"bundled licensed-art receipt is unavailable: {path}") from exc
+        if not isinstance(value, dict):
+            raise PermissionError(f"bundled licensed-art receipt must be an object: {path}")
+        return value
+
+    selection = load_json(ASSET_SELECTION_PATH)
+    style = load_json(STYLE_COMPOSITION_PATH)
+    atlas_manifest = load_json(LICENSED_ATLAS_MANIFEST_PATH)
+    receipt = load_json(LICENSE_RECEIPT_PATH)
+    for name, value in (
+        ("selection", selection),
+        ("style", style),
+        ("atlas", atlas_manifest),
+        ("license", receipt),
+    ):
+        if value.get("profile_id") != profile_id:
+            raise PermissionError(f"bundled {name} receipt belongs to another profile")
+
+    raw_assets = selection.get("assets")
+    raw_slots = atlas_manifest.get("slots")
+    if not isinstance(raw_assets, list) or raw_assets != raw_slots:
+        raise PermissionError("bundled licensed-art selection does not match its atlas slots")
+    try:
+        selected = tuple(SelectedAsset.model_validate(item) for item in raw_assets)
+    except (TypeError, ValueError) as exc:
+        raise PermissionError("bundled licensed-art selection is invalid") from exc
+    if not selected or len(selected) > ATLAS_COLUMNS * ATLAS_ROWS:
+        raise PermissionError("bundled licensed-art selection exceeds its bounded slot count")
+
+    atlas_path = root / "licensed-art-atlas.png"
+    try:
+        payload = atlas_path.read_bytes()
+    except OSError as exc:
+        raise PermissionError(f"bundled licensed-art atlas is unavailable: {atlas_path}") from exc
+    atlas_sha256 = _sha256(payload)
+    if (
+        atlas_manifest.get("atlas_path") != LICENSED_ATLAS_PATH
+        or atlas_manifest.get("atlas_sha256") != atlas_sha256
+        or atlas_manifest.get("columns") != ATLAS_COLUMNS
+        or atlas_manifest.get("rows") != ATLAS_ROWS
+        or atlas_manifest.get("cell_size") != ATLAS_CELL_SIZE
+    ):
+        raise PermissionError("bundled licensed-art atlas does not match its manifest")
+    if (
+        receipt.get("provider") != "AetherAI"
+        or receipt.get("license_id") != AETHERAI_LICENSE_ID
+        or receipt.get("included_as_part_of_game") is not True
+        or receipt.get("standalone_asset_pack_redistribution_allowed") is not False
+        or receipt.get("passed") is not True
+        or receipt.get("output_atlas_path") != LICENSED_ATLAS_PATH
+        or receipt.get("output_atlas_sha256") != atlas_sha256
+        or receipt.get("selection_sha256") != _canonical_sha256(selection)
+        or receipt.get("style_sha256") != _canonical_sha256(style)
+    ):
+        raise PermissionError("bundled licensed-art license chain is invalid")
+
+    atlas = ArtifactAsset(
+        path=LICENSED_ATLAS_PATH,
+        data_base64=base64.b64encode(payload).decode("ascii"),
+        sha256=atlas_sha256,
+        width=ATLAS_SIZE,
+        height=ATLAS_SIZE,
+    )
+    return LicensedArtBundle(
+        profile_id=profile_id,
+        selected_assets=selected,
+        atlas=atlas,
+        selection_manifest=selection,
+        style_manifest=style,
+        atlas_manifest=atlas_manifest,
+        license_receipt=receipt,
+    )
+
+
+def bundled_licensed_art_bundle(profile_id: ProfileId) -> LicensedArtBundle:
+    """Resolve the qualified profile atlas shipped as part of generated games."""
+
+    directory = _BUNDLED_PROFILE_DIRECTORIES[profile_id]
+    root = Path(__file__).resolve().parent / "assets" / "licensed" / directory
+    return _load_bundled_licensed_art_bundle(root, profile_id)
+
+
+def configured_licensed_art_bundle(profile_id: ProfileId) -> LicensedArtBundle:
+    """Resolve approved art from an external catalog or the qualified preset.
+
+    An explicit external root rebuilds from the full source catalog and fails
+    closed if that catalog changed.  Cloud and other clean environments use the
+    bounded profile atlas plus its checked-in selection, style, and license
+    receipts; invalid presets also fail closed instead of reverting to generic
+    art.
     """
 
     raw_root = os.environ.get("KHALINOS_LICENSED_ASSET_ROOT", "").strip()
-    if not raw_root:
-        return None
-    return build_licensed_art_bundle(Path(raw_root), profile_id)
+    if raw_root:
+        return build_licensed_art_bundle(Path(raw_root), profile_id)
+    return bundled_licensed_art_bundle(profile_id)

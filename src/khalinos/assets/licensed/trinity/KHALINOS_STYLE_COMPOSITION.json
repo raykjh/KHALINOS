@@ -1,0 +1,25 @@
+{
+  "palette": [
+    "#172027",
+    "#2f4a3b",
+    "#6e7f4d",
+    "#d6a743",
+    "#e6ded0"
+  ],
+  "profile_id": "godot.trinity-top-down",
+  "reserve_styles": [
+    "32px",
+    "32px-pastel",
+    "40px-k-rpg"
+  ],
+  "rules": [
+    "adult-readable silhouettes",
+    "muted environment with warm objective accents",
+    "green hostile family distinct from heroes",
+    "nearest-neighbor pixel scaling",
+    "no standalone source-asset redistribution"
+  ],
+  "schema_version": "khalinos-style-composition-v1",
+  "selected_asset_sha256": "90563f843a0e0c07e494506c888c7b0cc21e736ea792c97f3a4047733dfad5d2",
+  "style_id": "dark-expedition-pixel-v1"
+}

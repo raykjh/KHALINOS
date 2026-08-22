@@ -150,6 +150,7 @@ one exact required_regression_criteria string that it proves, an optional random
 and ordered steps. Every active and regression criterion must have direct runtime evidence;
 preserve previously verified journeys and add separate journeys when needed. Supported typed steps are
 {"click":"CSS selector"}, {"right_click":"CSS selector"}, {"press":"Keyboard key"},
+{"select_option":{"selector":"CSS selector for select","value":"option value"}},
 {"wait_ms":1..12000},
 {"assert_text":{"selector":"CSS selector","operator":"eq|contains","value":"visible text"}},
 {"assert_count":{"selector":"CSS selector","operator":"eq|gt|gte|lt|lte","value":integer}},
@@ -160,7 +161,11 @@ Do not emit arbitrary JavaScript. Every active criterion must be named by exactl
 and backed by a selector-targeted typed assertion that observes its runtime result; never use
 unscoped {"assert_text":"text"} in a criterion-bound journey. Clicks, waits, screenshots,
 source code, and README claims alone are not proof. Selectors must point to real controls in
-index.html and the journey must prove the active Quest behavior. Preserve
+index.html and the journey must prove the active Quest behavior. Use select_option for native
+select controls; never click a hidden option element. Every assertion must target content that
+is visible after the preceding actions. At a 320px viewport, the document and every visible
+body child, button, input, select, and textarea must remain within the viewport with no horizontal
+overflow. Preserve
 working behavior from the previous verified bundle and make only changes needed for the
 current Quest. When the previous bundle is an approved visual foundation, preserve its
 composition, typography, palette, material language, and anti-goals while adding behavior.
@@ -226,7 +231,12 @@ must have aria-labels.
 journey.json must contain exactly the wrapper {"journeys":[...]} with at least one journey.
 Each visual-foundation journey has a name and ordered steps. A step must use the same typed
 journey actions documented for the Maker, including {"click":"CSS selector"},
-{"press":"Keyboard key"}, and {"assert_text":"visible text"}. Visual foundations must omit
+{"select_option":{"selector":"CSS selector for select","value":"option value"}},
+{"press":"Keyboard key"}, and {"assert_text":"visible text"}. Use select_option for native
+select controls and never click a hidden option element. Assertions must observe content visible
+after the preceding actions. At a 320px viewport, the document and every visible body child,
+button, input, select, and textarea must remain within the viewport with no horizontal overflow.
+Visual foundations must omit
 criterion because no Quest is active during visual selection. Do not use type, selector, text, or key fields as
 a different step schema, and never emit arbitrary JavaScript. The journey must
 exercise real controls and produce a meaningful rendered screenshot. Keep revision_summary
@@ -301,7 +311,9 @@ not write GDScript, scenes, commands, files, tests, executable paths, or verific
 code. The trusted compiler owns implementation. Use the approved project_name exactly.
 Model only heroes, enemy archetypes, scheduled automatic abilities, summed shared party
 stats, session duration, and deterministic level-choice cadence supported by the supplied
-ToolPack manifest. Explicit numeric duration and cadence requirements are mandatory, not
+ToolPack manifest. The lowest-threat enemy's health must not exceed the sum of the initial
+heroes' attack values, so one full round of visible level-one basic attacks defeats it.
+Explicit numeric duration and cadence requirements are mandatory, not
 suggestions. When the brief requires profession progression, provide Tank, Damage, and
 Support profession rosters, the exact upgrade_role_order, and exactly three choices per
 level: current-profession rank-up first and two alternative professions. When resurrection

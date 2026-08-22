@@ -73,7 +73,7 @@ BROWSER_IMPLEMENTATION_SOURCES = (
 
 BROWSER_PRODUCT_MANIFEST = ToolPackManifest(
     toolpack_id="browser.product",
-    version="1.3.0",
+    version="1.4.0",
     display_name="Browser Product ToolPack",
     description="Builds, repairs, runs, and verifies bounded offline browser micro-products.",
     implementation_sha256=source_set_sha256(Path(__file__).parent, BROWSER_IMPLEMENTATION_SOURCES),

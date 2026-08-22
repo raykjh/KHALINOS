@@ -1,0 +1,106 @@
+{
+  "credit_required": false,
+  "included_as_part_of_game": true,
+  "license_id": "AetherAI-Free-Asset-License-2026-06-29",
+  "license_last_updated": "2026-06-29",
+  "license_source_url": "https://www.aetherforgeai.com/ko/free-assets",
+  "output_atlas_path": "assets/licensed-art-atlas.png",
+  "output_atlas_sha256": "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56",
+  "passed": true,
+  "profile_id": "godot.trinity-top-down",
+  "provider": "AetherAI",
+  "schema_version": "khalinos-license-receipt-v1",
+  "selection_sha256": "d6aa99b02e162b4f7953f80f582b1d1c591fb9046e88798e849cb387625b7e0c",
+  "source_assets": [
+    {
+      "asset_id": "d6312bea-5364-42ea-b5a4-48433ccd2ff8",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "warrior",
+      "source_sha256": "e86a641140ad19a3fbf9ca833c7bfa438cb097716905acb1e3d14b268d8f8174",
+      "source_url": "https://cdn.aetherforgeai.com/assets/d6312bea-5364-42ea-b5a4-48433ccd2ff8.png"
+    },
+    {
+      "asset_id": "523051e1-580e-4c49-8499-d86b210a7bf7",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "archer",
+      "source_sha256": "7a920355a2fc6292740b58ad2247a834a0621f5f6b6429101230c06d51d480ef",
+      "source_url": "https://cdn.aetherforgeai.com/assets/523051e1-580e-4c49-8499-d86b210a7bf7.png"
+    },
+    {
+      "asset_id": "efb14f22-de8d-480f-843a-b01a4b840e04",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "priest",
+      "source_sha256": "4f4feab27f27c9919b65854990713d2dcc32f943af6653ee4eb142ac7e6a7bf4",
+      "source_url": "https://cdn.aetherforgeai.com/assets/efb14f22-de8d-480f-843a-b01a4b840e04.png"
+    },
+    {
+      "asset_id": "af94efc0-4332-4598-9896-184cd1fc4cb0",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "goblin",
+      "source_sha256": "f840050279e51e61e1815c9da811e482b1c5aa4210fe2739fce3552079834ecd",
+      "source_url": "https://cdn.aetherforgeai.com/assets/af94efc0-4332-4598-9896-184cd1fc4cb0.png"
+    },
+    {
+      "asset_id": "ab4476fa-ad31-4cbf-b703-eafe8e2d55a9",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "orc",
+      "source_sha256": "73b60186adf40f8f8e7088854b67a03d26ff76b6a28d9c072e0eac4fc23906a9",
+      "source_url": "https://cdn.aetherforgeai.com/assets/ab4476fa-ad31-4cbf-b703-eafe8e2d55a9.png"
+    },
+    {
+      "asset_id": "215ea63c-8d19-4888-afe1-3b96da040443",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "sweep_icon",
+      "source_sha256": "f0218676c39fcaabe8e7ab2d980290ade0700a6a056778302866accba33cc111",
+      "source_url": "https://cdn.aetherforgeai.com/assets/215ea63c-8d19-4888-afe1-3b96da040443.png"
+    },
+    {
+      "asset_id": "820b42b9-b76e-4084-8ce4-e91b826590d0",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "volley_icon",
+      "source_sha256": "ea819d20623cf3da6204ba8b3d42037a2ab7d5760568264e78ff16ebbfb491e1",
+      "source_url": "https://cdn.aetherforgeai.com/assets/820b42b9-b76e-4084-8ce4-e91b826590d0.png"
+    },
+    {
+      "asset_id": "b1561b1e-6a71-4d15-92a9-dc7d7eb00dce",
+      "operations": [
+        "atlas-composition",
+        "nearest-neighbor-scale",
+        "game-integration"
+      ],
+      "role": "prayer_icon",
+      "source_sha256": "9a139cbfa3bb007c5b36a0a7c413ea5fccc433848d5daeed7fb48d00422fc197",
+      "source_url": "https://cdn.aetherforgeai.com/assets/b1561b1e-6a71-4d15-92a9-dc7d7eb00dce.png"
+    }
+  ],
+  "standalone_asset_pack_redistribution_allowed": false,
+  "style_sha256": "5028aef28753b139d253f79b0846ddb6ffcdb97a082a478303a0bf75de562042"
+}

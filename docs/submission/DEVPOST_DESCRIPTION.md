@@ -17,7 +17,7 @@ Long-running coding agents often make the user the hidden workflow engine. The u
 5. Firestore-backed live telemetry shows the selected profile, composed Capability Packs, current agent, Cloud execution ID, Gemini calls, verifier state, and M01–M06 receipt milestones.
 6. A result becomes downloadable only after deterministic runtime checks and the role-separated Verifier pass. Otherwise KHALINOS stops safely rather than guessing completion.
 
-The submitted Godot proof includes two compositions. Trinity uses top-down combat, profession progression, presentation, audio, profile-selected combat effects, gameplay probe, and sprite-atlas capabilities. The side-scroll destination profile reuses the same fixed agent ceiling but binds lane combat, destination progression, a different effect-role selection, and a different probe. This demonstrates pack composition, not arbitrary game-generation scope.
+The submitted Godot proof includes two compositions. Trinity uses top-down combat, profession progression, presentation, audio, profile-selected combat effects, a qualified license-receipted character atlas, and its gameplay probe. The side-scroll destination profile reuses the same fixed agent ceiling but binds lane combat, destination progression, a different licensed-role layout, a different effect-role selection, and a different probe. This demonstrates pack composition, not arbitrary game-generation scope.
 
 ## Google technology
 
@@ -32,7 +32,7 @@ The submitted Godot proof includes two compositions. Trinity uses top-down comba
 
 ## Data sources
 
-KHALINOS does not require a third-party business dataset. It processes the user's goal and optional user-provided text, image, or admitted source material. Hackathon Cloud proof runs use original synthetic briefs, Nano Banana visual foundations, and repository-contained generated combat-effect sheets. An optional development-only licensed-art path was tested against user-approved AetherAI assets; those originals remain outside the repository and Cloud image and are not redistributed as an asset pack. Private project records are separated by the verified Google subject identifier.
+KHALINOS does not require a third-party business dataset. It processes the user's goal and optional user-provided text, image, or admitted source material. Hackathon proof runs use original synthetic briefs, Nano Banana visual foundations, repository-contained generated combat-effect sheets, and two bounded profile-specific AetherAI-derived game atlases with hash-bound selection and license receipts. The original AetherAI catalog remains outside the repository and is not redistributed as a standalone asset pack. Private project records are separated by the verified Google subject identifier.
 
 ## Findings and learnings
 

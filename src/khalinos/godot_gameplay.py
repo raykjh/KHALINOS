@@ -306,6 +306,15 @@ class GodotGameplayPlan(BaseModel):
         resurrection_abilities = [item for item in self.abilities if item.kind == GameplayAbilityKind.RESURRECTION]
         if bool(resurrection_abilities) != bool(self.resurrection_capacity):
             raise ValueError("resurrection capacity and automatic resurrection ability must be declared together")
+        initial_basic_attack_damage = sum(item.attack for item in self.heroes)
+        weakest_enemy = min(
+            self.enemies,
+            key=lambda item: item.health + item.damage * 6.0 + item.speed * 0.08,
+        )
+        if weakest_enemy.health > initial_basic_attack_damage:
+            raise ValueError(
+                "lowest-threat enemy health must not exceed one full initial-party basic-attack round"
+            )
         return self
 
 
@@ -919,6 +928,13 @@ func verification_scenario() -> Dictionary:
     for stage in range(int(config.level_count) - 1):
         if not role_order.is_empty():
             expected_roles.append(String(role_order[stage % role_order.size()]))
+    var licensed_profile_roles_bound := licensed_art_texture != null and licensed_art_helper != null
+    if licensed_profile_roles_bound:
+        for licensed_role in ["warrior", "archer", "priest", "goblin", "orc"]:
+            licensed_profile_roles_bound = (
+                licensed_profile_roles_bound
+                and licensed_art_helper.region_for(licensed_art_manifest, licensed_role).size != Vector2.ZERO
+            )
     return {
         "schema_version": "khalinos-godot-gameplay-probe-v5",
         "combat_feedback_pack_loaded": COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
@@ -926,6 +942,7 @@ func verification_scenario() -> Dictionary:
         "audio_feedback_pack_loaded": AUDIO_FEEDBACK_PACK_ID == "godot.audio-feedback@1.0.0",
         "licensed_art_requested": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
         "licensed_art_loaded": licensed_art_texture != null and licensed_art_helper != null,
+        "licensed_profile_roles_bound": licensed_profile_roles_bound,
         "license_receipt_present": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
         "effect_atlas_requested": FileAccess.file_exists("res://KHALINOS_EFFECT_RECEIPT.json"),
         "effect_atlas_loaded": effect_texture != null and effect_player != null,
@@ -1030,7 +1047,12 @@ func _draw() -> void:
                 position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
         var licensed_hero_drawn := false
         if licensed_art_helper != null and licensed_art_texture != null:
-            licensed_hero_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, String(hero.hero_id), Rect2(position - Vector2(30, 30), Vector2(60, 60)))
+            var licensed_hero_role := String(hero.hero_id)
+            match String(hero.role):
+                "tank": licensed_hero_role = "warrior"
+                "damage": licensed_hero_role = "archer"
+                "support": licensed_hero_role = "priest"
+            licensed_hero_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, licensed_hero_role, Rect2(position - Vector2(30, 30), Vector2(60, 60)))
         var hero_region := _sprite_region(hero.hero_id)
         if licensed_hero_drawn:
             pass
@@ -1042,10 +1064,12 @@ func _draw() -> void:
         if attacking:
             draw_circle(position, 31.0, Color(1.0, 0.82, 0.28, 0.9), false, 4.0, true)
         hero_index += 1
+    var licensed_enemy_index := 0
     for enemy in enemies:
         var licensed_enemy_drawn := false
         if licensed_art_helper != null and licensed_art_texture != null:
-            licensed_enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, String(enemy.enemy_id), Rect2(enemy.position - Vector2(24, 24), Vector2(48, 48)), Color(0.72, 1.0, 0.72, 1.0))
+            var licensed_enemy_role := "goblin" if licensed_enemy_index % 2 == 0 else "orc"
+            licensed_enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, licensed_enemy_role, Rect2(enemy.position - Vector2(24, 24), Vector2(48, 48)), Color(0.72, 1.0, 0.72, 1.0))
         var enemy_region := _sprite_region(enemy.enemy_id)
         if licensed_enemy_drawn:
             pass
@@ -1054,6 +1078,7 @@ func _draw() -> void:
         else:
             draw_circle(enemy.position, 14.0, Color("58b96a"))
         draw_circle(enemy.position, 24.0, Color(0.28, 0.78, 0.36, 0.68), false, 2.0, true)
+        licensed_enemy_index += 1
     PresentationSkin.draw_hud_panel(self, Rect2(22, 18, 382, 64), Color("b8d88f"))
     _draw_label("TRINITY HP  %d / %d" % [max(0, int(shared_health)), int(shared_health_max)], Vector2(32, 42), 18, Color("f7f2df"))
     draw_rect(Rect2(31, 52, 354, 18), Color(0.08, 0.09, 0.08, 0.9))
@@ -1185,7 +1210,11 @@ func _probe() -> void:
         )
         and (
             not receipt.get("licensed_art_requested", false)
-            or (receipt.get("licensed_art_loaded", false) and receipt.get("license_receipt_present", false))
+            or (
+                receipt.get("licensed_art_loaded", false)
+                and receipt.get("licensed_profile_roles_bound", false)
+                and receipt.get("license_receipt_present", false)
+            )
         )
         and (
             not receipt.get("effect_atlas_requested", false)
@@ -1269,6 +1298,11 @@ GODOT_GAMEPLAY_LICENSED_ART_VFX_SPRITE_PROFILE = (
     GODOT_GAMEPLAY_LICENSED_ART_PROFILE[:-1]
     + GODOT_GAMEPLAY_VFX_PACKS
     + (GODOT_GAMEPLAY_PROBE_PACK, GODOT_SPRITE_ATLAS_PACK)
+)
+GODOT_GAMEPLAY_LICENSED_ART_VFX_PROFILE = (
+    GODOT_GAMEPLAY_LICENSED_ART_PROFILE[:-1]
+    + GODOT_GAMEPLAY_VFX_PACKS
+    + (GODOT_GAMEPLAY_PROBE_PACK,)
 )
 
 

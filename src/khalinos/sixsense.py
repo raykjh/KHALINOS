@@ -132,12 +132,11 @@ For godot.gameplay.new-product, state plainly that the result is a bounded playa
 completion to several mechanics the approved probe can execute: formation movement, enemy
 spawn and automatic combat, shared health or support effects, record/experience and level
 choices, and survival victory or defeat. Include real display-backed render evidence and the
-digest-bound Sprite Atlas with independent visual completeness verification. Never say that
-gameplay, physics, input loops, or generated sprites are excluded. The exact authorized files
-are KHALINOS_GAMEPLAY.json, KHALINOS_SPRITE_ATLAS.json, README.md,
-assets/sprite-atlas.png, assets/visual-foundation.png, project.godot,
-scenes/gameplay.tscn, scripts/khalinos_gameplay.gd, and
-scripts/khalinos_gameplay_probe.gd. Set repairs per Quest to zero. Return only OutcomePreview.
+qualified profile-specific licensed atlas with hash-bound selection, style, atlas, and license
+receipts plus role-separated final-render verification. When that licensed atlas covers the
+profile roles, do not promise or require a second generated Sprite Atlas. Never say that
+gameplay, physics, input loops, or character art are excluded. Set repairs per Quest to zero.
+Return only OutcomePreview.
 """.strip()
 
 

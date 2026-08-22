@@ -310,7 +310,30 @@ def verify_bundle(
                     if action == "click":
                         if not isinstance(value, str) or not value.strip() or len(value) > 500:
                             raise ValueError("click requires a bounded CSS selector")
-                        page.locator(value).click()
+                        locator = page.locator(value).first
+                        tag_name = locator.evaluate("element => element.tagName.toLowerCase()")
+                        if tag_name == "option":
+                            locator.evaluate(
+                                """option => {
+                                    const select = option.closest('select');
+                                    if (!select) throw new Error('option has no select owner');
+                                    select.value = option.value;
+                                    select.dispatchEvent(new Event('input', {bubbles: true}));
+                                    select.dispatchEvent(new Event('change', {bubbles: true}));
+                                }"""
+                            )
+                        else:
+                            locator.click()
+                    elif action == "select_option":
+                        if not isinstance(value, dict) or set(value) != {"selector", "value"}:
+                            raise ValueError("select_option requires selector and value")
+                        selector = value["selector"]
+                        option_value = value["value"]
+                        if not isinstance(selector, str) or not selector.strip() or len(selector) > 500:
+                            raise ValueError("select_option requires a bounded CSS selector")
+                        if not isinstance(option_value, str) or not option_value or len(option_value) > 500:
+                            raise ValueError("select_option requires a bounded option value")
+                        page.locator(selector).select_option(option_value)
                     elif action == "right_click":
                         if not isinstance(value, str) or not value.strip() or len(value) > 500:
                             raise ValueError("right_click requires a bounded CSS selector")
