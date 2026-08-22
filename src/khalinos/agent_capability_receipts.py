@@ -193,6 +193,8 @@ def build_agent_capability_trace(
             "godot.project-core",
             "godot.top-down-auto-combat",
             "godot.combat-feedback",
+            "godot.presentation-skin",
+            "godot.audio-feedback",
         )
         visual_ids = ("godot.visual-foundation", "godot.sprite-atlas")
         verifier_id = "godot.gameplay-probe"
@@ -202,6 +204,8 @@ def build_agent_capability_trace(
             "godot.project-core",
             "godot.side-scroll-lane-combat",
             "godot.combat-feedback",
+            "godot.presentation-skin",
+            "godot.audio-feedback",
             "godot.destination-progression",
         )
         visual_ids = ("godot.visual-foundation",)

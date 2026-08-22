@@ -36,6 +36,7 @@ CORE_PATHS = {
     "project.godot", "KHALINOS_GAMEPLAY.json", "README.md",
     "scenes/gameplay.tscn", "scripts/khalinos_gameplay.gd",
     "scripts/khalinos_gameplay_probe.gd", "scripts/khalinos_combat_feedback.gd",
+    "scripts/khalinos_presentation_skin.gd", "scripts/khalinos_audio_feedback.gd",
 }
 SPRITE_PATHS = {SPRITE_ATLAS_MANIFEST_PATH}
 
@@ -236,6 +237,12 @@ class GodotGameplayEvidenceAdapter:
             "headless_process": probe.returncode == 0,
             "probe_schema": receipt.get("schema_version") == "khalinos-godot-gameplay-probe-v5",
             "combat_feedback_pack_loaded": receipt.get("combat_feedback_pack_loaded") is True,
+            "presentation_skin_pack_loaded": receipt.get("presentation_skin_pack_loaded") is True,
+            "audio_feedback_pack_loaded": receipt.get("audio_feedback_pack_loaded") is True,
+            "attack_audio_event": int(receipt.get("attack_audio_events", 0)) > 0,
+            "hit_audio_event": int(receipt.get("hit_audio_events", 0)) > 0,
+            "heal_audio_event": int(receipt.get("heal_audio_events", 0)) > 0,
+            "victory_audio_event": int(receipt.get("victory_audio_events", 0)) > 0,
             "start_gate_present": receipt.get("start_gate_present") is True,
             "countdown_decrements": receipt.get("countdown_decrements") is True,
             "first_enemy_level_one_beatable": receipt.get("first_enemy_level_one_beatable") is True,
@@ -366,13 +373,13 @@ GODOT_GAMEPLAY_MANIFEST = ToolPackManifest(
     ),
     output=OutputContract(
         artifact_kind="godot.gameplay-vertical-slice",
-        authorized_paths=("KHALINOS_GAMEPLAY.json", "KHALINOS_SPRITE_ATLAS.json", "README.md", "assets/sprite-atlas.png", "assets/visual-foundation.png", "project.godot", "scenes/gameplay.tscn", "scripts/khalinos_combat_feedback.gd", "scripts/khalinos_gameplay.gd", "scripts/khalinos_gameplay_probe.gd"),
+        authorized_paths=("KHALINOS_GAMEPLAY.json", "KHALINOS_SPRITE_ATLAS.json", "README.md", "assets/sprite-atlas.png", "assets/visual-foundation.png", "project.godot", "scenes/gameplay.tscn", "scripts/khalinos_audio_feedback.gd", "scripts/khalinos_combat_feedback.gd", "scripts/khalinos_gameplay.gd", "scripts/khalinos_gameplay_probe.gd", "scripts/khalinos_presentation_skin.gd"),
         max_file_count=12,
         max_total_bytes=5_500_000,
     ),
     evidence=EvidenceContract(
         adapter_id=GodotGameplayEvidenceAdapter.adapter_id,
-        evidence_types=("gameplay.attack.feedback", "gameplay.basic.attack", "gameplay.countdown", "gameplay.enemy.attack", "gameplay.heal.feedback", "gameplay.skill.cooldown", "gameplay.start.gate", "gameplay.state.prompt", "godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "seeded.profession.choice", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
+        evidence_types=("gameplay.attack.feedback", "gameplay.audio.feedback", "gameplay.basic.attack", "gameplay.countdown", "gameplay.enemy.attack", "gameplay.heal.feedback", "gameplay.presentation.skin", "gameplay.skill.cooldown", "gameplay.start.gate", "gameplay.state.prompt", "godot.display.render", "godot.gameplay.probe", "runtime.assertion", "runtime.screenshot", "seeded.profession.choice", "sprite.atlas.loaded", "sprite.segmentation.digest", "sprite.visual.completeness", "visual.asset.loaded"),
         network_isolated=False,
         independent_verifier_required=True,
     ),

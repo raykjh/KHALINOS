@@ -12,10 +12,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
 from khalinos.godot_capability_packs import (
+    GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
     GODOT_PROJECT_CORE_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
+    godot_audio_feedback_stage,
     godot_combat_feedback_stage,
+    godot_presentation_skin_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
@@ -343,7 +347,11 @@ def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
 GAMEPLAY_SCRIPT = r'''extends Node2D
 
 const CombatFeedback = preload("res://scripts/khalinos_combat_feedback.gd")
+const PresentationSkin = preload("res://scripts/khalinos_presentation_skin.gd")
+const AudioFeedback = preload("res://scripts/khalinos_audio_feedback.gd")
 const COMBAT_FEEDBACK_PACK_ID := CombatFeedback.PACK_ID
+const PRESENTATION_SKIN_PACK_ID := PresentationSkin.PACK_ID
+const AUDIO_FEEDBACK_PACK_ID := AudioFeedback.PACK_ID
 
 var config: Dictionary
 var center := Vector2.ZERO
@@ -360,6 +368,7 @@ var hero_attack_clocks: Dictionary = {}
 var basic_attack_effects: Array[Dictionary] = []
 var skill_effects: Array[Dictionary] = []
 var enemy_attack_effects: Array[Dictionary] = []
+var audio_events := {"attack": 0, "hit": 0, "heal": 0, "victory": 0}
 var spawn_count := 0
 var started := false
 var choice_open := false
@@ -440,6 +449,10 @@ func _start_game() -> void:
     started = true
     queue_redraw()
 
+func _play_audio(cue: String) -> void:
+    audio_events[cue] = int(audio_events.get(cue, 0)) + 1
+    AudioFeedback.play_cue(self, cue)
+
 func _start_button_rect() -> Rect2:
     return Rect2(float(config.viewport_width) / 2.0 - 130.0, float(config.viewport_height) / 2.0 + 48.0, 260.0, 58.0)
 
@@ -475,6 +488,7 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
                 "life": 0.32,
                 "max_life": 0.32,
             })
+            _play_audio("hit")
     _tick_basic_attacks(delta)
     _tick_abilities(delta)
     _update_combat_effects(delta)
@@ -492,6 +506,7 @@ func _step_simulation(delta: float, direction: Vector2) -> void:
     elif elapsed >= float(config.session_seconds):
         ended = true
         victory = true
+        _play_audio("victory")
 
 func _party_defense() -> float:
     return float(_party_stats().defense)
@@ -595,6 +610,8 @@ func _tick_basic_attacks(delta: float) -> void:
             "life": 0.28,
             "max_life": 0.28,
         })
+        _play_audio("attack")
+        _play_audio("hit")
 
 func _tick_abilities(delta: float) -> void:
     for ability in config.abilities:
@@ -611,6 +628,10 @@ func _tick_abilities(delta: float) -> void:
             "life": 0.62,
             "max_life": 0.62,
         })
+        if String(ability.kind) in ["heal", "resurrection"]:
+            _play_audio("heal")
+        else:
+            _play_audio("attack")
         match ability.kind:
             "damage":
                 for enemy in enemies:
@@ -870,6 +891,8 @@ func verification_scenario() -> Dictionary:
     return {
         "schema_version": "khalinos-godot-gameplay-probe-v5",
         "combat_feedback_pack_loaded": COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
+        "presentation_skin_pack_loaded": PRESENTATION_SKIN_PACK_ID == "godot.presentation-skin@1.0.0",
+        "audio_feedback_pack_loaded": AUDIO_FEEDBACK_PACK_ID == "godot.audio-feedback@1.0.0",
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
         "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
@@ -879,6 +902,10 @@ func verification_scenario() -> Dictionary:
         "heal_effect_visible": heal_effect_visible,
         "enemy_attack_effect_visible": enemy_attack_effect_visible,
         "enemy_attack_cooldown_enforced": enemy_attack_cooldown_enforced,
+        "attack_audio_events": int(audio_events.get("attack", 0)),
+        "hit_audio_events": int(audio_events.get("hit", 0)),
+        "heal_audio_events": int(audio_events.get("heal", 0)),
+        "victory_audio_events": int(audio_events.get("victory", 0)),
         "level_choice_prompted": level_choice_prompted,
         "enemy_visual_family": "green",
         "background_visual_treatment": "bright_readable",
@@ -918,6 +945,7 @@ func _draw() -> void:
         draw_line(Vector2(x, 0), Vector2(x, config.viewport_height), Color(0.55, 0.78, 0.55, 0.18), 1.0)
     for y in range(0, int(config.viewport_height), 64):
         draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
+    PresentationSkin.draw_top_down_arena(self, center, float(config.viewport_width), float(config.viewport_height))
     for effect in skill_effects:
         CombatFeedback.draw_skill(self, effect, center)
     for effect in basic_attack_effects:
@@ -953,7 +981,7 @@ func _draw() -> void:
         else:
             draw_circle(enemy.position, 14.0, Color("58b96a"))
         draw_circle(enemy.position, 24.0, Color(0.28, 0.78, 0.36, 0.68), false, 2.0, true)
-    draw_rect(Rect2(22, 18, 382, 64), Color(0.035, 0.055, 0.04, 0.88))
+    PresentationSkin.draw_hud_panel(self, Rect2(22, 18, 382, 64), Color("b8d88f"))
     _draw_label("TRINITY HP  %d / %d" % [max(0, int(shared_health)), int(shared_health_max)], Vector2(32, 42), 18, Color("f7f2df"))
     draw_rect(Rect2(31, 52, 354, 18), Color(0.08, 0.09, 0.08, 0.9))
     draw_rect(Rect2(34, 55, 348.0 * clamp(shared_health / max(1.0, shared_health_max), 0.0, 1.0), 12), Color("d95f4f"))
@@ -970,7 +998,7 @@ func _draw() -> void:
 
 func _draw_skill_cooldowns() -> void:
     var panel_x := float(config.viewport_width) - 290.0
-    draw_rect(Rect2(panel_x, 76.0, 266.0, 30.0 + config.abilities.size() * 24.0), Color(0.035, 0.055, 0.04, 0.82))
+    PresentationSkin.draw_hud_panel(self, Rect2(panel_x, 76.0, 266.0, 30.0 + config.abilities.size() * 24.0), Color("d9b84f"))
     _draw_label("SKILL COOLDOWNS", Vector2(panel_x + 12.0, 98.0), 15, Color("fff0a8"))
     for index in range(config.abilities.size()):
         var ability: Dictionary = config.abilities[index]
@@ -1043,6 +1071,12 @@ func _probe() -> void:
     var receipt: Dictionary = instance.verification_scenario() if instance != null else {}
     receipt.passed = (
         receipt.get("combat_feedback_pack_loaded", false)
+        and receipt.get("presentation_skin_pack_loaded", false)
+        and receipt.get("audio_feedback_pack_loaded", false)
+        and receipt.get("attack_audio_events", 0) > 0
+        and receipt.get("hit_audio_events", 0) > 0
+        and receipt.get("heal_audio_events", 0) > 0
+        and receipt.get("victory_audio_events", 0) > 0
         and
         receipt.get("start_gate_present", false)
         and receipt.get("countdown_decrements", false)
@@ -1097,7 +1131,7 @@ GODOT_GAMEPLAY_PROBE_PACK = CapabilityPackManifest(
     pack_id="godot.gameplay-probe",
     version="1.0.0",
     provides=("evidence.gameplay-probe",),
-    requires=("gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.top-down", "godot.project"),
+    requires=("audio.feedback", "gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.top-down", "godot.project", "presentation.skin"),
     text_paths=("scripts/khalinos_gameplay_probe.gd",),
 )
 GODOT_SPRITE_ATLAS_PACK = CapabilityPackManifest(
@@ -1114,6 +1148,8 @@ GODOT_GAMEPLAY_BASE_PROFILE = (
     GODOT_VISUAL_FOUNDATION_PACK,
     GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_GAMEPLAY_PROBE_PACK,
 )
 GODOT_GAMEPLAY_SPRITE_PROFILE = GODOT_GAMEPLAY_BASE_PROFILE + (GODOT_SPRITE_ATLAS_PACK,)
@@ -1147,6 +1183,8 @@ def compose_godot_gameplay_capabilities(
             },
         ),
         godot_combat_feedback_stage(),
+        godot_presentation_skin_stage(),
+        godot_audio_feedback_stage(),
         CapabilityPackStage(
             manifest=GODOT_GAMEPLAY_PROBE_PACK,
             text_files={"scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT},

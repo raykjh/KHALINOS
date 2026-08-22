@@ -209,6 +209,14 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     feedback_script = first.files["scripts/khalinos_combat_feedback.gd"]
     assert 'preload("res://scripts/khalinos_combat_feedback.gd")' in gameplay_script
     assert 'PACK_ID := "godot.combat-feedback@1.0.0"' in feedback_script
+    assert 'PACK_ID := "godot.presentation-skin@1.0.0"' in first.files[
+        "scripts/khalinos_presentation_skin.gd"
+    ]
+    assert 'PACK_ID := "godot.audio-feedback@1.0.0"' in first.files[
+        "scripts/khalinos_audio_feedback.gd"
+    ]
+    assert "PresentationSkin.draw_top_down_arena" in gameplay_script
+    assert 'AudioFeedback.play_cue(self, cue)' in gameplay_script
     assert "CombatFeedback.draw_basic_attack" in gameplay_script
     assert "CombatFeedback.draw_skill" in gameplay_script
     assert "CombatFeedback.draw_enemy_attack" in gameplay_script

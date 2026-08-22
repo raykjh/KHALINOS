@@ -9,10 +9,14 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from khalinos.godot_capability_packs import (
+    GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
     GODOT_PROJECT_CORE_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
+    godot_audio_feedback_stage,
     godot_combat_feedback_stage,
+    godot_presentation_skin_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
@@ -29,7 +33,11 @@ from khalinos.visual_assets import ASSET_PATH
 SIDE_SCROLL_SCRIPT = r'''extends Node2D
 
 const CombatFeedback = preload("res://scripts/khalinos_combat_feedback.gd")
+const PresentationSkin = preload("res://scripts/khalinos_presentation_skin.gd")
+const AudioFeedback = preload("res://scripts/khalinos_audio_feedback.gd")
 const COMBAT_FEEDBACK_PACK_ID := CombatFeedback.PACK_ID
+const PRESENTATION_SKIN_PACK_ID := PresentationSkin.PACK_ID
+const AUDIO_FEEDBACK_PACK_ID := AudioFeedback.PACK_ID
 
 var combat: Dictionary = {}
 var destination: Dictionary = {}
@@ -44,14 +52,21 @@ var total_attacks := 0
 var total_kills := 0
 var enemies: Array[Dictionary] = []
 var shot_effects: Array[Dictionary] = []
+var audio_events := {"attack": 0, "hit": 0, "heal": 0, "victory": 0}
 
 func _ready() -> void:
     combat = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_SIDE_SCROLL.json"))
     destination = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_DESTINATION.json"))
+    get_window().content_scale_size = Vector2i(int(combat.viewport_width), int(combat.viewport_height))
+    get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
     queue_redraw()
 
 func start_run() -> void:
     started = true
+
+func _play_audio(cue: String) -> void:
+    audio_events[cue] = int(audio_events.get(cue, 0)) + 1
+    AudioFeedback.play_cue(self, cue)
 
 func _process(delta: float) -> void:
     elapsed += delta
@@ -86,6 +101,8 @@ func simulate_step(delta: float) -> void:
             target["hp"] = float(target["hp"]) - float(combat["attack_damage"])
             total_attacks += 1
             shot_effects.append({"from": Vector2(190, 360), "to": Vector2(float(target["x"]), 360), "ttl": 0.22})
+            _play_audio("attack")
+            _play_audio("hit")
             if float(target["hp"]) <= 0.0:
                 enemies.erase(target)
                 total_kills += 1
@@ -95,6 +112,7 @@ func simulate_step(delta: float) -> void:
             shot_effects.erase(effect)
     if progress_distance >= float(destination["destination_distance"]):
         won = true
+        _play_audio("victory")
 
 func _nearest_enemy():
     if enemies.is_empty():
@@ -113,9 +131,7 @@ func _draw() -> void:
     draw_rect(Rect2(0, 0, width, height), Color(0.74, 0.90, 0.94, 0.38), true)
     draw_rect(Rect2(0, height * 0.58, width, height * 0.42), Color(0.84, 0.77, 0.55, 0.58), true)
     draw_rect(Rect2(0, height * 0.72, width, height * 0.12), Color(0.56, 0.49, 0.34, 0.72), true)
-    for index in range(7):
-        var offset := fmod(float(index * 180) - progress_distance * 0.35, width + 180.0) - 90.0
-        draw_circle(Vector2(offset, height * 0.53), 48, Color("79aa68"))
+    PresentationSkin.draw_parallax(self, width, height, progress_distance)
     draw_line(Vector2(0, height * 0.78), Vector2(width, height * 0.78), Color("f7e7ad"), 4)
     CombatFeedback.draw_attack_range(
         self,
@@ -126,29 +142,23 @@ func _draw() -> void:
         -1.0,
         false,
     )
-    draw_circle(Vector2(150, 342), 22, Color("d69a43"))
-    draw_circle(Vector2(170, 376), 19, Color("5b86c4"))
-    draw_circle(Vector2(188, 338), 17, Color("eadf8b"))
+    var pulse := absf(sin(elapsed * 7.0)) * 4.0
+    PresentationSkin.draw_side_scroll_party(self, Vector2(170, 350), pulse)
     for enemy in enemies:
         var enemy_pos := Vector2(float(enemy["x"]), 360)
-        draw_rect(Rect2(enemy_pos.x - 20, enemy_pos.y - 25, 40, 50), Color("398b45"), true)
-        draw_circle(enemy_pos + Vector2(0, -25), 17, Color("65bd54"))
-        draw_rect(Rect2(enemy_pos.x - 22, enemy_pos.y - 48, 44, 5), Color("3b2634"), true)
         var hp_ratio := clampf(float(enemy["hp"]) / float(combat["enemy_health"]), 0.0, 1.0)
-        draw_rect(Rect2(enemy_pos.x - 22, enemy_pos.y - 48, 44 * hp_ratio, 5), Color("e85b4f"), true)
+        PresentationSkin.draw_side_scroll_enemy(self, enemy_pos, hp_ratio, pulse)
     for effect in shot_effects:
         CombatFeedback.draw_attack_line(
             self, effect["from"], effect["to"], Color("fff2a8"), 7.0, false
         )
     var ratio := progress_distance / maxf(1.0, float(destination.get("destination_distance", 1)))
+    PresentationSkin.draw_hud_panel(self, Rect2(22, 16, width - 44, 100), Color("f1bd4a"))
     draw_rect(Rect2(36, 28, width - 72, 18), Color("27384a"), true)
     draw_rect(Rect2(39, 31, (width - 78) * ratio, 12), Color("f1bd4a"), true)
-    draw_line(Vector2(width - 75, 300), Vector2(width - 75, 390), Color("faf5d8"), 7)
-    draw_colored_polygon(PackedVector2Array([
-        Vector2(width - 72, 302), Vector2(width - 18, 320), Vector2(width - 72, 338)
-    ]), Color("d94b45"))
-    draw_string(ThemeDB.fallback_font, Vector2(36, 72), "AUTO MARCH  %d / %d m" % [int(progress_distance), int(destination.get("destination_distance", 0))], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("18293a"))
-    draw_string(ThemeDB.fallback_font, Vector2(36, 102), "Kills %d   Auto attacks %d" % [total_kills, total_attacks], HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color("23384a"))
+    PresentationSkin.draw_destination(self, Vector2(width - 75, 350), won)
+    draw_string(ThemeDB.fallback_font, Vector2(36, 72), "AUTO MARCH  %d / %d m" % [int(progress_distance), int(destination.get("destination_distance", 0))], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("f4f0df"))
+    draw_string(ThemeDB.fallback_font, Vector2(36, 102), "Kills %d   Auto attacks %d" % [total_kills, total_attacks], HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color("cfe4d9"))
     if won:
         draw_rect(Rect2(width * 0.25, height * 0.30, width * 0.50, 110), Color(0.08, 0.12, 0.18, 0.90), true)
         draw_string(ThemeDB.fallback_font, Vector2(width * 0.34, height * 0.40), "DESTINATION REACHED", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color("fff0a4"))
@@ -172,6 +182,8 @@ func _initialize() -> void:
     var receipt := {
         "schema_version": "khalinos-godot-side-scroll-probe-v1",
         "combat_feedback_pack_loaded": scene.COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
+        "presentation_skin_pack_loaded": scene.PRESENTATION_SKIN_PACK_ID == "godot.presentation-skin@1.0.0",
+        "audio_feedback_pack_loaded": scene.AUDIO_FEEDBACK_PACK_ID == "godot.audio-feedback@1.0.0",
         "horizontal_lane_present": true,
         "movement_right": scene.progress_distance > initial_progress,
         "enemy_spawned": scene.total_spawned > 0,
@@ -183,12 +195,18 @@ func _initialize() -> void:
         "spawned": scene.total_spawned,
         "attacks": scene.total_attacks,
         "kills": scene.total_kills,
+        "attack_audio_events": int(scene.audio_events.get("attack", 0)),
+        "hit_audio_events": int(scene.audio_events.get("hit", 0)),
+        "victory_audio_events": int(scene.audio_events.get("victory", 0)),
     }
     receipt["passed"] = (
         receipt["combat_feedback_pack_loaded"]
+        and receipt["presentation_skin_pack_loaded"] and receipt["audio_feedback_pack_loaded"]
         and receipt["movement_right"] and receipt["enemy_spawned"]
         and receipt["auto_attack_fired"] and receipt["enemy_defeated"]
         and receipt["destination_reached"] and receipt["victory"]
+        and receipt["attack_audio_events"] > 0 and receipt["hit_audio_events"] > 0
+        and receipt["victory_audio_events"] > 0
     )
     var target := FileAccess.open(output_path, FileAccess.WRITE)
     target.store_string(JSON.stringify(receipt, "  ") + "\n")
@@ -235,7 +253,7 @@ class CompiledGodotSideScroll(BaseModel):
     asset: ArtifactAsset
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    files: dict[str, str] = Field(min_length=8, max_length=8)
+    files: dict[str, str] = Field(min_length=10, max_length=10)
 
 
 GODOT_SIDE_SCROLL_LANE_COMBAT_PACK = CapabilityPackManifest(
@@ -257,7 +275,7 @@ GODOT_SIDE_SCROLL_PROBE_PACK = CapabilityPackManifest(
     pack_id="godot.side-scroll-probe",
     version="1.0.0",
     provides=("evidence.side-scroll-probe",),
-    requires=("gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.destination", "gameplay.side-scroll", "godot.project"),
+    requires=("audio.feedback", "gameplay.auto-attack", "gameplay.combat-feedback", "gameplay.destination", "gameplay.side-scroll", "godot.project", "presentation.skin"),
     text_paths=("scripts/khalinos_side_scroll_probe.gd",),
 )
 GODOT_SIDE_SCROLL_PROFILE = (
@@ -265,6 +283,8 @@ GODOT_SIDE_SCROLL_PROFILE = (
     GODOT_VISUAL_FOUNDATION_PACK,
     GODOT_SIDE_SCROLL_LANE_COMBAT_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_DESTINATION_PROGRESSION_PACK,
     GODOT_SIDE_SCROLL_PROBE_PACK,
 )
@@ -316,6 +336,8 @@ def compose_godot_side_scroll_capabilities(plan: GodotSideScrollPlan) -> Capabil
             },
         ),
         godot_combat_feedback_stage(),
+        godot_presentation_skin_stage(),
+        godot_audio_feedback_stage(),
         CapabilityPackStage(
             manifest=GODOT_DESTINATION_PROGRESSION_PACK,
             text_files={
