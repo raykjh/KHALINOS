@@ -1,0 +1,85 @@
+{
+  "schema_version": "khalinos-licensed-art-cloud-qualification-v1",
+  "qualified_at": "2026-08-22T14:19:21Z",
+  "cloud": {
+    "project_id": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "job_name": "khalinos-worker"
+  },
+  "license_boundary": {
+    "provider": "AetherAI",
+    "license_id": "AetherAI-Free-Asset-License-2026-06-29",
+    "included_as_part_of_game": true,
+    "standalone_asset_pack_redistribution_allowed": false,
+    "source_catalog_bundled": false,
+    "qualified_profile_atlases_bundled": true
+  },
+  "runs": [
+    {
+      "profile_id": "godot.side-scroll-destination",
+      "run_id": "53ef9772db26450ca96e77a0e661c248",
+      "execution_id": "khalinos-worker-9srld",
+      "image_digest": "sha256:9588211390be46176715f1cba57a0cf3af4a3cc1b14dc6362b73bd00745bd52d",
+      "toolpack": {
+        "toolpack_id": "godot.side-scroll-experiment",
+        "version": "0.8.0",
+        "manifest_sha256": "3147b7c4cc27eead1942723f96a00fbea19fce8d4789be4b58278f8d92a4341a"
+      },
+      "status": "PASSED",
+      "gemini_calls": 12,
+      "receipt_count": 3,
+      "deterministic_checks": 30,
+      "deterministic_passes": 30,
+      "issues": [],
+      "artifact_sha256": "3f6c8af993de238a987aa4ccb8edf46c13a52fc9b579996111b490a6bf49f96e",
+      "bundle_sha256": "c86e0fba448d2571abd070a194dffc646570270580973b9369556a14018d8075",
+      "source_zip_sha256": "ffdc963fab279b7fb8e0e47057843e08ff968d170293c4f2fd0e380f1d73777c",
+      "licensed_art_atlas_sha256": "3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e",
+      "licensed_art_loaded": true,
+      "license_receipt_passed": true,
+      "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification."
+    },
+    {
+      "profile_id": "godot.trinity-top-down",
+      "run_id": "bf5cf8ff39df42b484eb1d2c16be6e68",
+      "execution_id": "khalinos-worker-zbxzg",
+      "image_digest": "sha256:ac8977ff23378a2beb803252eab9910ce2aa80ae4c2cc6ae2c22d2b003415a68",
+      "toolpack": {
+        "toolpack_id": "godot.gameplay",
+        "version": "2.5.0",
+        "manifest_sha256": "86806f5b75a7fd190258d84aeb07c6ef9437ec65b68a8daefd052eb92b359e73"
+      },
+      "status": "PASSED",
+      "elapsed_seconds": 290,
+      "gemini_calls": 13,
+      "receipt_count": 4,
+      "deterministic_checks": 59,
+      "deterministic_passes": 59,
+      "issues": [],
+      "artifact_sha256": "cd0e20b56ec84ec433ec3b8c7d3cec49a7fc5baefbca51707784c485f1465625",
+      "bundle_sha256": "1ce620895b0f487f40dbb7d12c121e9382a62e2f7eb7678896b2d8c4d32fc5a7",
+      "source_zip_sha256": "ea8c51190142bdc82fef6270720e322c865eef9125347b3aa8748fd14def96f9",
+      "licensed_art_atlas_sha256": "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56",
+      "generated_sprite_atlas_sha256": null,
+      "licensed_art_loaded": true,
+      "licensed_profile_roles_bound": true,
+      "first_enemy_level_one_beatable": true,
+      "license_receipt_passed": true,
+      "agent_count": 8,
+      "message": "Godot gameplay vertical slice passed real mechanics, rendering, and independent verification."
+    }
+  ],
+  "preserved_failure_corrections": [
+    {
+      "run_id": "68b6798afff74609b21968bca32f48da",
+      "cause": "The model-authored lowest-threat enemy health exceeded one full initial-party basic-attack round.",
+      "correction": "GodotGameplayPlan now rejects that general numeric contradiction before materialization."
+    },
+    {
+      "run_id": "d1cb4d4b4cbd48b0b3fa2652ee0a0bcf",
+      "cause": "A redundant generated Sprite Atlas source failed bounded normalization even though the qualified licensed atlas covered the profile.",
+      "correction": "The default Trinity workflow now binds licensed roles semantically and does not require a second generated Sprite Atlas."
+    }
+  ],
+  "claim_boundary": "These runs prove the bounded Trinity and side-scroll profiles, real Godot mechanics, display-backed rendering, licensed-atlas loading, license receipts, and role-separated verification. They do not claim a full production game or standalone redistribution of the AetherAI source catalog."
+}

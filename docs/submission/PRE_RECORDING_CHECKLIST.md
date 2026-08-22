@@ -23,7 +23,7 @@
 - [x] Say “role-separated verifier inside KHALINOS,” not “external independent audit.”
 - [x] Say “prototype-level visual output,” not “commercially polished game.”
 - [x] Say deployed workflows run without Codex; product development and deployment still use developer tools.
-- [x] Distinguish Cloud-qualified generated VFX from the external AetherAI reserve library.
+- [x] Distinguish the two Cloud-qualified, profile-scoped AetherAI atlases from the external reserve/source catalog.
 
 ## Release gate
 

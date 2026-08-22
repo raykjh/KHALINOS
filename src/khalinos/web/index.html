@@ -312,7 +312,7 @@
         <div id="status" role="status" aria-live="polite">
           <div class="run-dashboard">
             <div class="metric status"><small>Status</small><strong id="runStatus">QUEUED</strong></div>
-            <div class="metric"><small>Quest / receipts</small><strong id="questProgress">0 / 0</strong></div>
+            <div class="metric"><small>Receipts · quests</small><strong id="questProgress">0 · 0</strong></div>
             <div class="metric"><small>Elapsed</small><strong id="runElapsed">0:00</strong></div>
             <div class="metric"><small>Gemini calls</small><strong id="modelCalls">0</strong></div>
             <div class="metric"><small>Verifier</small><strong id="verifierState">WAITING</strong></div>
@@ -587,7 +587,7 @@ function renderRun(record){
   const telemetry=record.telemetry||{profile:{label:record.toolpack_binding?.toolpack_id||'Bound route'},capability_packs:[record.toolpack_binding?.toolpack_id].filter(Boolean),active_capability_packs:[],active_actor:{id:'cloud_run_service',label:'Cloud Run Service',kind:'CLOUD RUNTIME'},stage:{index:1,id:'orchestration'},stages:[{id:'authority',label:'01 Authority'},{id:'orchestration',label:'02 Orchestration'},{id:'production',label:'03 Production'},{id:'evidence',label:'04 Evidence gates'},{id:'result',label:'05 Result'}],milestones:[],verifier_state:'waiting',cloud:{}};
   const workMode=record.work_mode||intake?.material_inspection?.recommended_work_mode||'';const existing=workMode==='existing_project_repair';const godot=(record.toolpack_binding?.toolpack_id||'').startsWith('godot.');const sequence=existing?['owner','repair','runtime','verifier','result']:godot?['owner','visual','maker','runtime','verifier','result']:['owner','visual','maker','runtime','verifier','result'];const activeIndex=sequence.indexOf(activeRole);const skipped=existing?new Set(['visual','maker']):new Set(['repair']);
   $('#runId').textContent=`Run ${record.run_id}`;$('#runStatus').textContent=record.status.toUpperCase();$('#modelCalls').textContent=record.model_calls;
-  const total=intake?.preview?.estimate?.quest_count||Math.max(record.completed_receipt_ids.length,1);$('#questProgress').textContent=`${record.current_quest_id||'—'} · ${record.completed_receipt_ids.length}/${total}`;
+  const total=intake?.preview?.estimate?.quest_count||0;$('#questProgress').textContent=`${record.completed_receipt_ids.length} receipts · ${total} quests`;
   $('#runElapsed').textContent=elapsed(record);$('#verifierState').textContent=telemetry.verifier_state.toUpperCase();$('#cloudHeartbeat').textContent=heartbeat(record);$('#campHeadline').textContent=terminal?`${record.status.toUpperCase()} ·`:`${telemetry.stage.label.toUpperCase()} ·`;$('#campMessage').textContent=record.message;
   $('#profileLabel').textContent=telemetry.profile.label;$('#capabilityPacks').innerHTML=packs(telemetry.capability_packs,telemetry.active_capability_packs);$('#activePacks').innerHTML=packs(telemetry.active_capability_packs);
   const cloud=telemetry.cloud||{};const operation=(cloud.execution_id||cloud.operation_name||'pending').split('/').pop();$('#cloudFacts').innerHTML=`${escapeHtml(cloud.project_id||'project pending')}<br>${escapeHtml(cloud.region||'region pending')} · ${escapeHtml(cloud.job_name||'job pending')}<br>${escapeHtml(operation)}`;
