@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from khalinos.agent_capability_receipts import build_agent_capability_trace
 from khalinos.godot_gameplay import (
+    GODOT_GAMEPLAY_LICENSED_ART_SPRITE_PROFILE,
     GODOT_GAMEPLAY_SPRITE_PROFILE,
     GodotGameplayProjectPlan,
     compile_godot_gameplay,
@@ -18,6 +19,7 @@ from khalinos.godot_gameplay import (
     derive_sprite_atlas_plan,
     validate_gameplay_plan_requirements,
 )
+from khalinos.licensed_visual_assets import configured_licensed_art_bundle
 from khalinos.models import (
     AgentVerification, ArtifactAsset, CriterionFinding, QuestReceipt, RunRecord, RunStatus,
     SpriteAtlasGate, UserBrief, VisualAssetGate, VisualConcept, VisualConceptPlan, VisualSelection,
@@ -92,6 +94,16 @@ async def execute_godot_gameplay_run(
             **SPRITE_SEGMENTATION_CONTRACT.model_dump(mode="json"),
             "contract_sha256": SPRITE_SEGMENTATION_CONTRACT.sha256(),
         })
+        licensed_art = configured_licensed_art_bundle("godot.trinity-top-down")
+        if licensed_art is not None:
+            for path, content in licensed_art.text_files().items():
+                store.put_bytes(run_id, f"licensed-art/{path}", content.encode("utf-8"), "application/json")
+            store.put_bytes(
+                run_id,
+                f"licensed-art/{licensed_art.atlas.path}",
+                licensed_art.atlas.bytes(),
+                licensed_art.atlas.media_type,
+            )
 
         record = record.model_copy(update={
             "status": RunStatus.PLANNING,
@@ -168,7 +180,9 @@ async def execute_godot_gameplay_run(
                 "model_calls": team.call_count,
             })
             store.update(record)
-            artifact = compile_godot_gameplay(decision.gameplay, concept, asset)
+            artifact = compile_godot_gameplay(
+                decision.gameplay, concept, asset, licensed_art=licensed_art
+            )
             with tempfile.TemporaryDirectory(prefix=f"khalinos-gameplay-{run_id}-{concept.candidate_id}-") as temporary:
                 root = Path(temporary) / "product"
                 evidence_dir = Path(temporary) / "evidence"
@@ -294,6 +308,7 @@ async def execute_godot_gameplay_run(
             artifact.asset,
             sprite_plan,
             sprite_atlas,
+            licensed_art,
             require_sprite_atlas=True,
         )
         with tempfile.TemporaryDirectory(prefix=f"khalinos-gameplay-final-proof-{run_id}-") as temporary:
@@ -406,12 +421,21 @@ async def execute_godot_gameplay_run(
             artifact_bundle_sha256=artifact.bundle_sha256,
             evidence_sha256=canonical_sha256(deterministic),
             composition=compose_godot_gameplay_capabilities(
-                artifact.gameplay, artifact.sprite_plan
+                artifact.gameplay, artifact.sprite_plan, licensed_art
             ),
-            profile=GODOT_GAMEPLAY_SPRITE_PROFILE,
+            profile=(
+                GODOT_GAMEPLAY_LICENSED_ART_SPRITE_PROFILE
+                if licensed_art is not None
+                else GODOT_GAMEPLAY_SPRITE_PROFILE
+            ),
             binary_sha256_by_path={
                 artifact.asset.path: artifact.asset.sha256,
                 artifact.sprite_atlas.path: artifact.sprite_atlas.sha256,
+                **(
+                    {licensed_art.atlas.path: licensed_art.atlas.sha256}
+                    if licensed_art is not None
+                    else {}
+                ),
             },
             model_calls_by_agent=getattr(team, "call_count_by_agent", {}),
         )
@@ -429,6 +453,11 @@ async def execute_godot_gameplay_run(
                 output.writestr(artifact.asset.path, artifact.asset.bytes())
                 if artifact.sprite_atlas is not None:
                     output.writestr(artifact.sprite_atlas.path, artifact.sprite_atlas.bytes())
+                if artifact.licensed_art_atlas is not None:
+                    output.writestr(
+                        artifact.licensed_art_atlas.path,
+                        artifact.licensed_art_atlas.bytes(),
+                    )
             archive_uri = store.put_file(run_id, "final/source.zip", archive, "application/zip")
         store.put_json(run_id, "final/artifact_manifest.json", {
             "artifact_sha256": canonical_sha256(artifact),
@@ -436,12 +465,22 @@ async def execute_godot_gameplay_run(
             "bundle_sha256": artifact.bundle_sha256,
             "asset_sha256": artifact.asset.sha256,
             "sprite_atlas_sha256": artifact.sprite_atlas.sha256 if artifact.sprite_atlas else None,
+            "licensed_art_atlas_sha256": (
+                artifact.licensed_art_atlas.sha256
+                if artifact.licensed_art_atlas is not None
+                else None
+            ),
             "sprite_atlas_gate_sha256": canonical_sha256(sprite_gate),
             "sprite_segmentation_contract_sha256": artifact.sprite_segmentation_contract_sha256,
             "toolpack_binding": binding.model_dump(mode="json"),
             "agent_capability_trace_sha256": capability_trace.sha256(),
             "agent_capability_trace": capability_trace_uri,
-            "files": sorted([*artifact.files, artifact.asset.path, *([artifact.sprite_atlas.path] if artifact.sprite_atlas else [])]),
+            "files": sorted([
+                *artifact.files,
+                artifact.asset.path,
+                *([artifact.sprite_atlas.path] if artifact.sprite_atlas else []),
+                *([artifact.licensed_art_atlas.path] if artifact.licensed_art_atlas else []),
+            ]),
             "receipt_ids": receipt_ids,
             "source_archive": archive_uri,
         })

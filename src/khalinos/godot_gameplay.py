@@ -12,17 +12,23 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
 from khalinos.godot_capability_packs import (
+    GODOT_ASSET_SELECTOR_PACK,
     GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_LICENSED_ATLAS_PACK,
+    GODOT_LICENSE_RECEIPT_PACK,
     GODOT_PRESENTATION_SKIN_PACK,
     GODOT_PROJECT_CORE_PACK,
+    GODOT_STYLE_COMPOSER_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
     godot_audio_feedback_stage,
     godot_combat_feedback_stage,
+    godot_licensed_art_stages,
     godot_presentation_skin_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
+from khalinos.licensed_visual_assets import LICENSED_ATLAS_PATH, LicensedArtBundle
 from khalinos.toolpacks import (
     CapabilityComposition,
     CapabilityPackManifest,
@@ -314,11 +320,12 @@ class CompiledGodotGameplay(BaseModel):
     asset: ArtifactAsset
     sprite_plan: SpriteAtlasPlan | None = None
     sprite_atlas: ArtifactAsset | None = None
+    licensed_art_atlas: ArtifactAsset | None = None
     sprite_contract_required: bool = False
     sprite_segmentation_contract_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    files: dict[str, str] = Field(min_length=6, max_length=12)
+    files: dict[str, str] = Field(min_length=6, max_length=17)
 
 
 def derive_sprite_atlas_plan(plan: GodotGameplayPlan) -> SpriteAtlasPlan:
@@ -381,6 +388,9 @@ var victory := false
 var rng := RandomNumberGenerator.new()
 var sprite_manifest: Dictionary = {}
 var sprite_texture: Texture2D
+var licensed_art_manifest: Dictionary = {}
+var licensed_art_texture: Texture2D
+var licensed_art_helper
 
 func _ready() -> void:
     config = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_GAMEPLAY.json"))
@@ -398,6 +408,12 @@ func _ready() -> void:
     if FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json"):
         sprite_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_SPRITE_ATLAS.json"))
         sprite_texture = load("res://assets/sprite-atlas.png")
+    if FileAccess.file_exists("res://KHALINOS_LICENSED_ATLAS.json"):
+        licensed_art_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_LICENSED_ATLAS.json"))
+        licensed_art_texture = load("res://assets/licensed-art-atlas.png")
+        licensed_art_helper = load("res://scripts/khalinos_licensed_art.gd")
+    if OS.get_cmdline_user_args().has("--khalinos-capture-gameplay"):
+        _start_game()
     queue_redraw()
 
 func _sprite_region(sprite_id: String) -> Rect2:
@@ -893,6 +909,9 @@ func verification_scenario() -> Dictionary:
         "combat_feedback_pack_loaded": COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
         "presentation_skin_pack_loaded": PRESENTATION_SKIN_PACK_ID == "godot.presentation-skin@1.0.0",
         "audio_feedback_pack_loaded": AUDIO_FEEDBACK_PACK_ID == "godot.audio-feedback@1.0.0",
+        "licensed_art_requested": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
+        "licensed_art_loaded": licensed_art_texture != null and licensed_art_helper != null,
+        "license_receipt_present": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
         "start_gate_present": start_gate_present,
         "countdown_decrements": countdown_decrements,
         "first_enemy_level_one_beatable": first_enemy_level_one_beatable,
@@ -965,8 +984,13 @@ func _draw() -> void:
             if String(effect.owner_hero_id) == String(hero.hero_id):
                 attacking = true
                 position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
+        var licensed_hero_drawn := false
+        if licensed_art_helper != null and licensed_art_texture != null:
+            licensed_hero_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, String(hero.hero_id), Rect2(position - Vector2(30, 30), Vector2(60, 60)))
         var hero_region := _sprite_region(hero.hero_id)
-        if sprite_texture != null and hero_region.size != Vector2.ZERO:
+        if licensed_hero_drawn:
+            pass
+        elif sprite_texture != null and hero_region.size != Vector2.ZERO:
             draw_texture_rect_region(sprite_texture, Rect2(position - Vector2(28, 28), Vector2(56, 56)), hero_region)
         else:
             draw_circle(position, 16.0, Color(hero.color_hex))
@@ -975,8 +999,13 @@ func _draw() -> void:
             draw_circle(position, 31.0, Color(1.0, 0.82, 0.28, 0.9), false, 4.0, true)
         hero_index += 1
     for enemy in enemies:
+        var licensed_enemy_drawn := false
+        if licensed_art_helper != null and licensed_art_texture != null:
+            licensed_enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, String(enemy.enemy_id), Rect2(enemy.position - Vector2(24, 24), Vector2(48, 48)), Color(0.72, 1.0, 0.72, 1.0))
         var enemy_region := _sprite_region(enemy.enemy_id)
-        if sprite_texture != null and enemy_region.size != Vector2.ZERO:
+        if licensed_enemy_drawn:
+            pass
+        elif sprite_texture != null and enemy_region.size != Vector2.ZERO:
             draw_texture_rect_region(sprite_texture, Rect2(enemy.position - Vector2(22, 22), Vector2(44, 44)), enemy_region, Color("8ee58a"))
         else:
             draw_circle(enemy.position, 14.0, Color("58b96a"))
@@ -1110,6 +1139,10 @@ func _probe() -> void:
             not FileAccess.file_exists("res://KHALINOS_SPRITE_ATLAS.json")
             or (receipt.get("sprite_atlas_loaded", false) and receipt.get("all_sprite_ids_mapped", false))
         )
+        and (
+            not receipt.get("licensed_art_requested", false)
+            or (receipt.get("licensed_art_loaded", false) and receipt.get("license_receipt_present", false))
+        )
     )
     var target := FileAccess.open(output, FileAccess.WRITE)
     target.store_string(JSON.stringify(receipt))
@@ -1153,11 +1186,28 @@ GODOT_GAMEPLAY_BASE_PROFILE = (
     GODOT_GAMEPLAY_PROBE_PACK,
 )
 GODOT_GAMEPLAY_SPRITE_PROFILE = GODOT_GAMEPLAY_BASE_PROFILE + (GODOT_SPRITE_ATLAS_PACK,)
+GODOT_GAMEPLAY_LICENSED_ART_PROFILE = (
+    GODOT_PROJECT_CORE_PACK,
+    GODOT_VISUAL_FOUNDATION_PACK,
+    GODOT_ASSET_SELECTOR_PACK,
+    GODOT_STYLE_COMPOSER_PACK,
+    GODOT_LICENSED_ATLAS_PACK,
+    GODOT_LICENSE_RECEIPT_PACK,
+    GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
+    GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
+    GODOT_GAMEPLAY_PROBE_PACK,
+)
+GODOT_GAMEPLAY_LICENSED_ART_SPRITE_PROFILE = GODOT_GAMEPLAY_LICENSED_ART_PROFILE + (
+    GODOT_SPRITE_ATLAS_PACK,
+)
 
 
 def compose_godot_gameplay_capabilities(
     plan: GodotGameplayPlan,
     sprite_plan: SpriteAtlasPlan | None = None,
+    licensed_art: LicensedArtBundle | None = None,
 ) -> CapabilityComposition:
     """Build Trinity through ordered packs without changing artifact bytes."""
 
@@ -1175,6 +1225,12 @@ def compose_godot_gameplay_capabilities(
             script_path="scripts/khalinos_gameplay.gd",
             node_name="Gameplay",
         ),
+    ]
+    if licensed_art is not None:
+        if licensed_art.profile_id != "godot.trinity-top-down":
+            raise PermissionError("Trinity profile received licensed art for another profile")
+        stages.extend(godot_licensed_art_stages(licensed_art))
+    stages.extend([
         CapabilityPackStage(
             manifest=GODOT_TOP_DOWN_AUTO_COMBAT_PACK,
             text_files={
@@ -1189,7 +1245,7 @@ def compose_godot_gameplay_capabilities(
             manifest=GODOT_GAMEPLAY_PROBE_PACK,
             text_files={"scripts/khalinos_gameplay_probe.gd": PROBE_SCRIPT},
         ),
-    ]
+    ])
     if sprite_plan is not None:
         stages.append(CapabilityPackStage(
             manifest=GODOT_SPRITE_ATLAS_PACK,
@@ -1209,6 +1265,7 @@ def compile_godot_gameplay(
     asset: ArtifactAsset,
     sprite_plan: SpriteAtlasPlan | None = None,
     sprite_atlas: ArtifactAsset | None = None,
+    licensed_art: LicensedArtBundle | None = None,
     *,
     require_sprite_atlas: bool = False,
 ) -> CompiledGodotGameplay:
@@ -1232,11 +1289,12 @@ def compile_godot_gameplay(
         "asset_sha256": asset.sha256,
         "sprite_plan": sprite_plan.model_dump(mode="json") if sprite_plan else None,
         "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
+        "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
         "sprite_contract_required": require_sprite_atlas,
         "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
     })
-    composition = compose_godot_gameplay_capabilities(plan, sprite_plan)
-    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set())
+    composition = compose_godot_gameplay_capabilities(plan, sprite_plan, licensed_art)
+    expected_binary_paths = {ASSET_PATH} | ({SPRITE_ATLAS_PATH} if sprite_atlas is not None else set()) | ({LICENSED_ATLAS_PATH} if licensed_art is not None else set())
     if set(composition.binary_paths) != expected_binary_paths:
         raise PermissionError("Godot Capability Pack binary bindings do not match approved assets")
     files = composition.text_files
@@ -1247,6 +1305,7 @@ def compile_godot_gameplay(
         asset=asset,
         sprite_plan=sprite_plan,
         sprite_atlas=sprite_atlas,
+        licensed_art_atlas=licensed_art.atlas if licensed_art else None,
         sprite_contract_required=require_sprite_atlas,
         sprite_segmentation_contract_sha256=segmentation_contract_sha256,
         plan_sha256=plan_sha,
@@ -1255,6 +1314,7 @@ def compile_godot_gameplay(
             "files": files,
             "asset_sha256": asset.sha256,
             "sprite_atlas_sha256": sprite_atlas.sha256 if sprite_atlas else None,
+            "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
             "sprite_contract_required": require_sprite_atlas,
             "sprite_segmentation_contract_sha256": segmentation_contract_sha256,
         }),

@@ -6,6 +6,14 @@ import json
 import re
 
 from khalinos.toolpacks import CapabilityPackManifest, CapabilityPackStage
+from khalinos.licensed_visual_assets import (
+    ASSET_SELECTION_PATH,
+    LICENSE_RECEIPT_PATH,
+    LICENSED_ATLAS_MANIFEST_PATH,
+    LICENSED_ATLAS_PATH,
+    STYLE_COMPOSITION_PATH,
+    LicensedArtBundle,
+)
 from khalinos.visual_assets import ASSET_PATH
 
 
@@ -43,6 +51,35 @@ GODOT_AUDIO_FEEDBACK_PACK = CapabilityPackManifest(
     provides=("audio.feedback",),
     requires=("gameplay.combat-feedback",),
     text_paths=("scripts/khalinos_audio_feedback.gd",),
+)
+GODOT_ASSET_SELECTOR_PACK = CapabilityPackManifest(
+    pack_id="godot.asset-selector",
+    version="1.0.0",
+    provides=("visual.asset.selection",),
+    requires=("godot.visual.foundation",),
+    text_paths=(ASSET_SELECTION_PATH,),
+)
+GODOT_STYLE_COMPOSER_PACK = CapabilityPackManifest(
+    pack_id="godot.style-composer",
+    version="1.0.0",
+    provides=("visual.style.composition",),
+    requires=("visual.asset.selection",),
+    text_paths=(STYLE_COMPOSITION_PATH, "scripts/khalinos_licensed_art.gd"),
+)
+GODOT_LICENSED_ATLAS_PACK = CapabilityPackManifest(
+    pack_id="godot.licensed-atlas",
+    version="1.0.0",
+    provides=("godot.visual.licensed-atlas",),
+    requires=("visual.style.composition",),
+    text_paths=(LICENSED_ATLAS_MANIFEST_PATH,),
+    binary_paths=(LICENSED_ATLAS_PATH,),
+)
+GODOT_LICENSE_RECEIPT_PACK = CapabilityPackManifest(
+    pack_id="godot.license-receipt",
+    version="1.0.0",
+    provides=("evidence.asset-license-receipt",),
+    requires=("godot.visual.licensed-atlas",),
+    text_paths=(LICENSE_RECEIPT_PATH,),
 )
 
 
@@ -274,6 +311,36 @@ static func play_cue(host: Node, cue: String) -> bool:
 '''
 
 
+LICENSED_ART_SCRIPT = r'''extends RefCounted
+
+const PACK_ID := "godot.style-composer@1.0.0"
+
+static func region_for(manifest: Dictionary, role: String) -> Rect2:
+    for slot in manifest.get("slots", []):
+        if String(slot.get("role", "")) == role:
+            var region: Array = slot.get("atlas_region", [])
+            if region.size() == 4:
+                return Rect2(float(region[0]), float(region[1]), float(region[2]), float(region[3]))
+    return Rect2()
+
+static func draw_role(
+    canvas: CanvasItem,
+    texture: Texture2D,
+    manifest: Dictionary,
+    role: String,
+    destination: Rect2,
+    modulate := Color.WHITE,
+) -> bool:
+    if texture == null:
+        return false
+    var region := region_for(manifest, role)
+    if region.size == Vector2.ZERO:
+        return false
+    canvas.draw_texture_rect_region(texture, destination, region, modulate)
+    return true
+'''
+
+
 def godot_project_core_stage(
     *,
     project_name: str,
@@ -334,4 +401,32 @@ def godot_audio_feedback_stage() -> CapabilityPackStage:
     return CapabilityPackStage(
         manifest=GODOT_AUDIO_FEEDBACK_PACK,
         text_files={"scripts/khalinos_audio_feedback.gd": AUDIO_FEEDBACK_SCRIPT},
+    )
+
+
+def godot_licensed_art_stages(bundle: LicensedArtBundle) -> tuple[CapabilityPackStage, ...]:
+    """Bind a pre-graded licensed asset selection without redistributing its source library."""
+
+    text = bundle.text_files()
+    return (
+        CapabilityPackStage(
+            manifest=GODOT_ASSET_SELECTOR_PACK,
+            text_files={ASSET_SELECTION_PATH: text[ASSET_SELECTION_PATH]},
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_STYLE_COMPOSER_PACK,
+            text_files={
+                STYLE_COMPOSITION_PATH: text[STYLE_COMPOSITION_PATH],
+                "scripts/khalinos_licensed_art.gd": LICENSED_ART_SCRIPT,
+            },
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_LICENSED_ATLAS_PACK,
+            text_files={LICENSED_ATLAS_MANIFEST_PATH: text[LICENSED_ATLAS_MANIFEST_PATH]},
+            binary_paths=(LICENSED_ATLAS_PATH,),
+        ),
+        CapabilityPackStage(
+            manifest=GODOT_LICENSE_RECEIPT_PACK,
+            text_files={LICENSE_RECEIPT_PATH: text[LICENSE_RECEIPT_PATH]},
+        ),
     )

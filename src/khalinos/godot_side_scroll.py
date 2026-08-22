@@ -9,17 +9,23 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from khalinos.godot_capability_packs import (
+    GODOT_ASSET_SELECTOR_PACK,
     GODOT_AUDIO_FEEDBACK_PACK,
     GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_LICENSED_ATLAS_PACK,
+    GODOT_LICENSE_RECEIPT_PACK,
     GODOT_PRESENTATION_SKIN_PACK,
     GODOT_PROJECT_CORE_PACK,
+    GODOT_STYLE_COMPOSER_PACK,
     GODOT_VISUAL_FOUNDATION_PACK,
     godot_audio_feedback_stage,
     godot_combat_feedback_stage,
+    godot_licensed_art_stages,
     godot_presentation_skin_stage,
     godot_project_core_stage,
     godot_visual_foundation_stage,
 )
+from khalinos.licensed_visual_assets import LICENSED_ATLAS_PATH, LicensedArtBundle
 from khalinos.models import ArtifactAsset, QuestPlan, VisualConcept
 from khalinos.toolpacks import (
     CapabilityComposition,
@@ -53,10 +59,17 @@ var total_kills := 0
 var enemies: Array[Dictionary] = []
 var shot_effects: Array[Dictionary] = []
 var audio_events := {"attack": 0, "hit": 0, "heal": 0, "victory": 0}
+var licensed_art_manifest: Dictionary = {}
+var licensed_art_texture: Texture2D
+var licensed_art_helper
 
 func _ready() -> void:
     combat = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_SIDE_SCROLL.json"))
     destination = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_DESTINATION.json"))
+    if FileAccess.file_exists("res://KHALINOS_LICENSED_ATLAS.json"):
+        licensed_art_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_LICENSED_ATLAS.json"))
+        licensed_art_texture = load("res://assets/licensed-art-atlas.png")
+        licensed_art_helper = load("res://scripts/khalinos_licensed_art.gd")
     get_window().content_scale_size = Vector2i(int(combat.viewport_width), int(combat.viewport_height))
     get_window().content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
     queue_redraw()
@@ -132,6 +145,19 @@ func _draw() -> void:
     draw_rect(Rect2(0, height * 0.58, width, height * 0.42), Color(0.84, 0.77, 0.55, 0.58), true)
     draw_rect(Rect2(0, height * 0.72, width, height * 0.12), Color(0.56, 0.49, 0.34, 0.72), true)
     PresentationSkin.draw_parallax(self, width, height, progress_distance)
+    if licensed_art_helper != null and licensed_art_texture != null:
+        for prop_index in range(6):
+            var prop_x := fposmod(float(prop_index * 211) - progress_distance * 0.22, width + 150.0) - 70.0
+            var prop_role := "tree" if prop_index % 2 == 0 else "rock"
+            var prop_size := Vector2(92, 92) if prop_role == "tree" else Vector2(64, 64)
+            licensed_art_helper.draw_role(
+                self,
+                licensed_art_texture,
+                licensed_art_manifest,
+                prop_role,
+                Rect2(Vector2(prop_x, height * 0.58) - prop_size * Vector2(0.5, 0.72), prop_size),
+                Color(0.72, 0.82, 0.70, 0.82),
+            )
     draw_line(Vector2(0, height * 0.78), Vector2(width, height * 0.78), Color("f7e7ad"), 4)
     CombatFeedback.draw_attack_range(
         self,
@@ -143,11 +169,26 @@ func _draw() -> void:
         false,
     )
     var pulse := absf(sin(elapsed * 7.0)) * 4.0
-    PresentationSkin.draw_side_scroll_party(self, Vector2(170, 350), pulse)
+    var party_drawn := false
+    if licensed_art_helper != null and licensed_art_texture != null:
+        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "warrior", Rect2(100, 302, 74, 74))
+        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "archer", Rect2(158, 322, 68, 68)) and party_drawn
+        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "priest", Rect2(212, 300, 72, 72)) and party_drawn
+    if not party_drawn:
+        PresentationSkin.draw_side_scroll_party(self, Vector2(170, 350), pulse)
+    var enemy_index := 0
     for enemy in enemies:
         var enemy_pos := Vector2(float(enemy["x"]), 360)
         var hp_ratio := clampf(float(enemy["hp"]) / float(combat["enemy_health"]), 0.0, 1.0)
-        PresentationSkin.draw_side_scroll_enemy(self, enemy_pos, hp_ratio, pulse)
+        var enemy_role: String = ["enemy_scout", "enemy_brute", "enemy_beast", "enemy_caster"][enemy_index % 4]
+        var enemy_drawn := false
+        if licensed_art_helper != null and licensed_art_texture != null:
+            enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, enemy_role, Rect2(enemy_pos - Vector2(34, 38), Vector2(68, 68)), Color(0.72, 1.0, 0.72, 1.0))
+        if not enemy_drawn:
+            PresentationSkin.draw_side_scroll_enemy(self, enemy_pos, hp_ratio, pulse)
+        draw_rect(Rect2(enemy_pos.x - 24.0, enemy_pos.y - 49.0, 48.0, 5.0), Color("2a2430"), true)
+        draw_rect(Rect2(enemy_pos.x - 22.0, enemy_pos.y - 47.0, 44.0 * hp_ratio, 2.0), Color("ff6558"), true)
+        enemy_index += 1
     for effect in shot_effects:
         CombatFeedback.draw_attack_line(
             self, effect["from"], effect["to"], Color("fff2a8"), 7.0, false
@@ -156,7 +197,11 @@ func _draw() -> void:
     PresentationSkin.draw_hud_panel(self, Rect2(22, 16, width - 44, 100), Color("f1bd4a"))
     draw_rect(Rect2(36, 28, width - 72, 18), Color("27384a"), true)
     draw_rect(Rect2(39, 31, (width - 78) * ratio, 12), Color("f1bd4a"), true)
-    PresentationSkin.draw_destination(self, Vector2(width - 75, 350), won)
+    var destination_drawn := false
+    if licensed_art_helper != null and licensed_art_texture != null:
+        destination_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "destination", Rect2(width - 145, 270, 132, 132))
+    if not destination_drawn:
+        PresentationSkin.draw_destination(self, Vector2(width - 75, 350), won)
     draw_string(ThemeDB.fallback_font, Vector2(36, 72), "AUTO MARCH  %d / %d m" % [int(progress_distance), int(destination.get("destination_distance", 0))], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("f4f0df"))
     draw_string(ThemeDB.fallback_font, Vector2(36, 102), "Kills %d   Auto attacks %d" % [total_kills, total_attacks], HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color("cfe4d9"))
     if won:
@@ -184,6 +229,9 @@ func _initialize() -> void:
         "combat_feedback_pack_loaded": scene.COMBAT_FEEDBACK_PACK_ID == "godot.combat-feedback@1.0.0",
         "presentation_skin_pack_loaded": scene.PRESENTATION_SKIN_PACK_ID == "godot.presentation-skin@1.0.0",
         "audio_feedback_pack_loaded": scene.AUDIO_FEEDBACK_PACK_ID == "godot.audio-feedback@1.0.0",
+        "licensed_art_requested": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
+        "licensed_art_loaded": scene.licensed_art_texture != null and scene.licensed_art_helper != null,
+        "license_receipt_present": FileAccess.file_exists("res://KHALINOS_LICENSE_RECEIPT.json"),
         "horizontal_lane_present": true,
         "movement_right": scene.progress_distance > initial_progress,
         "enemy_spawned": scene.total_spawned > 0,
@@ -207,6 +255,7 @@ func _initialize() -> void:
         and receipt["destination_reached"] and receipt["victory"]
         and receipt["attack_audio_events"] > 0 and receipt["hit_audio_events"] > 0
         and receipt["victory_audio_events"] > 0
+        and (not receipt["licensed_art_requested"] or (receipt["licensed_art_loaded"] and receipt["license_receipt_present"]))
     )
     var target := FileAccess.open(output_path, FileAccess.WRITE)
     target.store_string(JSON.stringify(receipt, "  ") + "\n")
@@ -251,9 +300,10 @@ class CompiledGodotSideScroll(BaseModel):
     plan: GodotSideScrollPlan
     concept: VisualConcept
     asset: ArtifactAsset
+    licensed_art_atlas: ArtifactAsset | None = None
     plan_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     bundle_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    files: dict[str, str] = Field(min_length=10, max_length=10)
+    files: dict[str, str] = Field(min_length=10, max_length=15)
 
 
 GODOT_SIDE_SCROLL_LANE_COMBAT_PACK = CapabilityPackManifest(
@@ -288,6 +338,20 @@ GODOT_SIDE_SCROLL_PROFILE = (
     GODOT_DESTINATION_PROGRESSION_PACK,
     GODOT_SIDE_SCROLL_PROBE_PACK,
 )
+GODOT_SIDE_SCROLL_LICENSED_ART_PROFILE = (
+    GODOT_PROJECT_CORE_PACK,
+    GODOT_VISUAL_FOUNDATION_PACK,
+    GODOT_ASSET_SELECTOR_PACK,
+    GODOT_STYLE_COMPOSER_PACK,
+    GODOT_LICENSED_ATLAS_PACK,
+    GODOT_LICENSE_RECEIPT_PACK,
+    GODOT_SIDE_SCROLL_LANE_COMBAT_PACK,
+    GODOT_COMBAT_FEEDBACK_PACK,
+    GODOT_PRESENTATION_SKIN_PACK,
+    GODOT_AUDIO_FEEDBACK_PACK,
+    GODOT_DESTINATION_PROGRESSION_PACK,
+    GODOT_SIDE_SCROLL_PROBE_PACK,
+)
 
 
 def _sha256(value: object) -> str:
@@ -297,7 +361,10 @@ def _sha256(value: object) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def compose_godot_side_scroll_capabilities(plan: GodotSideScrollPlan) -> CapabilityComposition:
+def compose_godot_side_scroll_capabilities(
+    plan: GodotSideScrollPlan,
+    licensed_art: LicensedArtBundle | None = None,
+) -> CapabilityComposition:
     combat_manifest = {
         "schema_version": plan.schema_version,
         "viewport_width": plan.viewport_width,
@@ -315,7 +382,7 @@ def compose_godot_side_scroll_capabilities(plan: GodotSideScrollPlan) -> Capabil
         "destination_distance": plan.destination_distance,
         "party_speed": plan.party_speed,
     }
-    return compose_capability_stages((
+    stages = [
         godot_project_core_stage(
             project_name=plan.project_name,
             viewport_width=plan.viewport_width,
@@ -328,6 +395,12 @@ def compose_godot_side_scroll_capabilities(plan: GodotSideScrollPlan) -> Capabil
             script_path="scripts/khalinos_side_scroll.gd",
             node_name="SideScrollJourney",
         ),
+    ]
+    if licensed_art is not None:
+        if licensed_art.profile_id != "godot.side-scroll-destination":
+            raise PermissionError("side-scroll profile received licensed art for another profile")
+        stages.extend(godot_licensed_art_stages(licensed_art))
+    stages.extend((
         CapabilityPackStage(
             manifest=GODOT_SIDE_SCROLL_LANE_COMBAT_PACK,
             text_files={
@@ -349,17 +422,20 @@ def compose_godot_side_scroll_capabilities(plan: GodotSideScrollPlan) -> Capabil
             text_files={"scripts/khalinos_side_scroll_probe.gd": SIDE_SCROLL_PROBE_SCRIPT},
         ),
     ))
+    return compose_capability_stages(stages)
 
 
 def compile_godot_side_scroll(
     plan: GodotSideScrollPlan,
     concept: VisualConcept,
     asset: ArtifactAsset,
+    licensed_art: LicensedArtBundle | None = None,
 ) -> CompiledGodotSideScroll:
     if asset.path != ASSET_PATH or asset.media_type != "image/png":
         raise ValueError("Godot side-scroll profile requires the trusted visual foundation PNG")
-    composition = compose_godot_side_scroll_capabilities(plan)
-    if composition.binary_paths != (ASSET_PATH,):
+    composition = compose_godot_side_scroll_capabilities(plan, licensed_art)
+    expected_binary_paths = {ASSET_PATH} | ({LICENSED_ATLAS_PATH} if licensed_art is not None else set())
+    if set(composition.binary_paths) != expected_binary_paths:
         raise PermissionError("Godot side-scroll binary bindings do not match approved assets")
     files = {
         path: content.replace("\r\n", "\n").replace("\r", "\n")
@@ -369,16 +445,19 @@ def compile_godot_side_scroll(
         "plan": plan.model_dump(mode="json"),
         "concept": concept.model_dump(mode="json"),
         "asset_sha256": asset.sha256,
+        "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
     })
     return CompiledGodotSideScroll(
         plan=plan,
         concept=concept,
         asset=asset,
+        licensed_art_atlas=licensed_art.atlas if licensed_art else None,
         plan_sha256=plan_sha,
         bundle_sha256=_sha256({
             "plan_sha256": plan_sha,
             "files": files,
             "asset_sha256": asset.sha256,
+            "licensed_art_sha256": licensed_art.atlas.sha256 if licensed_art else None,
         }),
         files=files,
     )

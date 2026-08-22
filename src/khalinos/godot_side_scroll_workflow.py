@@ -11,11 +11,13 @@ from uuid import uuid4
 
 from khalinos.agent_capability_receipts import build_agent_capability_trace
 from khalinos.godot_side_scroll import (
+    GODOT_SIDE_SCROLL_LICENSED_ART_PROFILE,
     GODOT_SIDE_SCROLL_PROFILE,
     GodotSideScrollProjectPlan,
     compile_godot_side_scroll,
     compose_godot_side_scroll_capabilities,
 )
+from khalinos.licensed_visual_assets import configured_licensed_art_bundle
 from khalinos.models import (
     AgentVerification,
     ArtifactAsset,
@@ -88,6 +90,16 @@ async def execute_godot_side_scroll_run(
             raise PermissionError("approved output files do not match the side-scroll ToolPack manifest")
         if record.work_mode != "new_product_build" or record.source_snapshot is not None:
             raise PermissionError("Godot side-scroll ToolPack authorizes new products only")
+        licensed_art = configured_licensed_art_bundle("godot.side-scroll-destination")
+        if licensed_art is not None:
+            for path, content in licensed_art.text_files().items():
+                store.put_bytes(run_id, f"licensed-art/{path}", content.encode("utf-8"), "application/json")
+            store.put_bytes(
+                run_id,
+                f"licensed-art/{licensed_art.atlas.path}",
+                licensed_art.atlas.bytes(),
+                licensed_art.atlas.media_type,
+            )
 
         record = record.model_copy(update={
             "status": RunStatus.PLANNING,
@@ -176,7 +188,9 @@ async def execute_godot_side_scroll_run(
                 "model_calls": team.call_count,
             })
             store.update(record)
-            artifact = compile_godot_side_scroll(decision.gameplay, concept, asset)
+            artifact = compile_godot_side_scroll(
+                decision.gameplay, concept, asset, licensed_art
+            )
             with tempfile.TemporaryDirectory(
                 prefix=f"khalinos-side-scroll-{run_id}-{concept.candidate_id}-"
             ) as temporary:
@@ -332,9 +346,20 @@ async def execute_godot_side_scroll_run(
             plan_sha256=artifact.plan_sha256,
             artifact_bundle_sha256=artifact.bundle_sha256,
             evidence_sha256=canonical_sha256(deterministic),
-            composition=compose_godot_side_scroll_capabilities(artifact.plan),
-            profile=GODOT_SIDE_SCROLL_PROFILE,
-            binary_sha256_by_path={artifact.asset.path: artifact.asset.sha256},
+            composition=compose_godot_side_scroll_capabilities(artifact.plan, licensed_art),
+            profile=(
+                GODOT_SIDE_SCROLL_LICENSED_ART_PROFILE
+                if licensed_art is not None
+                else GODOT_SIDE_SCROLL_PROFILE
+            ),
+            binary_sha256_by_path={
+                artifact.asset.path: artifact.asset.sha256,
+                **(
+                    {licensed_art.atlas.path: licensed_art.atlas.sha256}
+                    if licensed_art is not None
+                    else {}
+                ),
+            },
             model_calls_by_agent=getattr(team, "call_count_by_agent", {}),
         )
         capability_trace_uri = store.put_json(
@@ -347,14 +372,28 @@ async def execute_godot_side_scroll_run(
                 for raw_path, content in sorted(artifact.files.items()):
                     output.writestr(raw_path, content.encode("utf-8"))
                 output.writestr(artifact.asset.path, artifact.asset.bytes())
+                if artifact.licensed_art_atlas is not None:
+                    output.writestr(
+                        artifact.licensed_art_atlas.path,
+                        artifact.licensed_art_atlas.bytes(),
+                    )
             archive_uri = store.put_file(run_id, "final/source.zip", archive, "application/zip")
         store.put_json(run_id, "final/artifact_manifest.json", {
             "artifact_sha256": canonical_sha256(artifact),
             "plan_sha256": artifact.plan_sha256,
             "bundle_sha256": artifact.bundle_sha256,
             "asset_sha256": artifact.asset.sha256,
+            "licensed_art_atlas_sha256": (
+                artifact.licensed_art_atlas.sha256
+                if artifact.licensed_art_atlas is not None
+                else None
+            ),
             "toolpack_binding": binding.model_dump(mode="json"),
-            "files": sorted([*artifact.files, artifact.asset.path]),
+            "files": sorted([
+                *artifact.files,
+                artifact.asset.path,
+                *([artifact.licensed_art_atlas.path] if artifact.licensed_art_atlas else []),
+            ]),
             "receipt_ids": receipt_ids,
             "source_archive": archive_uri,
             "agent_capability_trace_sha256": capability_trace.sha256(),
