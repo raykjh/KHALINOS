@@ -26,6 +26,8 @@ Use the exact commands in the repository `README.md`. The Godot-capable image mu
 - `docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json`
 - `docs/evidence/capability-pack-composition/live-execution-telemetry-cloud-qualification-20260822.json`
 - `docs/evidence/capability-pack-composition/visual-foundation-cloud-qualification-20260822.json`
+- `docs/evidence/capability-pack-composition/expanded-vfx-cloud-qualification-20260822.json`
+- `docs/evidence/capability-pack-composition/expanded-asset-vfx-local-qualification-20260822.json`
 - `docs/evidence/capability-pack-composition/side-scroll-visual-foundation-cloud-pass-43fbc455.png`
 - `docs/evidence/trinity-survivors/`
 

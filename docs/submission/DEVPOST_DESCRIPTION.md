@@ -17,7 +17,7 @@ Long-running coding agents often make the user the hidden workflow engine. The u
 5. Firestore-backed live telemetry shows the selected profile, composed Capability Packs, current agent, Cloud execution ID, Gemini calls, verifier state, and M01–M06 receipt milestones.
 6. A result becomes downloadable only after deterministic runtime checks and the role-separated Verifier pass. Otherwise KHALINOS stops safely rather than guessing completion.
 
-The submitted Godot proof includes two compositions. Trinity uses top-down combat, profession progression, combat feedback, gameplay probe, and sprite-atlas capabilities. The side-scroll destination profile reuses the same fixed agent ceiling but binds lane combat, combat feedback, destination progression, and a different probe. This demonstrates pack composition, not arbitrary game-generation scope.
+The submitted Godot proof includes two compositions. Trinity uses top-down combat, profession progression, presentation, audio, profile-selected combat effects, gameplay probe, and sprite-atlas capabilities. The side-scroll destination profile reuses the same fixed agent ceiling but binds lane combat, destination progression, a different effect-role selection, and a different probe. This demonstrates pack composition, not arbitrary game-generation scope.
 
 ## Google technology
 
@@ -28,10 +28,11 @@ The submitted Godot proof includes two compositions. Trinity uses top-down comba
 - Cloud Run Job for asynchronous execution
 - Firestore for owner-bound run state and live telemetry
 - Cloud Storage for briefs, candidate evidence, receipts, manifests, renders, and verified source ZIPs
+- Google OpenID Connect for owner-bound private projects and downloads
 
 ## Data sources
 
-KHALINOS does not require a third-party business dataset. It processes the user's goal and optional user-provided text, image, or admitted source material. Hackathon proof runs use original synthetic game briefs and generated assets. Private project records are separated by the verified Google subject identifier.
+KHALINOS does not require a third-party business dataset. It processes the user's goal and optional user-provided text, image, or admitted source material. Hackathon Cloud proof runs use original synthetic briefs, Nano Banana visual foundations, and repository-contained generated combat-effect sheets. An optional development-only licensed-art path was tested against user-approved AetherAI assets; those originals remain outside the repository and Cloud image and are not redistributed as an asset pack. Private project records are separated by the verified Google subject identifier.
 
 ## Findings and learnings
 
@@ -43,7 +44,7 @@ KHALINOS does not require a third-party business dataset. It processes the user'
 
 ## Measured proof
 
-In the authenticated side-scroll UI qualification, one authorization produced a nine-file Godot source ZIP in 2 minutes 22.62 seconds with zero human interventions after authorization, 12 Gemini calls, three immutable receipts, 18/18 deterministic checks, and a final role-separated verifier PASS. The UI horse and milestone cargo were derived from persisted Cloud state rather than a scripted animation.
+On the latest immutable Cloud image, the side-scroll composition completed in 2 minutes 42.43 seconds with zero interventions after dispatch, 12 Gemini calls, three immutable receipts, 30/30 deterministic checks, and a final role-separated verifier PASS. Trinity passed 58/58 checks on the same digest with a different Agent–Capability composition. A separate authenticated Chrome qualification proved that the UI horse, active agent, Capability Packs, Gemini calls, verifier state, and M01–M06 cargo are derived from persisted Cloud state rather than a scripted animation.
 
 ## Product boundary
 

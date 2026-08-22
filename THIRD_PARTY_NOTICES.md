@@ -20,6 +20,8 @@ The exact Python dependency versions used by KHALINOS are declared in `pyproject
 ## Model and generated assets
 
 - Gemini 3.5 Flash, Gemini multimodal evaluation, and Nano Banana image generation are accessed through Vertex AI under the applicable Google Cloud and generative-AI service terms.
+- The repository-contained combat-effect sheets were created for KHALINOS with OpenAI's built-in ImageGen. Their source hashes, selection bindings, composed atlas digest, and generation receipt are preserved in the evidence files; no third-party stock-art ownership is claimed.
+- An optional development-only licensed-art qualification used user-approved AetherAI free assets under the AetherAI Free Asset License dated 2026-06-29. The original assets remain in an external local library, are not redistributed as a standalone KHALINOS asset pack, and were not bundled into the latest Cloud-qualified image. Generated game ZIPs may contain only bounded composed derivatives plus their source and license receipts when that opt-in path is enabled.
 - Images stored in the evidence directories or generated result ZIPs were created for KHALINOS runs. They are not represented as third-party endorsements, trademarks, or pre-existing game art.
 - `isnet-anime.onnx` is downloaded from the upstream `rembg` release location and SHA-256 verified during the Godot image build. Its upstream distribution terms apply; KHALINOS does not claim ownership of the model weights.
 

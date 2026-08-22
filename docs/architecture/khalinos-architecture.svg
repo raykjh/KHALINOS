@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">KHALINOS two-profile Capability Pack architecture</title>
-  <desc id="desc">A left-to-right architecture showing user authority, fixed Gemini and ADK agent slots, shared and genre-specific Godot Capability Packs, Agent-Capability receipts, separated verification gates, bounded repair, and verified results on Google Cloud.</desc>
+  <desc id="desc">A left-to-right architecture showing user authority, fixed Gemini and ADK agent slots, shared, licensed-asset, generated-effect, and genre-specific Godot Capability Packs, Agent-Capability receipts, separated verification gates, bounded repair, and verified results on Google Cloud.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#071521"/>
@@ -110,7 +110,7 @@
   <g filter="url(#shadow)">
     <rect x="700" y="232" width="230" height="98" rx="16" fill="#242c48" stroke="#a995ff"/>
     <rect x="700" y="382" width="230" height="98" rx="16" fill="#242c48" stroke="#a995ff"/>
-    <rect x="700" y="510" width="230" height="192" rx="16" fill="#242c48" stroke="#a995ff"/>
+    <rect x="700" y="500" width="230" height="202" rx="16" fill="#242c48" stroke="#a995ff"/>
   </g>
   <g class="label">
     <text x="720" y="265" class="node-title">Visual Director</text>
@@ -121,14 +121,14 @@
     <text x="720" y="441" class="node-copy muted">Fixed 13-slot team ceiling</text>
     <text x="720" y="460" class="node-copy muted">Binds least-authority pack set</text>
 
-    <text x="720" y="540" class="node-title">Capability Pack graph</text>
-    <text x="720" y="565" class="small" fill="#8ff0d8">SHARED</text>
-    <text x="720" y="584" class="small muted">project-core → visual foundation</text>
-    <text x="720" y="609" class="small" fill="#c9bdff">TRINITY · 9 ACTIVE SLOTS</text>
-    <text x="720" y="628" class="small muted">top-down combat → feedback</text>
-    <text x="720" y="647" class="small muted">→ gameplay probe → sprite atlas</text>
-    <text x="720" y="672" class="small" fill="#7ed7ff">SIDE-SCROLL · 8 ACTIVE SLOTS</text>
-    <text x="720" y="691" class="small muted" font-size="11">lane combat → feedback → destination → probe</text>
+    <text x="720" y="530" class="node-title">Capability Pack graph</text>
+    <text x="720" y="553" class="small" fill="#8ff0d8">SHARED CORE + MEDIA</text>
+    <text x="720" y="571" class="small muted" font-size="10">project → visual → feedback → skin/audio</text>
+    <text x="720" y="596" class="small" fill="#f3c96b" font-size="9">ASSETS: select → style → atlas → receipt</text>
+    <text x="720" y="621" class="small" fill="#dc8cd8" font-size="9">EFFECTS: select → atlas → player → receipt</text>
+    <text x="720" y="646" class="small" fill="#c9bdff">TRINITY · 9 ACTIVE</text>
+    <text x="720" y="664" class="small muted" font-size="9">top-down → gameplay probe → sprite gate</text>
+    <text x="720" y="688" class="small" fill="#7ed7ff" font-size="9">SIDE · 8: lane → destination → side probe</text>
   </g>
 
   <!-- Verification nodes -->
