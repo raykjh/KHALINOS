@@ -306,6 +306,15 @@ class GodotGameplayPlan(BaseModel):
         resurrection_abilities = [item for item in self.abilities if item.kind == GameplayAbilityKind.RESURRECTION]
         if bool(resurrection_abilities) != bool(self.resurrection_capacity):
             raise ValueError("resurrection capacity and automatic resurrection ability must be declared together")
+        initial_basic_attack_damage = sum(item.attack for item in self.heroes)
+        weakest_enemy = min(
+            self.enemies,
+            key=lambda item: item.health + item.damage * 6.0 + item.speed * 0.08,
+        )
+        if weakest_enemy.health > initial_basic_attack_damage:
+            raise ValueError(
+                "lowest-threat enemy health must not exceed one full initial-party basic-attack round"
+            )
         return self
 
 

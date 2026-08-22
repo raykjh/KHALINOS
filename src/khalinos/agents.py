@@ -311,7 +311,9 @@ not write GDScript, scenes, commands, files, tests, executable paths, or verific
 code. The trusted compiler owns implementation. Use the approved project_name exactly.
 Model only heroes, enemy archetypes, scheduled automatic abilities, summed shared party
 stats, session duration, and deterministic level-choice cadence supported by the supplied
-ToolPack manifest. Explicit numeric duration and cadence requirements are mandatory, not
+ToolPack manifest. The lowest-threat enemy's health must not exceed the sum of the initial
+heroes' attack values, so one full round of visible level-one basic attacks defeats it.
+Explicit numeric duration and cadence requirements are mandatory, not
 suggestions. When the brief requires profession progression, provide Tank, Damage, and
 Support profession rosters, the exact upgrade_role_order, and exactly three choices per
 level: current-profession rank-up first and two alternative professions. When resurrection

@@ -110,6 +110,15 @@ def gameplay_plan() -> GodotGameplayPlan:
     )
 
 
+def test_gameplay_plan_rejects_an_unbeatable_lowest_threat_enemy() -> None:
+    payload = gameplay_plan().model_dump(mode="json")
+    payload["enemies"][0]["health"] = 60
+    payload["enemies"][1]["health"] = 60
+
+    with pytest.raises(ValidationError, match="lowest-threat enemy health"):
+        GodotGameplayPlan.model_validate(payload)
+
+
 def sprite_asset(plan=None):
     plan = plan or derive_sprite_atlas_plan(gameplay_plan())
     image = Image.new("RGBA", (1024, 768), (0, 0, 0, 0))
@@ -146,7 +155,7 @@ def artifact() -> CompiledGodotGameplay:
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "2.3.0"
+    assert binding.version == "2.4.0"
 
 
 async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
