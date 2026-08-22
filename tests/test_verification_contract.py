@@ -153,6 +153,51 @@ def test_claimed_pass_is_rejected_when_a_criterion_has_no_runtime_mapping(tmp_pa
     assert any("without direct runtime assertion evidence" in issue for issue in evidence.issues)
 
 
+def test_single_active_criterion_binds_an_omitted_journey_label(tmp_path: Path) -> None:
+    criterion = CRITERIA[1]
+    journey = {
+        "name": "status exposes completion",
+        "steps": [
+            {"click": "#reveal"},
+            {
+                "assert_attribute": {
+                    "selector": "#status",
+                    "name": "data-state",
+                    "operator": "eq",
+                    "value": "complete",
+                }
+            },
+        ],
+    }
+
+    evidence = run_verification(tmp_path, contract_bundle([journey]), [criterion])
+
+    assert evidence.passed
+    assert evidence.checks["criterion_runtime_coverage"]
+    assert evidence.criterion_evidence[criterion]
+
+
+def test_omitted_journey_label_is_not_guessed_for_multiple_criteria(tmp_path: Path) -> None:
+    journey = {
+        "name": "ambiguous evidence",
+        "steps": [
+            {"click": "#reveal"},
+            {
+                "assert_text": {
+                    "selector": "#status",
+                    "operator": "contains",
+                    "value": "Revealed",
+                }
+            },
+        ],
+    }
+
+    evidence = run_verification(tmp_path, contract_bundle([journey]), CRITERIA[:2])
+
+    assert not evidence.passed
+    assert any("criterion must exactly match" in issue for issue in evidence.issues)
+
+
 def test_criterion_bound_unscoped_text_cannot_match_unrelated_page_copy(tmp_path: Path) -> None:
     journeys = complete_journeys()
     journeys[1]["steps"] = [{"assert_text": "Ready"}]

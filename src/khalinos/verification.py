@@ -268,6 +268,12 @@ def verify_bundle(
                 if not isinstance(name_value, str) or not name_value.strip() or len(name_value) > 120:
                     raise ValueError("each journey requires a bounded name")
                 claimed = entry.get("criterion")
+                if required and claimed is None and len(required) == 1:
+                    # The trusted host already owns the sole immutable criterion for
+                    # this Quest. Bind an omitted model label to that exact string;
+                    # runtime assertions are still mandatory below. Never guess when
+                    # more than one criterion is active or repair an incorrect label.
+                    claimed = required[0]
                 if required and (not isinstance(claimed, str) or claimed not in required):
                     raise ValueError("each active-Quest journey criterion must exactly match one active criterion")
                 if not required and claimed is not None:
