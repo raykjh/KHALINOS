@@ -152,10 +152,20 @@ def artifact() -> CompiledGodotGameplay:
     )
 
 
+def test_gameplay_script_maps_model_ids_to_licensed_profile_roles() -> None:
+    script = artifact().files["scripts/khalinos_gameplay.gd"]
+
+    assert '"tank": licensed_hero_role = "warrior"' in script
+    assert '"damage": licensed_hero_role = "archer"' in script
+    assert '"support": licensed_hero_role = "priest"' in script
+    assert 'var licensed_enemy_role := "goblin" if licensed_enemy_index % 2 == 0 else "orc"' in script
+    assert '"licensed_profile_roles_bound": licensed_profile_roles_bound' in script
+
+
 def test_registry_resolves_separate_gameplay_binding() -> None:
     binding = APPROVED_TOOLPACKS.binding_for("godot.gameplay")
     assert APPROVED_TOOLPACKS.resolve(binding) is GODOT_GAMEPLAY_TOOLPACK
-    assert binding.version == "2.4.0"
+    assert binding.version == "2.5.0"
 
 
 async def test_gameplay_planner_repairs_one_cross_field_schema_error_then_stops(monkeypatch) -> None:
@@ -506,12 +516,12 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     team.reject_first_verification_shape = True
     result = await execute_godot_gameplay_run(run_id, store=store, team=team, registry=ToolPackRegistry([toolpack]))
     assert result.status == RunStatus.PASSED
-    assert team.sprite_gate_calls == 2
-    assert team.sprite_feedback == [(), ("Remove checker patterns and platforms from every sprite.",)]
+    assert team.sprite_gate_calls == 0
+    assert team.sprite_feedback == []
     assert team.verification_calls == 3
     assert team.verification_payloads[1]["format_repair"]["required_finding_count"] == 1
-    assert (tmp_path / "runs" / run_id / "sprites" / "attempts" / "1" / "gate.json").is_file()
-    assert (tmp_path / "runs" / run_id / "sprites" / "attempts" / "2" / "gate.json").is_file()
+    assert not (tmp_path / "runs" / run_id / "sprites").exists()
+    assert (tmp_path / "runs" / run_id / "licensed-art" / "KHALINOS_LICENSE_RECEIPT.json").is_file()
     assert len(result.completed_receipt_ids) == 3
     assert (tmp_path / "runs" / run_id / "visuals" / "selection_receipt.json").is_file()
     assert (tmp_path / "runs" / run_id / "final" / "source.zip").is_file()
@@ -520,7 +530,7 @@ async def test_gameplay_workflow_binds_visual_selection_runtime_and_quest_receip
     assert trace["profile_id"] == "godot.trinity-top-down"
     calls = {item["agent_id"]: item["model_calls"] for item in trace["receipts"]}
     assert calls["khalinos_godot_gameplay_owner"] == 1
-    assert calls["khalinos_visual_candidate_maker"] == 5
-    assert calls["khalinos_sprite_atlas_verifier"] == 2
+    assert calls["khalinos_visual_candidate_maker"] == 3
+    assert "khalinos_sprite_atlas_verifier" not in calls
     assert calls["khalinos_godot_independent_verifier"] == 3
-    assert (tmp_path / "runs" / run_id / "sprites" / "final" / "deterministic_evidence.json").is_file()
+    assert (tmp_path / "runs" / run_id / "licensed-art" / "final" / "deterministic_evidence.json").is_file()

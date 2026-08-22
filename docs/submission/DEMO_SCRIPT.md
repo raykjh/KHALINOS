@@ -78,7 +78,7 @@ Screen: switch to the prepared Trinity start screen and click **START**.
 
 Narration:
 
-> The same fixed agent team also produced Trinity, but consumed a different Pack chain: top-down combat, profession progression, sprite-atlas verification, and different effect-role bindings. This is constrained composition across two profiles, not a claim of universal game generation.
+> The same fixed agent team also produced Trinity, but consumed a different Pack chain: top-down combat, profession progression, a license-receipted character atlas, and different effect-role bindings. This is constrained composition across two profiles, not a claim of universal game generation.
 
 ## 3:50–3:58 — close
 
