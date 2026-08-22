@@ -32,7 +32,7 @@ The submitted Godot proof includes two compositions. Trinity uses top-down comba
 
 ## Data sources
 
-KHALINOS does not require a third-party business dataset. It processes the user's goal and optional user-provided text, image, or admitted source material. Hackathon Cloud proof runs use original synthetic briefs, Nano Banana visual foundations, and repository-contained generated combat-effect sheets. An optional development-only licensed-art path was tested against user-approved AetherAI assets; those originals remain outside the repository and Cloud image and are not redistributed as an asset pack. Private project records are separated by the verified Google subject identifier.
+KHALINOS does not require a third-party business dataset. It processes the user's goal and optional user-provided text, image, or admitted source material. Hackathon proof runs use original synthetic briefs, Nano Banana visual foundations, repository-contained generated combat-effect sheets, and two bounded profile-specific AetherAI-derived game atlases with hash-bound selection and license receipts. The original AetherAI catalog remains outside the repository and is not redistributed as a standalone asset pack. Private project records are separated by the verified Google subject identifier.
 
 ## Findings and learnings
 

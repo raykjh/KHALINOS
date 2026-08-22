@@ -1,0 +1,25 @@
+{
+  "palette": [
+    "#172027",
+    "#2f4a3b",
+    "#6e7f4d",
+    "#d6a743",
+    "#e6ded0"
+  ],
+  "profile_id": "godot.side-scroll-destination",
+  "reserve_styles": [
+    "32px",
+    "32px-pastel",
+    "40px-k-rpg"
+  ],
+  "rules": [
+    "adult-readable silhouettes",
+    "muted environment with warm objective accents",
+    "green hostile family distinct from heroes",
+    "nearest-neighbor pixel scaling",
+    "no standalone source-asset redistribution"
+  ],
+  "schema_version": "khalinos-style-composition-v1",
+  "selected_asset_sha256": "9e3d77ea0f6f09fd0c7663a56dfdd14d0c85ac45332705718ad9e05864f5076d",
+  "style_id": "dark-expedition-pixel-v1"
+}

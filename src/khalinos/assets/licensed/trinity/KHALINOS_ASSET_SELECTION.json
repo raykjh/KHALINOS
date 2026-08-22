@@ -1,0 +1,118 @@
+{
+  "assets": [
+    {
+      "asset_id": "d6312bea-5364-42ea-b5a4-48433ccd2ff8",
+      "atlas_region": [
+        0,
+        0,
+        128,
+        128
+      ],
+      "role": "warrior",
+      "source_relative_path": "32px/characters/d6312bea-5364-42ea-b5a4-48433ccd2ff8.png",
+      "source_sha256": "e86a641140ad19a3fbf9ca833c7bfa438cb097716905acb1e3d14b268d8f8174",
+      "source_url": "https://cdn.aetherforgeai.com/assets/d6312bea-5364-42ea-b5a4-48433ccd2ff8.png"
+    },
+    {
+      "asset_id": "523051e1-580e-4c49-8499-d86b210a7bf7",
+      "atlas_region": [
+        128,
+        0,
+        128,
+        128
+      ],
+      "role": "archer",
+      "source_relative_path": "32px/characters/523051e1-580e-4c49-8499-d86b210a7bf7.png",
+      "source_sha256": "7a920355a2fc6292740b58ad2247a834a0621f5f6b6429101230c06d51d480ef",
+      "source_url": "https://cdn.aetherforgeai.com/assets/523051e1-580e-4c49-8499-d86b210a7bf7.png"
+    },
+    {
+      "asset_id": "efb14f22-de8d-480f-843a-b01a4b840e04",
+      "atlas_region": [
+        256,
+        0,
+        128,
+        128
+      ],
+      "role": "priest",
+      "source_relative_path": "32px/characters/efb14f22-de8d-480f-843a-b01a4b840e04.png",
+      "source_sha256": "4f4feab27f27c9919b65854990713d2dcc32f943af6653ee4eb142ac7e6a7bf4",
+      "source_url": "https://cdn.aetherforgeai.com/assets/efb14f22-de8d-480f-843a-b01a4b840e04.png"
+    },
+    {
+      "asset_id": "af94efc0-4332-4598-9896-184cd1fc4cb0",
+      "atlas_region": [
+        384,
+        0,
+        128,
+        128
+      ],
+      "role": "goblin",
+      "source_relative_path": "32px/monsters/af94efc0-4332-4598-9896-184cd1fc4cb0.png",
+      "source_sha256": "f840050279e51e61e1815c9da811e482b1c5aa4210fe2739fce3552079834ecd",
+      "source_url": "https://cdn.aetherforgeai.com/assets/af94efc0-4332-4598-9896-184cd1fc4cb0.png"
+    },
+    {
+      "asset_id": "ab4476fa-ad31-4cbf-b703-eafe8e2d55a9",
+      "atlas_region": [
+        0,
+        128,
+        128,
+        128
+      ],
+      "role": "orc",
+      "source_relative_path": "32px/monsters/ab4476fa-ad31-4cbf-b703-eafe8e2d55a9.png",
+      "source_sha256": "73b60186adf40f8f8e7088854b67a03d26ff76b6a28d9c072e0eac4fc23906a9",
+      "source_url": "https://cdn.aetherforgeai.com/assets/ab4476fa-ad31-4cbf-b703-eafe8e2d55a9.png"
+    },
+    {
+      "asset_id": "215ea63c-8d19-4888-afe1-3b96da040443",
+      "atlas_region": [
+        128,
+        128,
+        128,
+        128
+      ],
+      "role": "sweep_icon",
+      "source_relative_path": "40px-k-rpg/swords/215ea63c-8d19-4888-afe1-3b96da040443.png",
+      "source_sha256": "f0218676c39fcaabe8e7ab2d980290ade0700a6a056778302866accba33cc111",
+      "source_url": "https://cdn.aetherforgeai.com/assets/215ea63c-8d19-4888-afe1-3b96da040443.png"
+    },
+    {
+      "asset_id": "820b42b9-b76e-4084-8ce4-e91b826590d0",
+      "atlas_region": [
+        256,
+        128,
+        128,
+        128
+      ],
+      "role": "volley_icon",
+      "source_relative_path": "40px-k-rpg/bows/820b42b9-b76e-4084-8ce4-e91b826590d0.png",
+      "source_sha256": "ea819d20623cf3da6204ba8b3d42037a2ab7d5760568264e78ff16ebbfb491e1",
+      "source_url": "https://cdn.aetherforgeai.com/assets/820b42b9-b76e-4084-8ce4-e91b826590d0.png"
+    },
+    {
+      "asset_id": "b1561b1e-6a71-4d15-92a9-dc7d7eb00dce",
+      "atlas_region": [
+        384,
+        128,
+        128,
+        128
+      ],
+      "role": "prayer_icon",
+      "source_relative_path": "40px-k-rpg/staves/b1561b1e-6a71-4d15-92a9-dc7d7eb00dce.png",
+      "source_sha256": "9a139cbfa3bb007c5b36a0a7c413ea5fccc433848d5daeed7fb48d00422fc197",
+      "source_url": "https://cdn.aetherforgeai.com/assets/b1561b1e-6a71-4d15-92a9-dc7d7eb00dce.png"
+    }
+  ],
+  "candidate_catalog_sha256": "e12cac7471b3a9eba621d015ef00d6a8e75151a3300804608b6ddad9b4e1f654",
+  "candidate_catalog_size": 384,
+  "candidate_style_counts": {
+    "32px": 280,
+    "32px-pastel": 30,
+    "40px-k-rpg": 74
+  },
+  "profile_id": "godot.trinity-top-down",
+  "schema_version": "khalinos-asset-selection-v1",
+  "selector": "catalog-grade-and-curated-role-binding-v2"
+}
