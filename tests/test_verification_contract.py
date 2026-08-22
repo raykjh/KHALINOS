@@ -21,6 +21,7 @@ def contract_bundle(journeys: list[dict]) -> ArtifactBundle:
 <button id="reveal" aria-label="Reveal cells">Reveal</button>
 <button id="flag" aria-label="Toggle flag" aria-pressed="false">Flag</button>
 <input id="safe" type="checkbox" checked aria-label="Safe mode">
+<label for="scenario">Scenario</label><select id="scenario"><option value="cold">Cold</option><option value="heat">Heat</option></select>
 <p id="status" class="ready pending" data-state="idle">Ready</p>
 <p id="random"></p><div id="board"></div>
 <script src="app.js" defer></script></body></html>""",
@@ -28,6 +29,7 @@ def contract_bundle(journeys: list[dict]) -> ArtifactBundle:
         "app.js": """
 const board=document.querySelector('#board');
 const status=document.querySelector('#status');
+document.querySelector('#scenario').addEventListener('change',(event)=>{status.textContent=`Scenario: ${event.target.value}`;});
 document.querySelector('#random').textContent=Math.random().toFixed(6);
 document.querySelector('#reveal').addEventListener('click',()=>{
   board.innerHTML='<i class="cell revealed"></i><i class="cell revealed"></i><i class="cell revealed"></i>';
@@ -169,3 +171,31 @@ def test_wait_is_bounded_and_arbitrary_actions_are_rejected(tmp_path: Path) -> N
 
     assert not evidence.passed
     assert any("wait_ms must be an integer" in issue for issue in evidence.issues)
+
+
+def test_select_option_is_a_bounded_typed_action(tmp_path: Path) -> None:
+    journeys = [{
+        "name": "select heat scenario",
+        "steps": [
+            {"select_option": {"selector": "#scenario", "value": "heat"}},
+            {"assert_text": {"selector": "#status", "operator": "eq", "value": "Scenario: heat"}},
+        ],
+    }]
+
+    evidence = run_verification(tmp_path, contract_bundle(journeys), [])
+
+    assert evidence.passed
+
+
+def test_legacy_option_click_dispatches_the_select_change_event(tmp_path: Path) -> None:
+    journeys = [{
+        "name": "legacy option selector",
+        "steps": [
+            {"click": "#scenario option[value='heat']"},
+            {"assert_text": {"selector": "#status", "operator": "eq", "value": "Scenario: heat"}},
+        ],
+    }]
+
+    evidence = run_verification(tmp_path, contract_bundle(journeys), [])
+
+    assert evidence.passed
