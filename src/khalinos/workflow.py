@@ -192,9 +192,10 @@ async def _select_visual_foundation(
 
     eligible: dict[str, ArtifactBundle] = {}
     evidence_by_candidate: dict[str, dict] = {}
-    screenshot_payloads: list[tuple[str, bytes]] = []
+    screenshot_payloads: dict[str, bytes] = {}
     screenshot_paths: dict[str, str] = {}
     asset_sha256_by_candidate: dict[str, str] = {}
+    repairable_candidates: dict[str, tuple[object, ArtifactAsset, ArtifactBundle, DeterministicEvidence]] = {}
     for concept in visual_plan.candidates:
         record = record.model_copy(update={
             "status": RunStatus.VISUALIZING,
@@ -273,7 +274,7 @@ async def _select_visual_foundation(
                 )
                 if index == 1:
                     screenshot_paths[concept.candidate_id] = path
-                    screenshot_payloads.append((concept.candidate_id, screenshot.read_bytes()))
+                    screenshot_payloads[concept.candidate_id] = screenshot.read_bytes()
         evidence_by_candidate[concept.candidate_id] = {
             **deterministic.model_dump(mode="json"),
             "asset_gate": asset_gate.model_dump(mode="json"),
@@ -285,10 +286,98 @@ async def _select_visual_foundation(
         )
         if deterministic.passed and concept.candidate_id in screenshot_paths:
             eligible[concept.candidate_id] = candidate
+        elif not deterministic.passed:
+            repairable_candidates[concept.candidate_id] = (concept, asset, candidate, deterministic)
+
+    for concept in visual_plan.candidates:
+        if len(eligible) >= 2 or concept.candidate_id not in repairable_candidates:
+            continue
+        _, asset, failed_candidate, failed_evidence = repairable_candidates[concept.candidate_id]
+        record = record.model_copy(update={
+            "status": RunStatus.VISUALIZING,
+            "message": f"Bounded Visual Repair is correcting {concept.candidate_id} from deterministic evidence.",
+            "model_calls": team.call_count,
+        })
+        store.update(record)
+        repaired = await team.make_visual({
+            "approved_brief": brief.model_dump(mode="json"),
+            "shared_visual_contract": visual_plan.shared_contract,
+            "visual_concept": concept.model_dump(mode="json"),
+            "trusted_visual_asset": {
+                "path": asset.path,
+                "media_type": asset.media_type,
+                "sha256": asset.sha256,
+                "width": asset.width,
+                "height": asset.height,
+            },
+            "bounded_repair": {
+                "attempt": 1,
+                "maximum_attempts": 1,
+                "deterministic_issues": failed_evidence.issues,
+                "previous_candidate": _agent_bundle_payload(failed_candidate),
+                "instruction": "Correct only the deterministic rendering issues and preserve the approved concept.",
+            },
+        })
+        repaired = _with_assets(repaired, [asset])
+        with tempfile.TemporaryDirectory(prefix=f"khalinos-{run_id}-{concept.candidate_id}-repair-") as temporary:
+            root = Path(temporary) / "product"
+            evidence_dir = Path(temporary) / "evidence"
+            toolpack.execution_adapter.materialize(repaired, root)
+            repaired_evidence = await asyncio.to_thread(
+                toolpack.evidence_adapter.verify,
+                repaired,
+                root,
+                evidence_dir,
+                [],
+            )
+            for file in repaired.files:
+                store.put_file(
+                    run_id,
+                    f"visuals/{concept.candidate_id}/repair/attempt-1/product/{file.path}",
+                    root / file.path,
+                    "text/plain",
+                )
+            for candidate_asset in repaired.assets:
+                store.put_file(
+                    run_id,
+                    f"visuals/{concept.candidate_id}/repair/attempt-1/product/{candidate_asset.path}",
+                    root / candidate_asset.path,
+                    candidate_asset.media_type,
+                )
+            screenshots = sorted(evidence_dir.glob("*.png"))
+            for index, screenshot in enumerate(screenshots, start=1):
+                path = store.put_file(
+                    run_id,
+                    f"visuals/{concept.candidate_id}/repair/attempt-1/evidence/{screenshot.name}",
+                    screenshot,
+                    "image/png",
+                )
+                if index == 1:
+                    screenshot_paths[concept.candidate_id] = path
+                    screenshot_payloads[concept.candidate_id] = screenshot.read_bytes()
+        store.put_json(
+            run_id,
+            f"visuals/{concept.candidate_id}/repair/attempt-1/deterministic_evidence.json",
+            repaired_evidence.model_dump(mode="json"),
+        )
+        evidence_by_candidate[concept.candidate_id] = {
+            **repaired_evidence.model_dump(mode="json"),
+            "bounded_repair_attempts": 1,
+            "initial_deterministic_evidence": failed_evidence.model_dump(mode="json"),
+        }
+        if repaired_evidence.passed and concept.candidate_id in screenshot_paths:
+            eligible[concept.candidate_id] = repaired
 
     if len(eligible) < 2:
         raise RuntimeError("fewer than two visual candidates passed deterministic rendering")
-    eligible_screenshots = [item for item in screenshot_payloads if item[0] in eligible]
+    eligible = {
+        concept.candidate_id: eligible[concept.candidate_id]
+        for concept in visual_plan.candidates
+        if concept.candidate_id in eligible
+    }
+    eligible_screenshots = [
+        (candidate_id, screenshot_payloads[candidate_id]) for candidate_id in eligible
+    ]
     record = record.model_copy(update={
         "status": RunStatus.VISUAL_SELECTING,
         "message": "Independent Visual Verifier is comparing rendered candidates.",
@@ -348,7 +437,7 @@ async def execute_run(
         plan = plan.model_copy(update={"toolpack_binding": binding})
         if len(plan.quests) > brief.max_quests:
             raise PermissionError("Project Owner exceeded the approved Quest limit")
-        _validate_plan_authority(brief, plan)
+        plan = _bind_plan_authority(brief, plan)
         store.put_json(run_id, "quest_plan.json", plan.model_dump(mode="json"))
         existing_repair = record.work_mode == "existing_project_repair"
         if existing_repair:

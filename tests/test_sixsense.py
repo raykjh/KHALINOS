@@ -424,6 +424,37 @@ def test_sixsense_cannot_repeat_a_resolved_dimension() -> None:
         validate_decision(record, decision)
 
 
+def test_browser_preview_uses_one_visible_quality_list_as_criterion_authority() -> None:
+    record = __import__("khalinos.models", fromlist=["IntakeRecord"]).IntakeRecord(
+        intake_id="f" * 32,
+        project_name="Launch Triage Board",
+        goal="Create a responsive offline browser board with add and complete actions.",
+        requested_project_kind="browser",
+        requested_toolpack_id="browser.product",
+    )
+    outcome = preview().model_copy(update={
+        "completion_and_quality": [
+            "Adding Final QA updates the total count.",
+            "Completing Final QA updates the completed count.",
+        ],
+        "recommended_brief": preview().recommended_brief.model_copy(update={
+            "acceptance_criteria": [
+                "Adding Final QA updates the total count.",
+                "Adding Final QA increments the total count.",
+                "Completing Final QA updates the completed count.",
+            ],
+        }),
+    })
+
+    bound = bind_preview_to_profile(record, outcome)
+
+    assert bound.recommended_brief.acceptance_criteria == bound.completion_and_quality
+    assert bound.recommended_brief.acceptance_criteria == [
+        "Adding Final QA updates the total count.",
+        "Completing Final QA updates the completed count.",
+    ]
+
+
 def test_sixsense_cannot_repeat_a_previous_question_in_another_turn() -> None:
     previous = SenseQuestion(
         dimension=SenseDimension.EXPERIENCE_VISUAL_DIRECTION,

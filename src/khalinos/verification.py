@@ -123,7 +123,11 @@ def _assertion_summary(page, action: str, value: object) -> str:
         locator = page.locator(selector).first
         locator.wait_for(state="visible")
         observed = (locator.text_content() or "").strip()
-        passed = observed == expected if operator == "eq" else expected in observed
+        passed = (
+            observed == expected
+            if operator == "eq"
+            else expected.casefold() in observed.casefold()
+        )
         if not passed:
             raise AssertionError(f"text {observed!r} does not satisfy {operator} {expected!r} for {selector}")
         return f"assert_text selector={selector!r} observed={observed!r} {operator} {expected!r}"
@@ -167,6 +171,8 @@ def _assertion_summary(page, action: str, value: object) -> str:
             raise AssertionError(f"attribute {name}={actual!r} does not satisfy {operator} {expected!r}")
         return f"assert_attribute selector={selector!r} {name} observed={actual!r} {operator} {expected!r}"
     if action == "assert_class":
+        if set(value) == {"selector", "includes"}:
+            value = {**value, "excludes": []}
         if set(value) != {"selector", "includes", "excludes"}:
             raise ValueError("assert_class requires selector, includes, and excludes")
         includes = value["includes"]
@@ -262,6 +268,12 @@ def verify_bundle(
                 if not isinstance(name_value, str) or not name_value.strip() or len(name_value) > 120:
                     raise ValueError("each journey requires a bounded name")
                 claimed = entry.get("criterion")
+                if required and claimed is None and len(required) == 1:
+                    # The trusted host already owns the sole immutable criterion for
+                    # this Quest. Bind an omitted model label to that exact string;
+                    # runtime assertions are still mandatory below. Never guess when
+                    # more than one criterion is active or repair an incorrect label.
+                    claimed = required[0]
                 if required and (not isinstance(claimed, str) or claimed not in required):
                     raise ValueError("each active-Quest journey criterion must exactly match one active criterion")
                 if not required and claimed is not None:
@@ -339,6 +351,8 @@ def verify_bundle(
                             raise ValueError("right_click requires a bounded CSS selector")
                         page.locator(value).click(button="right")
                     elif action == "press":
+                        if value == " ":
+                            value = "Space"
                         if not isinstance(value, str) or not value.strip() or len(value) > 80:
                             raise ValueError("press requires a bounded keyboard key")
                         page.keyboard.press(value)

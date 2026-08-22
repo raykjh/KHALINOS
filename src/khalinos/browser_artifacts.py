@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from khalinos.models import ArtifactBundle, ArtifactFile
 
@@ -26,6 +26,15 @@ class BrowserArtifactBundle(BaseModel):
 
     revision_summary: str = Field(min_length=10, max_length=500)
     files: list[BrowserArtifactFile] = Field(min_length=5, max_length=5)
+
+    @field_validator("revision_summary", mode="before")
+    @classmethod
+    def bound_freeform_summary(cls, value: object) -> object:
+        """Keep verbose model prose from invalidating an otherwise typed bundle."""
+
+        if isinstance(value, str) and len(value) > 500:
+            return value[:500]
+        return value
 
     @model_validator(mode="after")
     def complete_browser_surface(self) -> "BrowserArtifactBundle":

@@ -157,6 +157,7 @@ preserve previously verified journeys and add separate journeys when needed. Sup
 {"assert_attribute":{"selector":"CSS selector","name":"attribute","operator":"eq|contains|not_equals","value":"text"}},
 {"assert_class":{"selector":"CSS selector","includes":["class"],"excludes":["class"]}},
 or {"assert_state":{"selector":"CSS selector","state":"visible|hidden|enabled|disabled|checked|unchecked"}}.
+Spell the spacebar key as "Space" rather than a literal blank string.
 Do not emit arbitrary JavaScript. Every active criterion must be named by exactly one or more journeys
 and backed by a selector-targeted typed assertion that observes its runtime result; never use
 unscoped {"assert_text":"text"} in a criterion-bound journey. Clicks, waits, screenshots,
@@ -233,7 +234,8 @@ Each visual-foundation journey has a name and ordered steps. A step must use the
 journey actions documented for the Maker, including {"click":"CSS selector"},
 {"select_option":{"selector":"CSS selector for select","value":"option value"}},
 {"press":"Keyboard key"}, and {"assert_text":"visible text"}. Use select_option for native
-select controls and never click a hidden option element. Assertions must observe content visible
+select controls and never click a hidden option element. Spell the spacebar key as "Space".
+Assertions must observe content visible
 after the preceding actions. At a 320px viewport, the document and every visible body child,
 button, input, select, and textarea must remain within the viewport with no horizontal overflow.
 Visual foundations must omit
@@ -241,6 +243,9 @@ criterion because no Quest is active during visual selection. Do not use type, s
 a different step schema, and never emit arbitrary JavaScript. The journey must
 exercise real controls and produce a meaningful rendered screenshot. Keep revision_summary
 concise and under 500 characters. Return only the required schema.
+If the payload contains bounded_repair, preserve the approved concept and trusted asset while
+correcting only the reported deterministic rendering issues. Return the complete five-file
+candidate again; do not widen its scope or change its visual thesis.
 """.strip()
 
 VISUAL_VERIFIER_INSTRUCTION = """
