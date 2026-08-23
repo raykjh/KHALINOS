@@ -49,7 +49,9 @@ def test_cloud_execution_uses_truthful_structured_camp_status() -> None:
     assert "Gemini calls" in html
     assert 'id="agentCamp"' in html
     assert 'id="handoffHorse"' in html
-    assert "🐎" in html
+    assert 'class="horse-sprite"' in html
+    assert "horse-run-sprite.png" in html
+    assert "horse-gallop" in html
     assert "Project Owner" in html
     assert "Technical Repair" in html
     assert "Role-separated Verifier" in html

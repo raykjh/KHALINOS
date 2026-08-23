@@ -49,8 +49,8 @@ Before recording, open the side-scroll project in the Godot editor but do not ru
 
 ## Evidence anchors
 
-- Release candidate tag: `v0.6.0-hackathon-rc4`
-- Latest image digest: `sha256:760f091fc0a571d4e2b2bcdd4c9daa3d1e77db769ff4f1474b7462681dd8cfae`
-- Trinity PASS: `b9b5ca6594124527a0f5380deb690394`, 58/58 checks
-- Side-scroll PASS: `6704c3029e4b49aa8f7b67491655fc58`, 30/30 checks
-- Machine-readable record: `docs/evidence/capability-pack-composition/expanded-vfx-cloud-qualification-20260822.json`
+- Final release tag: `v0.6.0-hackathon-final`
+- Latest image digest: `sha256:56a8f4429365c5170cf4c0c6149a497236b43a51144308154c633d1ed3fec24b`
+- Trinity PASS: `15100d664c8840c2b85a24d2068e270f`, 59/59 checks
+- Side-scroll PASS: `c9fa277674c940a685c48de576713239`, 30/30 checks
+- Machine-readable record: `docs/evidence/capability-pack-composition/submission-release-cloud-qualification-20260823.json`

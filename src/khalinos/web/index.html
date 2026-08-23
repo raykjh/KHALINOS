@@ -158,8 +158,10 @@
     .flow-lines > path { fill:none; stroke:rgba(85,79,48,.48); stroke-width:3; marker-end:url(#flowArrow); }
     .flow-lines > path.alt { stroke-dasharray:9 8; stroke:rgba(73,105,65,.5); }
     .flow-lines text { fill:#556047; font:700 14px/1 system-ui,sans-serif; letter-spacing:.06em; text-transform:uppercase; }
-    .horse { position:absolute; z-index:6; left:9%; top:87px; display:flex; align-items:center; gap:3px; font-size:36px; filter:drop-shadow(0 3px 2px rgba(53,45,28,.25)); transform:translate(-50%,-50%); transition:left 1.1s cubic-bezier(.2,.8,.25,1),top 1.1s cubic-bezier(.2,.8,.25,1); }
-    .horse-cargo { display:flex; gap:2px; transform:translate(-13px,-20px); }
+    .horse { position:absolute; z-index:6; left:9%; top:87px; width:82px; height:62px; filter:drop-shadow(0 3px 2px rgba(53,45,28,.25)); transform:translate(-50%,-50%); transition:left 1.1s cubic-bezier(.2,.8,.25,1),top 1.1s cubic-bezier(.2,.8,.25,1); }
+    .horse-sprite { position:absolute; inset:0; background:url('/assets/horse-run-sprite.png') 0 center/328px auto no-repeat; }
+    .horse.running .horse-sprite { animation:horse-gallop 1.2s linear infinite; }
+    .horse-cargo { position:absolute; z-index:2; left:42px; top:12px; display:flex; gap:2px; transform:translate(-50%,-100%); }
     .cargo { padding:3px 5px; border:1px solid #71552d; border-radius:6px; background:#d8b66c; color:#3d321f; font:900 10px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
     .horse[data-role="owner"] { left:9%; top:87px; } .horse[data-role="visual"] { left:24%; top:87px; } .horse[data-role="maker"] { left:49%; top:87px; } .horse[data-role="runtime"] { left:74%; top:87px; }
     .horse[data-role="result"] { left:24%; top:218px; } .horse[data-role="verifier"] { left:49%; top:218px; } .horse[data-role="repair"] { left:74%; top:218px; }
@@ -183,6 +185,7 @@
     .station.active .smoke { animation:smoke 2.2s ease-out infinite; }
     .station.active .smoke.s2 { animation-delay:.75s; }
     .station.active .smoke.s3 { animation-delay:1.45s; }
+    @keyframes horse-gallop { 0%,24.99%{background-position:0 center}25%,49.99%{background-position:-82px center}50%,74.99%{background-position:-164px center}75%,99.99%{background-position:-246px center}100%{background-position:0 center} }
     @keyframes smoke { 0%{opacity:0;transform:translate(0,4px) scale(.65)} 25%{opacity:.7} 100%{opacity:0;transform:translate(12px,-35px) scale(2.1)} }
     .station-name { display:block; margin-top:3px; color:#34442c; font-size:13px; font-weight:900; line-height:1.25; }
     .station-kind { display:inline-block; margin-top:6px; padding:3px 7px; border:1px solid rgba(74,91,57,.45); border-radius:999px; color:#4f6145; background:rgba(255,252,232,.65); font-size:9px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
@@ -327,7 +330,7 @@
           <div class="live-workspace">
             <div class="camp" id="agentCamp">
               <svg class="flow-lines" viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="flowArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#665d3f"></path></marker></defs><path d="M175 120 H325"></path><path d="M425 120 H575"></path><path d="M675 120 H825"></path><path d="M875 165 C875 235 760 280 675 300"></path><path d="M575 305 H425"></path><path class="alt" d="M675 322 H825"></path><path class="alt" d="M875 275 V165"></path><text x="466" y="286">PASS</text><text x="744" y="350">REPAIR</text></svg>
-              <div class="horse" id="handoffHorse" data-role="owner" aria-hidden="true"><span>🐎</span><span class="horse-cargo" id="horseCargo"></span></div>
+              <div class="horse" id="handoffHorse" data-role="owner" aria-hidden="true"><span class="horse-sprite"></span><span class="horse-cargo" id="horseCargo"></span></div>
               <div class="camp-grid">
                 <div class="station" data-role="owner"><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-kind">Authority owner</span><span class="station-name">Project Owner</span><span class="station-state">Waiting</span></div>
                 <div class="station" data-role="visual"><div class="ger-wrap"><i class="smoke"></i><i class="smoke s2"></i><i class="smoke s3"></i><div class="ger-roof"></div><div class="ger-body"></div><div class="ger-door"></div></div><span class="station-kind">Visual roles</span><span class="station-name">Visual Team</span><span class="station-state">Waiting</span></div>
@@ -603,7 +606,7 @@ function renderRun(record){
     else if((sequence.indexOf(role)>=0&&sequence.indexOf(role)<activeIndex)||(activeRole==='repair'&&['owner','visual','maker','runtime','verifier'].includes(role))){station.classList.add('done');state.textContent='Handed off';}
     else state.textContent='Waiting';
   });
-  $('#handoffHorse').dataset.role=activeRole;
+  const horse=$('#handoffHorse');horse.dataset.role=activeRole;horse.classList.toggle('running',!terminal);
   clearInterval(elapsedTimer);if(!terminal)elapsedTimer=setInterval(()=>{if(latestRunRecord){$('#runElapsed').textContent=elapsed(latestRunRecord);$('#cloudHeartbeat').textContent=heartbeat(latestRunRecord);}},1000);
 }
 $('#playResult').addEventListener('click',event=>playProject(event.currentTarget.dataset.projectId));
