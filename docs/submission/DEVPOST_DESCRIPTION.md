@@ -44,7 +44,7 @@ KHALINOS does not require a third-party business dataset. It processes the user'
 
 ## Measured proof
 
-On the latest immutable Cloud image, the side-scroll composition completed in 2 minutes 42.43 seconds with zero interventions after dispatch, 12 Gemini calls, three immutable receipts, 30/30 deterministic checks, and a final role-separated verifier PASS. Trinity passed 58/58 checks on the same digest with a different Agent–Capability composition. A separate authenticated Chrome qualification proved that the UI horse, active agent, Capability Packs, Gemini calls, verifier state, and M01–M06 cargo are derived from persisted Cloud state rather than a scripted animation.
+On the final same-image Cloud qualification, side-scroll completed in 3 minutes 8.38 seconds with zero interventions after dispatch, 12 Gemini calls, three immutable receipts, 30/30 deterministic checks, and a role-separated verifier PASS. Trinity completed in 4 minutes 14.15 seconds with 12 calls, three receipts, 59/59 checks, and zero issues on the same digest. Both used eight active slots but recorded different Agent–Capability composition hashes. A separate authenticated Chrome qualification proved that the UI horse, active agent, Capability Packs, Gemini calls, verifier state, and M01–M06 cargo are derived from persisted Cloud state rather than a scripted animation.
 
 ## Product boundary
 

@@ -126,7 +126,7 @@
     <text x="720" y="571" class="small muted" font-size="10">project → visual → feedback → skin/audio</text>
     <text x="720" y="596" class="small" fill="#f3c96b" font-size="9">ASSETS: select → style → atlas → receipt</text>
     <text x="720" y="621" class="small" fill="#dc8cd8" font-size="9">EFFECTS: select → atlas → player → receipt</text>
-    <text x="720" y="646" class="small" fill="#c9bdff">TRINITY · 9 ACTIVE</text>
+    <text x="720" y="646" class="small" fill="#c9bdff">TRINITY · 8 ACTIVE</text>
     <text x="720" y="664" class="small muted" font-size="9">top-down → gameplay probe → sprite gate</text>
     <text x="720" y="688" class="small" fill="#7ed7ff" font-size="9">SIDE · 8: lane → destination → side probe</text>
   </g>
@@ -195,7 +195,7 @@
   <!-- Google Cloud state/evidence plane -->
   <rect x="365" y="780" width="900" height="72" rx="20" fill="#0b202b" stroke="#31586a"/>
   <text x="395" y="810" class="label caps" fill="#7ed7ff">GOOGLE CLOUD STATE + EVIDENCE PLANE</text>
-  <text x="395" y="835" class="label node-copy muted">Firestore live projection</text>
+  <text x="395" y="835" class="label node-copy muted">Vertex AI · Firestore live projection</text>
   <circle cx="575" cy="830" r="3" fill="#4dbdab"/>
   <text x="595" y="835" class="label node-copy muted">Cloud Storage briefs, assets, screenshots, receipts, capability traces, manifests</text>
   <path class="flow dash" d="M505 755 V773"/>

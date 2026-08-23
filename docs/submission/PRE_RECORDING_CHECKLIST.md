@@ -27,9 +27,9 @@
 
 ## Release gate
 
-- [ ] PR from `agent/presentation-audio-packs` to `main` reviewed and merged
-- [ ] Full local regression PASS
-- [ ] GitHub CI PASS
-- [ ] Annotated `v0.6.0-hackathon-rc4` tag points to final `main`
+- [ ] PR from `agent/running-horse-animation` to `main` reviewed and merged
+- [ ] Full local regression PASS after final evidence/document update
+- [ ] GitHub CI PASS on the final PR
+- [ ] Annotated `v0.6.0-hackathon-final` tag points to final `main`
 - [ ] Public `/health`, README links, architecture PNG, and evidence JSON rechecked after merge
 - [ ] Recording tabs and local Godot outputs prepared without starting the recorded Cloud run

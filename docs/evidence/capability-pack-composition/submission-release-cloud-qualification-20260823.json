@@ -1,0 +1,96 @@
+{
+  "schema_version": "khalinos-submission-release-qualification-v1",
+  "purpose": "Final same-image regression qualification for the two submitted Godot profiles after the live execution horse animation release.",
+  "source_commit": "f7e7d8c",
+  "cloud_build": {
+    "id": "3723f60e-f0ee-4fc9-8900-485591d8c6a9",
+    "status": "SUCCESS",
+    "image": "asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/khalinos:submission-f7e7d8c-godot",
+    "digest": "sha256:56a8f4429365c5170cf4c0c6149a497236b43a51144308154c633d1ed3fec24b"
+  },
+  "deployment": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "service": "khalinos",
+    "service_revision": "khalinos-00065-xmv",
+    "service_traffic_percent": 100,
+    "job": "khalinos-worker",
+    "worker_memory": "8Gi",
+    "worker_cpu": "2",
+    "worker_timeout_seconds": 1800,
+    "worker_max_retries": 0,
+    "api_worker_same_image": true
+  },
+  "profiles": {
+    "trinity": {
+      "profile_id": "godot.trinity-top-down",
+      "run_id": "15100d664c8840c2b85a24d2068e270f",
+      "execution_id": "khalinos-worker-dzcj6",
+      "execution_started_at": "2026-08-23T01:22:07.720258Z",
+      "execution_completed_at": "2026-08-23T01:26:21.873676Z",
+      "status": "passed",
+      "message": "Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.",
+      "toolpack": {
+        "id": "godot.gameplay",
+        "version": "2.5.0",
+        "manifest_sha256": "5193ea8bef79137a2a05d5e0ea0e820a64054f6e611da4908549d4226d30a3c8"
+      },
+      "gemini_calls": 12,
+      "receipts": [
+        "VS-809923237e0046eb",
+        "QR-3a561fef2ad04681",
+        "QR-4e03dfbdaba94c58"
+      ],
+      "deterministic_checks_passed": 59,
+      "issues": 0,
+      "selected_candidate": "V3",
+      "artifact_sha256": "6954141ff4f4fa9a6633055c25d91dc9beacc48d64fe5828c5d04acef830c3bc",
+      "bundle_sha256": "740c548dda5d8317d450fdcb98f2182af76923be0d545a6326aa83b7b3a8c7df",
+      "licensed_art_atlas_sha256": "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56",
+      "effect_atlas_sha256": "25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9",
+      "agent_capability_trace_sha256": "a0b7881b14a0539f9a787ff633769b1580199fee7373662b084b447784e6525c",
+      "composition_sha256": "d500ec0c49bffa53e2ae0b55e70d7c712039aefee8fd8efa07e949f28e1901fb",
+      "active_agent_slots": 8
+    },
+    "side_scroll": {
+      "profile_id": "godot.side-scroll-destination",
+      "run_id": "c9fa277674c940a685c48de576713239",
+      "execution_id": "khalinos-worker-m95cm",
+      "execution_started_at": "2026-08-23T01:26:57.722619Z",
+      "execution_completed_at": "2026-08-23T01:30:06.098414Z",
+      "status": "passed",
+      "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification.",
+      "toolpack": {
+        "id": "godot.side-scroll-experiment",
+        "version": "0.8.0",
+        "manifest_sha256": "b497d3490d921660a42c8a9a31f5b3fdc3768a4a240737115b7fde8a78ecfe4d"
+      },
+      "gemini_calls": 12,
+      "receipts": [
+        "VS-e89fca87e3d64049",
+        "QR-b31626be8c324700",
+        "QR-47582d5e2d034468"
+      ],
+      "deterministic_checks_passed": 30,
+      "issues": 0,
+      "selected_candidate": "V3",
+      "artifact_sha256": "180dd46c4c84cdc567fd842ec2d7577f5140c205909035010c7b1ad76bdd3f82",
+      "bundle_sha256": "7c5f14db70aadbae6ae0e3b20767f7be121ccff4f989039d5fa19b8746022097",
+      "licensed_art_atlas_sha256": "3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e",
+      "effect_atlas_sha256": "25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9",
+      "agent_capability_trace_sha256": "8a8212c562d264f99205d8f040335ad5033490d01784e9512a79ee78b9f624a8",
+      "composition_sha256": "5369b3a200570ae17d943e8535de497877c5c54324aa391177b4c8748e7d0c08",
+      "active_agent_slots": 8
+    }
+  },
+  "regression_conclusion": {
+    "existing_gameplay_preserved": true,
+    "same_runtime_image": true,
+    "different_agent_capability_compositions": true,
+    "real_godot_runtime_and_render": true,
+    "role_separated_verification": true,
+    "external_organizational_audit_claimed": false,
+    "commercial_game_polish_claimed": false
+  },
+  "corrected_failure": "A prior UI-only deployment used the plain web Dockerfile and temporarily pointed the Worker at an image without Godot. The release build used cloudbuild.godot.yaml, then rebound both the API and Worker to the same Godot-capable digest before these runs. No failed result is represented as PASS."
+}
