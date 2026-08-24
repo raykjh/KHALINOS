@@ -1,215 +1,111 @@
-# KHALINOS 3:50 live-demo script
+# KHALINOS 4:00 live-demo script
 
-Target: one continuous, unedited, 1× recording. Start from authenticated Materials, move through the prepared Goal and truthful Route/SixSense transition, and authorize only after the Outcome Preview is visible. No Cloud execution has started before the recorded authorization. Narration voice: Clipchamp `Brian Multilingual`, default pitch, 1.0× pace.
+Target: one continuous, unedited, 1× recording. Complete the important narration and fresh-result reveal by 3:55, then hold for five seconds. The live run must be authorized within the first 30 seconds.
 
-## 0:00–0:03 — Materials opening hold
+## 0:00–0:03 — Materials
 
-Screen: authenticated KHALINOS Materials step with **New project** selected and no files required. Keep the pointer still.
+Screen: authenticated Materials. Select **New project** and continue immediately.
 
-Audio: silence.
+## 0:03–0:22 — Goal and truthful route wait
 
-## 0:03–0:12 — Materials
-
-Screen: indicate that KHALINOS can begin from a new or existing project. Continue with the prepared new project at about 0:09.
-
-## 0:12–0:25 — Goal
-
-Screen: show the prepared project name and bounded side-scroll goal. Briefly indicate the required mechanics, licensed visual foundation, deterministic checks, and role-separated verification. Choose **Find the best route** at about 0:23.
-
-## 0:25–0:38 — Route
-
-Screen: let KHALINOS compare the approved routes. Do not click repeatedly while the request is in progress. Preserve the truthful automatic transition when the exact compatible side-scroll route is selected.
-
-## 0:38–0:55 — SixSense
-
-Screen: choose **Dark Fantasy** for the visible user-owned visual direction question, confirm it once, and let KHALINOS determine that no further subjective answer is required.
-
-## 0:55–0:58 — Preview
-
-Screen: show the expected final result, boundaries, evidence, budget, and duration. Move to **Authorize and execute** without clicking early.
-
-Narration for 0:03–0:43:
-
-> AI is no longer new. But there is still a big gap between chatting with AI, coding with AI, and trusting agents with real work.
->
-> AI-made websites and games can make it seem like someone simply said, “Build this,” and everything appeared.
->
-> In practice, you still watch the process, make decisions, retry failures, and check whether the result actually works.
->
-> I wanted to reduce that supervision burden. Human judgment still matters, but KHALINOS can take over the repeatable parts of production and verification.
->
-> It keeps the project on course and does not call it complete without evidence.
-
-## 0:58–1:04 — authorize the live run
-
-Screen: move to **Authorize and execute** and click while saying “authorize.”
+Screen: populate the prepared side-scroll goal and choose **Find the best route** by about 0:03. Keep the genuine busy state visible while KHALINOS compares approved routes.
 
 Narration:
 
-> Now, I will authorize a real side-scrolling game build.
+> AI is no longer new. But there is still a gap between chatting with AI, coding with AI, and trusting agents with real work.
+>
+> AI-made websites and games can make it seem as if someone simply said, “Build this,” and everything appeared.
 
-## 1:04–1:09 — truthful startup
+## 0:22–0:25 — SixSense and Preview
 
-Screen: allow the UI to transition without repeated clicks.
+Screen: choose **Dark Fantasy**, confirm once, and show the Outcome Preview. Do not authorize before Preview is visible.
 
-Audio: silence; retain genuine UI sound.
+## 0:25–0:29 — authorize the live run
 
-## 1:09–1:31 — value and agent composition
-
-Screen: indicate the selected profile, Capability Packs, active agent, horse and milestone movement, and Gemini call count.
+Screen: click **Authorize and execute** as soon as it is enabled.
 
 Narration:
 
-> Before execution, KHALINOS helps the user define the goal, acceptance criteria, and budget.
->
-> After one authorization, it gives each agent only the capabilities needed for this job, then continues through planning, building, running, and testing.
->
-> I do not need to intervene at every step, but I can still see which agent is active and what it is doing.
+> Now I will authorize a real side-scrolling game build.
 
-## 1:31–1:35 — architecture transition
+## 0:29–0:42 — live KHALINOS
 
-Screen: switch to the full-window architecture diagram in the next prepared Chrome tab.
-
-Audio: silence.
-
-## 1:35–1:50 — architecture
-
-Screen: indicate Gemini/ADK, Capability Packs, trusted host, and verifier in that order.
+Screen: show the selected profile, Capability Packs, active agent, execution ID, horse, milestones, receipts, Gemini calls, and verifier state.
 
 Narration:
 
-> Gemini three point five Flash helps plan and evaluate through Google A. D. K.
->
-> Capability Packs are composed for the profile, while trusted host code controls each agent's tools and permissions.
+> In practice, you still watch the process, make decisions, retry failures, and check whether the result actually works. I wanted to reduce that supervision burden. Human judgment still matters, but KHALINOS takes over the repeatable parts of production and verification.
 
-## 1:50–1:54 — Cloud transition
+## 0:42–0:58 — architecture
 
-Screen: switch to the prepared Cloud Run Jobs list, filtered to `khalinos-worker`. Keep the `Creator` column hidden.
-
-Audio: silence.
-
-## 1:54–2:10 — Google Cloud proof
-
-Screen: indicate the Cloud project, Worker Job, `asia-northeast3`, and status. The matching live execution ID is shown in KHALINOS immediately before and after this console proof. Do not open an execution detail page because it exposes the executor account.
+Screen: show the architecture diagram and indicate Gemini/ADK, composed Capability Packs, trusted host, runtime check, verifier, and bounded repair.
 
 Narration:
 
-> The actual work runs on Google Cloud Run.
->
-> Firestore holds the live state, and Cloud Storage keeps the artifacts and verification evidence.
->
-> This console shows the same worker job, region, and execution ID.
+> Before execution, KHALINOS helps define the goal, acceptance criteria, and budget. After one authorization, each agent receives only the capabilities needed for this job, then continues through planning, building, running, and testing.
 
-## 2:10–2:14 — Cloud proof hold
+## 0:58–1:13 — Google Cloud proof
 
-Screen: keep the execution ID and state visible.
-
-Audio: silence.
-
-## 2:14–2:18 — return to KHALINOS
-
-Screen: return to the live KHALINOS tab with receipts and verifier state visible.
-
-Audio: silence.
-
-## 2:18–2:31 — evidence-gated completion
-
-Screen: indicate verifier state, deterministic checks, receipts, and the active agent.
+Screen: show the Cloud project, Worker Job, region, and successful executions without exposing executor details.
 
 Narration:
 
-> KHALINOS does not turn a failed task into a success story.
->
-> It releases a result only after the runtime checks pass and a separate verifier inside the system accepts the evidence.
+> The actual work runs on Google Cloud Run. Firestore holds the live state, and Cloud Storage keeps artifacts and verification evidence.
 
-## 2:31–2:35 — side-scroll transition
+## 1:13–1:25 — return to KHALINOS
 
-Screen: switch to the prepared side-scroll Godot project, keep the scene ready, and display **PREVIOUSLY VERIFIED CLOUD OUTPUT**. Start the scene at 2:33, not during this transition.
-
-Audio: silence during the transition.
-
-## 2:35–2:48 — side-scroll output
-
-Screen: start the scene at 2:33. Show movement toward the destination, automatic attacks, enemy reactions, and the genuine completion state. The prepared build completes in roughly four seconds, so do not start it early.
+Screen: show that the live run continues without step-by-step intervention.
 
 Narration:
 
-> While the live build continues, this is a previously verified output from the same side-scrolling profile.
->
-> The party moves toward a destination, attacks enemies automatically, and completes the stage.
+> I do not need to intervene at every step, but I can still see which agent is active, what it is doing, and which milestone is complete.
 
-## 2:48–2:53 — side-scroll gameplay audio
+## 1:25–1:55 — previously verified Trinity output
 
-Screen: restart the same scene once at 2:46 so genuine movement, combat, and victory sound fill this silent narration window. Keep **PREVIOUSLY VERIFIED CLOUD OUTPUT** visible.
-
-Audio: game sound only.
-
-## 2:53–2:57 — Trinity transition
-
-Screen: switch to the prepared Trinity start screen, click **START**, and keep **PREVIOUSLY VERIFIED CLOUD OUTPUT** visible.
-
-Audio: silence during the transition.
-
-## 2:57–3:08 — Trinity output
-
-Screen: show movement, warrior and archer attacks, healing, and one skill effect if it occurs naturally.
+Screen: restart Trinity, click **START**, and show movement, attacks, healing, and skill effects. Keep **PREVIOUSLY VERIFIED CLOUD OUTPUT** visible.
 
 Narration:
 
-> This second result is Trinity.
->
-> The same agent team used a different Capability Pack composition for top-down combat, profession progression, attacks, skills, and healing.
+> While the new build continues, this previously verified result is Trinity. The same fixed agent team used a different Capability Pack composition for top-down combat, profession progression, attacks, skills, and healing.
 
-## 3:08–3:12 — Trinity gameplay audio
+## 1:55–2:15 — previously verified Browser output
 
-Screen: keep the battle visible.
-
-Audio: game sound only.
-
-## 3:12–3:16 — Browser transition
-
-Screen: switch to the prepared Launch Triage Board and display **PREVIOUSLY VERIFIED CLOUD OUTPUT**.
-
-Audio: silence.
-
-## 3:16–3:25 — Browser output
-
-Screen: indicate result cards, classifications, and check results.
+Screen: show the Launch Triage Board with its result cards and classifications. Keep **PREVIOUSLY VERIFIED CLOUD OUTPUT** visible.
 
 Narration:
 
-> KHALINOS is not limited to game profiles.
->
-> This Browser profile used a separate workflow to produce a launch triage board.
+> KHALINOS is not limited to game profiles. This Browser profile used a separate workflow to produce a launch triage board.
 
-## 3:25–3:29 — return to the live run
+## 2:15–3:38 — live KHALINOS monitoring
 
-Screen: return to KHALINOS and show the truthful current agent, milestone, execution ID, and verifier state. The script remains valid whether the run is still active or has passed.
-
-Audio: silence.
-
-## 3:29–3:46 — conclusion
-
-Screen: keep the KHALINOS state visible and the pointer still.
+Screen: remain on KHALINOS. Let the horse, active agent, Capability Packs, Gemini calls, receipts, runtime check, and verifier update naturally.
 
 Narration:
 
-> These results are different, but they follow one rule:
+> KHALINOS does not turn a failed task into a success story. It releases a result only after runtime checks pass and a role-separated verifier inside the system accepts the evidence.
 >
-> give agents only the capabilities they need, and accept completion only when the evidence agrees.
+> It keeps the project on course and does not call it complete without evidence. Different outputs follow one rule: give agents only the capabilities they need, and accept completion only when the evidence agrees.
 >
 > KHALINOS turns repeated supervision into verified delivery.
 
-## 3:46–3:50 — closing hold
+## 3:38–3:55 — fresh result reveal
 
-Screen: keep the KHALINOS state visible and stop recording at 3:50.
+Screen: stay on the live run until **PASSED**. Only after PASS, restart the newly produced side-scroll project through Godot, switch to it while it is moving, and show automatic movement, attacks, enemy reactions, destination progress, and completion.
 
-Audio: silence.
+Narration after PASS:
+
+> The new run has passed. This is the result from the execution you just watched: a party moving, fighting automatically, and reaching its destination.
+
+## 3:55–4:00 — closing hold
+
+Screen: hold the fresh result or its genuine completion screen. Stop at 4:00.
+
+Audio: no narration. Keep genuine game sound.
 
 ## Recording boundaries
 
 - One continuous take at 1× speed; no cuts, trimming, stitching, or hidden failures.
-- Keep the live run truthful. It does not need to reach PASS inside the video.
-- Label all earlier artifacts **PREVIOUSLY VERIFIED CLOUD OUTPUT**.
-- Use genuine gameplay sound only in the two reserved gameplay-audio windows.
-- Do not claim a universal builder, an external independent audit, or commercial game polish.
+- The microphone input is muted. Narration is captured once through Desktop Audio to prevent echo.
+- Authorize only after the recorded Preview, and within the first 30 seconds.
+- Label earlier artifacts **PREVIOUSLY VERIFIED CLOUD OUTPUT**.
+- Do not claim a universal builder, an external organizational audit, or commercial game polish.

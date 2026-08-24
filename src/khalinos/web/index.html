@@ -25,7 +25,8 @@
     .shell { display:grid; grid-template-columns:220px minmax(0,1fr); gap:22px; }
     .rail,.panel { background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:0 24px 80px rgba(0,0,0,.24); backdrop-filter:blur(16px); }
     .rail { padding:10px; align-self:start; display:grid; gap:8px; }
-    .phase { display:flex; gap:11px; align-items:center; color:#70828e; padding:14px 13px; font-size:14px; border:1px solid rgba(81,101,59,.24); border-radius:10px; background:rgba(255,252,237,.5); }
+    .phase { width:100%; display:flex; gap:11px; align-items:center; text-align:left; color:#70828e; padding:14px 13px; font-size:14px; font-weight:500; border:1px solid rgba(81,101,59,.24); border-radius:10px; background:rgba(255,252,237,.5); cursor:default; }
+    .phase.reviewable { cursor:pointer; }
     .phase::before { content:""; width:9px; height:9px; border:1px solid currentColor; border-radius:50%; }
     .phase.active { color:#775a2c; font-weight:800; border-color:#b18843; background:rgba(222,190,116,.18); box-shadow:inset 4px 0 #b18843; }
     .phase.done { color:#3f6b44; border-color:#77906b; background:rgba(113,145,88,.12); }
@@ -225,12 +226,12 @@
   </header>
   <div class="shell">
     <aside class="rail" aria-label="Progress">
-      <div class="phase active" data-phase="materials">Materials</div>
-      <div class="phase" data-phase="goal">Goal</div>
-      <div class="phase" data-phase="route" hidden>Compatibility</div>
-      <div class="phase" data-phase="senses">SixSense</div>
-      <div class="phase" data-phase="preview">Preview</div>
-      <div class="phase" data-phase="execute">Execute</div>
+      <button class="phase active" type="button" data-phase="materials">Materials</button>
+      <button class="phase" type="button" data-phase="goal">Goal</button>
+      <button class="phase" type="button" data-phase="route" hidden>Compatibility</button>
+      <button class="phase" type="button" data-phase="senses">SixSense</button>
+      <button class="phase" type="button" data-phase="preview">Preview</button>
+      <button class="phase" type="button" data-phase="execute">Execute</button>
     </aside>
     <section class="panel">
       <div class="step active" id="materialsStep">
@@ -371,6 +372,10 @@ function show(name){
   const current=phases.indexOf(name);
   document.querySelectorAll('.phase').forEach((node,index)=>{node.classList.toggle('active',index===current);node.classList.toggle('done',index<current);});
 }
+document.querySelectorAll('.phase').forEach(node=>node.addEventListener('click',()=>{
+  const phase=node.dataset.phase;
+  if(intake?.status==='ready'&&['materials','goal','senses','preview'].includes(phase))show(phase);
+}));
 function busy(button,on,label='Working with Gemini…'){button.disabled=on;button.dataset.original??=button.textContent;button.innerHTML=on?`<span class="spinner"></span>${label}`:button.dataset.original;}
 function apiError(response,text){try{return JSON.parse(text).detail||text;}catch{return text||`HTTP ${response.status}`;}}
 async function filePayload(file){
@@ -547,7 +552,7 @@ $('#confirmRoute').addEventListener('click',async()=>{const button=$('#confirmRo
 $('#backToGoal').addEventListener('click',()=>{routeRecommendation=null;requestedProjectKind='';requestedToolpackId='';requestedToolpackBinding=null;show('goal');});
 $('#changeRoute').addEventListener('click',()=>{requestedProjectKind='';requestedToolpackBinding=null;requestedToolpackId=intake?.requested_toolpack_id||requestedToolpackId;if(routeRecommendation){renderRoute();return;}requestedToolpackId='';show('goal');});
 function renderIntake(){
-  if(intake.status==='ready'){renderPreview();return;}
+  if(intake.status==='ready'){document.querySelectorAll('.phase').forEach(node=>node.classList.toggle('reviewable',['materials','goal','senses','preview'].includes(node.dataset.phase)));renderPreview();return;}
   const question=intake.current_question; if(!question)throw new Error('SixSense returned no next question or preview.');
   show('senses');const asked=Object.keys(intake.answers||{}).length;const questionNumber=Math.min(6,intake.question_history?.length||asked+1);
   $('#questionText').textContent=question.question; $('#questionWhy').textContent=question.why_it_matters;
