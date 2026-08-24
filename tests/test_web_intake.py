@@ -117,6 +117,14 @@ def test_goal_has_no_leading_example_and_sixsense_requires_a_real_choice() -> No
     assert "$('#answer').value=question.recommended_answer" not in html
 
 
+def test_goal_validation_is_owned_by_the_english_ui() -> None:
+    html = WEB.read_text(encoding="utf-8")
+    assert 'id="goalValidation"' in html
+    assert "Describe the goal in at least 20 characters." in html
+    assert "Enter a project name with at least 2 characters." in html
+    assert "reportValidity()" not in html
+
+
 def test_execution_camp_shows_branching_verification_and_repair_loop() -> None:
     html = WEB.read_text(encoding="utf-8")
     assert 'class="flow-lines"' in html

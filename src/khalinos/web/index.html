@@ -92,6 +92,7 @@
     .method-panel { padding:0 15px 15px; }
     .method-panel label { margin:0; }
     .field-help { color:#65705d; font-size:12px; font-weight:500; }
+    .validation-message { color:#8f2f23; font-size:13px; font-weight:700; margin:8px 0 0; }
     .file-picker { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px; }
     .file-trigger { padding:9px 13px; font-size:13px; }
     .file-name { color:#59634f; font-size:13px; font-weight:600; }
@@ -264,6 +265,7 @@
         <p class="lead" id="goalContext">A new project will be created. Describe the result you want KHALINOS to build.</p>
         <label>Project name<input id="projectName" value="My project" minlength="2" required></label>
         <label>Goal<textarea id="goal" minlength="20" required placeholder="Describe the goal, required features, exclusions, and desired design. More detail helps KHALINOS guide the work effectively."></textarea></label>
+        <p class="validation-message" id="goalValidation" role="alert" hidden></p>
         <div class="actions"><button class="secondary" data-back="materials">Back</button><button id="beginSensing">Find the best route</button></div>
       </div>
 
@@ -493,11 +495,19 @@ $('#inspectMaterials').addEventListener('click',async()=>{
     await inspectDescriptorSet();
   }catch(error){alert(`Materials could not be inspected: ${error.message}`);}finally{busy(button,false);}
 });
+function validateGoalFields(){
+  const name=$('#projectName').value.trim();const goal=$('#goal').value.trim();let message='';let target=null;
+  if(name.length<2){message='Enter a project name with at least 2 characters.';target=$('#projectName');}
+  else if(goal.length<20){message='Describe the goal in at least 20 characters.';target=$('#goal');}
+  const status=$('#goalValidation');status.textContent=message;status.hidden=!message;
+  if(target){target.focus();return false;}return true;
+}
+['projectName','goal'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{$('#goalValidation').hidden=true;}));
 $('#beginSensing').addEventListener('click',async()=>{
   if(!requireSignIn())return;
   const button=$('#beginSensing'); busy(button,true,workChoice==='existing'?'Analyzing six dimensions…':'Comparing approved routes…');
   try{
-    if(!$('#projectName').reportValidity()||!$('#goal').reportValidity())return;
+    if(!validateGoalFields())return;
     if(workChoice==='existing'||workChoice==='demo'){await startSixSense();return;}
     const response=await fetch('/api/routes/recommend',{method:'POST',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify({project_name:$('#projectName').value.trim(),goal:$('#goal').value.trim(),project_locator:$('#projectLocator').value.trim(),materials:materialDescriptors,requested_work_mode:'new_product_build'})});
     const text=await response.text();if(!response.ok)throw new Error(apiError(response,text));routeRecommendation=JSON.parse(text);
