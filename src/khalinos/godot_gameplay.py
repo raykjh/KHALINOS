@@ -382,6 +382,8 @@ var shared_health := 0.0
 var shared_health_max := 0.0
 var shield := 0.0
 var elapsed := 0.0
+var ground_scroll := Vector2.ZERO
+var demo_autoplay := false
 var spawn_clock := 0.0
 var level := 1
 var records := 0
@@ -435,7 +437,8 @@ func _ready() -> void:
         effect_manifest = JSON.parse_string(FileAccess.get_file_as_string("res://KHALINOS_EFFECT_ATLAS.json"))
         effect_texture = load("res://assets/combat-vfx-atlas.png")
         effect_player = load("res://scripts/khalinos_vfx_player.gd")
-    if OS.get_cmdline_user_args().has("--khalinos-capture-gameplay"):
+    demo_autoplay = OS.get_cmdline_user_args().has("--khalinos-demo-autoplay")
+    if OS.get_cmdline_user_args().has("--khalinos-capture-gameplay") or demo_autoplay:
         _start_game()
     queue_redraw()
 
@@ -461,11 +464,18 @@ func _process(delta: float) -> void:
     if not started:
         queue_redraw()
         return
+    if choice_open and demo_autoplay:
+        _choose_upgrade(0)
     if ended or choice_open:
         queue_redraw()
         return
     var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-    _step_simulation(delta, direction)
+    if demo_autoplay:
+        direction = Vector2(cos(elapsed * 0.55), sin(elapsed * 0.38)).normalized()
+    # Asset/window initialization can deliver one abnormally large frame delta.
+    # Bound it so the countdown, camera and combat never jump ahead on launch.
+    var frame_delta := minf(delta, 1.0 / 30.0)
+    _step_simulation(frame_delta, direction)
     queue_redraw()
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -504,10 +514,16 @@ func _format_countdown() -> String:
 
 func _step_simulation(delta: float, direction: Vector2) -> void:
     elapsed += delta
-    var speed: float = _party_stats().move_speed
-    center += direction.normalized() * speed * delta
-    center.x = clamp(center.x, 70.0, float(config.viewport_width) - 70.0)
-    center.y = clamp(center.y, 90.0, float(config.viewport_height) - 70.0)
+    var speed: float = float(_party_stats().move_speed) / max(1.0, float(config.heroes.size()))
+    if demo_autoplay:
+        speed *= 0.45
+    var movement := direction.normalized() * speed * delta
+    ground_scroll += movement
+    # The party remains at the camera anchor while the top-down world moves.
+    # This keeps navigation readable and avoids the fast edge-to-edge motion that
+    # made the demo capture visually uncomfortable.
+    for enemy in enemies:
+        enemy.position -= movement
     spawn_clock += delta
     var spawn_interval: float = max(0.35, 1.6 - elapsed / max(30.0, float(config.session_seconds)))
     while spawn_clock >= spawn_interval:
@@ -794,8 +810,9 @@ func verification_scenario() -> Dictionary:
     var initial_countdown := _remaining_seconds()
     _start_game()
     var start := center
+    var start_scroll := ground_scroll
     _step_simulation(0.5, Vector2.RIGHT)
-    var moved := center.x > start.x
+    var moved := ground_scroll.x > start_scroll.x and center.is_equal_approx(start)
     var countdown_decrements := _remaining_seconds() < initial_countdown
     _spawn_enemy()
     var spawned := enemies.size() > 0
@@ -999,12 +1016,7 @@ func verification_scenario() -> Dictionary:
     }
 
 func _draw() -> void:
-    draw_rect(Rect2(Vector2.ZERO, Vector2(config.viewport_width, config.viewport_height)), Color(0.16, 0.27, 0.20, 0.68))
-    for x in range(0, int(config.viewport_width), 64):
-        draw_line(Vector2(x, 0), Vector2(x, config.viewport_height), Color(0.55, 0.78, 0.55, 0.18), 1.0)
-    for y in range(0, int(config.viewport_height), 64):
-        draw_line(Vector2(0, y), Vector2(config.viewport_width, y), Color(0.55, 0.78, 0.55, 0.18), 1.0)
-    PresentationSkin.draw_top_down_arena(self, center, float(config.viewport_width), float(config.viewport_height))
+    _draw_scrolling_ground()
     for effect in skill_effects:
         var role := "warrior_skill"
         match String(effect.kind):
@@ -1036,14 +1048,11 @@ func _draw() -> void:
     for hero in config.heroes:
         var angle: float = TAU * float(hero_index) / max(1.0, float(config.heroes.size())) - PI / 2.0
         var position: Vector2 = center + Vector2.from_angle(angle) * 30.0
-        var attacking := false
         for effect in basic_attack_effects:
             if String(effect.owner_hero_id) == String(hero.hero_id):
-                attacking = true
                 position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
         for effect in skill_effects:
             if String(effect.owner_hero_id) == String(hero.hero_id):
-                attacking = true
                 position += Vector2.from_angle(angle) * 10.0 * sin(float(effect.life) / float(effect.max_life) * PI)
         var licensed_hero_drawn := false
         if licensed_art_helper != null and licensed_art_texture != null:
@@ -1061,8 +1070,6 @@ func _draw() -> void:
         else:
             draw_circle(position, 16.0, Color(hero.color_hex))
             draw_circle(position, 18.0, Color("f3e6bd"), false, 3.0)
-        if attacking:
-            draw_circle(position, 31.0, Color(1.0, 0.82, 0.28, 0.9), false, 4.0, true)
         hero_index += 1
     var licensed_enemy_index := 0
     for enemy in enemies:
@@ -1077,7 +1084,6 @@ func _draw() -> void:
             draw_texture_rect_region(sprite_texture, Rect2(enemy.position - Vector2(22, 22), Vector2(44, 44)), enemy_region, Color("8ee58a"))
         else:
             draw_circle(enemy.position, 14.0, Color("58b96a"))
-        draw_circle(enemy.position, 24.0, Color(0.28, 0.78, 0.36, 0.68), false, 2.0, true)
         licensed_enemy_index += 1
     PresentationSkin.draw_hud_panel(self, Rect2(22, 18, 382, 64), Color("b8d88f"))
     _draw_label("TRINITY HP  %d / %d" % [max(0, int(shared_health)), int(shared_health_max)], Vector2(32, 42), 18, Color("f7f2df"))
@@ -1093,6 +1099,38 @@ func _draw() -> void:
         _draw_choice_overlay()
     if ended:
         _draw_outcome_overlay()
+
+func _draw_scrolling_ground() -> void:
+    var viewport_size := Vector2(float(config.viewport_width), float(config.viewport_height))
+    draw_rect(Rect2(Vector2.ZERO, viewport_size), Color("476b3d"))
+    var tile_size := 96.0
+    var visual_scroll := ground_scroll * 0.55
+    var origin_column := int(floor(visual_scroll.x / tile_size)) - 1
+    var origin_row := int(floor(visual_scroll.y / tile_size)) - 1
+    var offset := Vector2(
+        -fposmod(visual_scroll.x, tile_size) - tile_size,
+        -fposmod(visual_scroll.y, tile_size) - tile_size
+    )
+    var columns := int(ceil(viewport_size.x / tile_size)) + 3
+    var rows := int(ceil(viewport_size.y / tile_size)) + 3
+    for row in range(rows):
+        for column in range(columns):
+            var tile_position := offset + Vector2(column * tile_size, row * tile_size)
+            var world_column := origin_column + column
+            var world_row := origin_row + row
+            var checker := posmod(world_column + world_row, 3)
+            var grass_color := Color("547a45") if checker == 0 else Color("4d7040")
+            draw_rect(Rect2(tile_position, Vector2(tile_size + 1.0, tile_size + 1.0)), grass_color)
+            var seed: int = absi(world_column * 37 + world_row * 53)
+            if seed % 5 == 0:
+                draw_circle(tile_position + Vector2(25.0, 31.0), 13.0, Color("8c7651"))
+                draw_circle(tile_position + Vector2(23.0, 28.0), 8.0, Color("a08a62"))
+            elif seed % 4 == 0:
+                draw_circle(tile_position + Vector2(69.0, 62.0), 9.0, Color("6f7568"))
+                draw_circle(tile_position + Vector2(66.0, 59.0), 5.0, Color("929888"))
+            else:
+                draw_line(tile_position + Vector2(18.0, 75.0), tile_position + Vector2(25.0, 64.0), Color("88a85f"), 3.0)
+                draw_line(tile_position + Vector2(25.0, 75.0), tile_position + Vector2(25.0, 62.0), Color("9ab86b"), 2.0)
 
 func _draw_skill_cooldowns() -> void:
     var panel_x := float(config.viewport_width) - 290.0

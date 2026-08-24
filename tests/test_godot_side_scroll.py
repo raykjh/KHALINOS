@@ -111,6 +111,13 @@ def test_side_scroll_compiler_is_deterministic_and_owns_exact_outputs(tmp_path: 
     ]
     assert "PresentationSkin.draw_parallax" in first.files["scripts/khalinos_side_scroll.gd"]
     assert 'AudioFeedback.play_cue(self, cue)' in first.files["scripts/khalinos_side_scroll.gd"]
+    assert "var frame_delta := minf(delta, 1.0 / 60.0)" in first.files["scripts/khalinos_side_scroll.gd"]
+    assert "simulate_step(frame_delta)" in first.files["scripts/khalinos_side_scroll.gd"]
+    assert "var ground_y := height * 0.78" in first.files["scripts/khalinos_side_scroll.gd"]
+    assert 'Rect2(100, ground_y - 74.0, 74, 74)' in first.files["scripts/khalinos_side_scroll.gd"]
+    assert 'prop_role := "tree"' not in first.files["scripts/khalinos_side_scroll.gd"]
+    assert 'licensed_art_manifest, "destination"' not in first.files["scripts/khalinos_side_scroll.gd"]
+    assert "PresentationSkin.draw_destination" not in first.files["scripts/khalinos_side_scroll.gd"]
     destination = tmp_path / "product"
     GODOT_SIDE_SCROLL_TOOLPACK.execution_adapter.materialize(first, destination)
     assert {path.as_posix() for path in destination.rglob("*") if path.is_file()} == {

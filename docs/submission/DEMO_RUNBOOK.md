@@ -1,39 +1,40 @@
-# KHALINOS 3:50 recording runbook
+# KHALINOS 3:55 submission-video runbook
 
 Use this runbook with [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). The script is the
 second-by-second source of truth; this file prepares the recording environment.
 
 ## Recording contract
 
-- Record one continuous take at 1× speed. Do not cut, trim, stitch, or hide a failure.
+- Record short, clean clips and edit out loading screens and dead air, as recommended by the submission guidance.
+- Keep the live proof truthful: authorization, early progress, later progress, PASS, and the fresh artifact must use one execution ID.
+- Put **WAIT TIME REMOVED — SAME EXECUTION ID** over the only long progress jump.
 - Start from the authenticated **Materials** step. Move through Goal, Route/SixSense, and Preview before the recorded authorization click.
 - Start the real side-scroll Cloud execution only after the recorded authorization click. Do not retry the authorization if the first dispatch is accepted.
 - The live execution does not need to reach PASS during the video. Always show its truthful current state.
 - Label earlier artifacts **PREVIOUSLY VERIFIED CLOUD OUTPUT** during the take.
 - Use the approved English narration track; do not add subtitles or narration after recording.
 - Do not reveal account email, billing details, OAuth client IDs, access tokens, environment variables, or private Firestore owner identifiers.
-- Stop at 3:50 and remain below the four-minute limit.
+- Finish the scored content by 3:50 and stop by 3:55.
 
 ## Approved narration
 
 - Voice: Microsoft `en-US-BrianMultilingualNeural` (`Brian Multilingual`).
 - Pitch: default (`+0Hz`).
 - Speed: 1.0× (`+0%`).
-- Exact recording track: `docs/submission/demo-audio/KHALINOS-demo-narration-3m50s.wav`.
-- MP3 convenience copy: `docs/submission/demo-audio/KHALINOS-demo-narration-3m50s.mp3`.
+- Exact recording track: `docs/submission/demo-audio/KHALINOS-demo-narration-4m.wav`.
+- MP3 convenience copy: `docs/submission/demo-audio/KHALINOS-demo-narration-4m.mp3`.
 - Segment timing and measured headroom: `docs/submission/demo-audio/manifest.json`.
 
-Prefer the WAV in OBS because it is exactly 230.000 seconds. Start recording,
-then start the track inside the opening three-second silent window. The narration
-track intentionally remains silent during UI transitions and the two gameplay-audio
-windows so genuine application sound remains audible.
+Prefer the WAV in the editor. The generated track is 240 seconds long, but all
+spoken content ends at 3:50. Trim the final silence at 3:55. Keep genuine game
+sound under the gameplay clips without obscuring narration.
 
 ## Chrome tab order
 
 1. Authenticated KHALINOS Materials step — active at recording start, with **New project** selected and the prepared Goal values retained for the next step.
 2. Full-window architecture image — `C:\memory R\KHALINOS\docs\architecture\khalinos-architecture.png`.
 3. Cloud Run Jobs list filtered to `khalinos-worker`, project `khalinos-agent-20260818`, region `asia-northeast3`; hide the `Creator` column and do not open execution details.
-4. Prepared Browser result — `C:\memory R\KHALINOS-DEMO-READY-20260824\browser\index.html`.
+4. Prepared Browser result image — `C:\memory R\KHALINOS\docs\evidence\browser-product\launch-triage-final-qa-completed.png`.
 
 Use Chrome for every web surface. Hide the bookmarks bar, download shelf,
 unrelated tabs, notifications, password-manager prompts, and account menus.
@@ -51,29 +52,25 @@ SHA-256 is `3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e`
 and the Trinity atlas SHA-256 is
 `310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56`.
 
-Open both Godot projects before recording. Switch to side-scroll at 2:29 but
-start the scene at 2:33; restart it once at 2:46 for the gameplay-audio window.
-Keep Trinity on its built-in **START** screen for 2:53. Do not leave either
-gameplay scene running before the take. Confirm window switching does not expose
-unrelated folders.
+Record Trinity from a fresh autoplay restart and record the final side-scroll
+artifact from a fresh launch. Rebind each OBS Window Capture to the newly opened
+Godot window and fit it to the canvas before capturing. Confirm window switching
+does not expose unrelated folders.
 
 ## Live labels and screen order
 
-- 0:00–0:12: authenticated Materials step and new-project choice.
-- 0:12–0:25: prepared Goal and acceptance boundary.
-- 0:25–0:38: truthful exact-route selection.
-- 0:38–0:55: one visible SixSense visual-direction choice and its resolution.
-- 0:55–0:58: Outcome Preview.
-- 0:58–1:31: authorization and live agent state.
-- 1:31–1:50: architecture image.
-- 1:50–2:14: Google Cloud execution proof.
-- 2:14–2:31: truthful KHALINOS live state and verifier evidence.
-- 2:31–2:35: side-scroll transition and ready state with **PREVIOUSLY VERIFIED CLOUD OUTPUT** visible.
-- 2:35–2:48: one complete side-scroll run and its genuine completion state.
-- 2:48–2:53: restart the same side-scroll scene for genuine gameplay audio.
-- 2:53–3:12: Trinity result with the same label visible.
-- 3:12–3:25: Browser result with the same label visible.
-- 3:25–3:50: return to truthful KHALINOS state and close.
+- 0:00–0:12: Materials, Goal, SixSense, and Preview, three seconds each.
+- 0:12–0:35: authorization and genuine early live state.
+- 0:35–0:53: architecture image.
+- 0:53–1:08: matching Google Cloud project, worker, and region.
+- 1:08–1:28: return to the same live execution.
+- 1:28–1:55: moving Trinity gameplay labelled **PREVIOUSLY VERIFIED CLOUD OUTPUT**.
+- 1:55–2:18: full-width bright Browser result with the same label.
+- 2:18–2:38: same KHALINOS execution before the progress cut.
+- 2:38: disclosed **WAIT TIME REMOVED — SAME EXECUTION ID** cut.
+- 2:38–3:20: later state and PASS from the same execution, plus matching Cloud success.
+- 3:20–3:50: fresh side-scroll artifact from that PASSED execution.
+- 3:50–3:55: genuine completion hold.
 
 The label must be present during recording, either in a prepared capture overlay
 or in the visible prepared window. Do not add it in post-production.
@@ -95,11 +92,12 @@ or in the visible prepared window. Do not add it in post-production.
 - The Route/SixSense request reaches a compatible side-scroll Outcome Preview before authorization.
 - Cloud Console is filtered to the correct Worker Job and region, the `Creator` column is hidden, and no execution detail page is open.
 - The architecture image is readable at full-window scale.
-- The Browser board loads locally in Chrome and its controls respond.
-- Side-scroll starts from 0 m and completes in roughly four seconds; Trinity waits at its START gate.
-- Side-scroll visibly uses the licensed warrior, archer, priest, enemy, prop, and destination sprites; Trinity visibly uses its licensed hero sprites after START.
+- The Browser evidence image fills the 1920×1080 OBS canvas and has no black right-side area.
+- Trinity autoplay is moving before its clip begins; the party remains centered over scrolling top-down terrain.
+- Side-scroll starts from 0 m, visibly moves, and completes; its heroes and enemies touch the road line.
+- Side-scroll has no castle destination graphic or repeated foreground prop icons; Trinity has no side-scroll ground band or decorative unit rings.
 - The approved 3:50 WAV plays once and does not loop.
-- The three **PREVIOUSLY VERIFIED CLOUD OUTPUT** labels are visible at the intended times.
+- The two **PREVIOUSLY VERIFIED CLOUD OUTPUT** labels are visible at the intended times.
 - For a no-cost timing rehearsal, stop before authorization. For an explicitly approved final rehearsal or submission take, authorize exactly once and keep monitoring the truthful live state after recording.
 
 ## Evidence anchors

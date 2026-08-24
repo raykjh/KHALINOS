@@ -28,19 +28,19 @@ class NarrationClip:
 
 
 CLIPS = (
-    NarrationClip("01_prepared_brief", "00:00", "00:20", "For this demo, the brief is already prepared, but no execution has started. I will review Materials, Goal, the SixSense choice, and the Outcome Preview, then authorize a new live run."),
-    NarrationClip("02_authorize", "00:20", "00:24", "Now I will authorize a real side-scrolling game build."),
-    NarrationClip("03_problem", "00:24", "00:40", "AI is no longer new. But there is still a gap between chatting with AI, coding with AI, and trusting agents with real work. AI-made websites and games can make it seem as if someone simply said, Build this, and everything appeared."),
-    NarrationClip("04_architecture", "00:40", "00:56", "Before execution, KHALINOS helps define the goal, acceptance criteria, and budget. After one authorization, each agent receives only the capabilities needed for this job, then continues through planning, building, running, and testing."),
-    NarrationClip("05_cloud", "00:56", "01:10", "The actual work runs on Google Cloud Run. Firestore holds the live state, and Cloud Storage keeps artifacts and verification evidence."),
-    NarrationClip("06_visibility", "01:10", "01:20", "I can still see which agent is active, what it is doing, and which milestone is complete."),
-    NarrationClip("07_trinity", "01:20", "01:50", "While the new build continues, this previously verified result is Trinity. The same fixed agent team used a different Capability Pack composition for top-down combat, profession progression, attacks, skills, and healing."),
-    NarrationClip("08_browser", "01:50", "02:10", "KHALINOS is not limited to game profiles. This Browser profile used a separate workflow to produce a launch triage board."),
-    NarrationClip("09_verification", "02:10", "02:35", "KHALINOS does not turn a failed task into a success story. It releases a result only after runtime checks pass and a role-separated verifier inside the system accepts the evidence."),
-    NarrationClip("10_rule", "02:40", "03:05", "It keeps the project on course and does not call it complete without evidence. Different outputs follow one rule: give agents only the capabilities they need, and accept completion only when the evidence agrees."),
-    NarrationClip("11_burden", "03:10", "03:30", "In practice, people still make decisions, retry failures, and check whether results work. KHALINOS reduces that repeated supervision while keeping human judgment where it matters."),
-    NarrationClip("12_delivery", "03:30", "03:40", "KHALINOS turns repeated supervision into verified delivery."),
-    NarrationClip("13_fresh_result", "03:40", "03:55", "The new run has passed. This is the result from the execution you just watched: a party moving, fighting automatically, and reaching its destination."),
+    NarrationClip("01_prepared_brief", "00:00", "00:12", "This is KHALINOS. The brief is prepared, but no execution has started. I am reviewing Materials, Goal, SixSense, and the expected outcome."),
+    NarrationClip("02_authorize", "00:12", "00:16", "Now I will authorize a real side-scrolling game build."),
+    NarrationClip("03_ai_gap", "00:16", "00:29", "AI is no longer unfamiliar. But there is still a gap between talking with AI, coding with AI, and trusting several agents with real work."),
+    NarrationClip("04_real_work", "00:29", "00:35", "In practice, people still watch, retry, and verify the result."),
+    NarrationClip("05_architecture", "00:35", "00:53", "KHALINOS helps define the goal, acceptance criteria, and budget. After approval, each agent receives only the Capability Packs needed for this job, then moves through planning, production, runtime checks, and verification."),
+    NarrationClip("06_cloud", "00:53", "01:08", "The actual work runs on Google Cloud Run. Firestore holds the live state, and Cloud Storage keeps the artifacts and verification evidence."),
+    NarrationClip("07_visibility", "01:08", "01:28", "The moving horse, active agent, milestones, Gemini calls, receipts, and verifier show what is happening without requiring intervention at every step."),
+    NarrationClip("08_trinity", "01:28", "01:55", "While the live job continues, this previously verified result is Trinity. The same fixed agent team used a different Capability Pack composition for top-down combat, profession progression, visible attacks, skills, and healing."),
+    NarrationClip("09_browser", "01:55", "02:18", "KHALINOS is not limited to game profiles. This Browser profile used a separate Capability Pack composition to produce a launch triage board."),
+    NarrationClip("10_human_judgment", "02:18", "02:38", "Human judgment remains for questions of taste and direction. KHALINOS takes on repeatable planning, production, testing, and bounded repair while the user keeps the decisions that matter."),
+    NarrationClip("11_verification", "02:38", "03:03", "KHALINOS does not turn a failed task into a success story. It releases a result only after runtime checks pass and a role-separated verifier inside the system accepts the evidence."),
+    NarrationClip("12_same_execution", "03:03", "03:20", "This is the same execution ID shown before the wait was removed. The result appears only because that execution reached PASS."),
+    NarrationClip("13_fresh_result", "03:20", "03:50", "This is the result from the execution you just watched: a party moving, fighting automatically, and reaching its destination. Different outputs follow one rule: give agents only the capabilities they need, and accept completion only when the evidence agrees. KHALINOS turns repeated supervision into verified delivery."),
 )
 
 
@@ -73,7 +73,8 @@ async def main() -> None:
         name = f"clip{index}"
         filters.append(f"[{index}:a]adelay={seconds(clip.start) * 1000}:all=1[{name}]")
         delayed_inputs.append(f"[{name}]")
-    filters.append("[silence]" + "".join(delayed_inputs) + f"amix=inputs={len(delayed_inputs)+1}:duration=first:dropout_transition=0:normalize=0[mix]")
+    filters.append("[silence]" + "".join(delayed_inputs) + f"amix=inputs={len(delayed_inputs)+1}:duration=first:dropout_transition=0:normalize=0[mixed]")
+    filters.append("[mixed]volume=4dB,alimiter=limit=0.95[mix]")
     filters.append("[mix]asplit=2[wav][mp3]")
     command.extend(("-filter_complex", ";".join(filters), "-map", "[wav]", "-c:a", "pcm_s16le", str(wav_path), "-map", "[mp3]", "-c:a", "libmp3lame", "-b:a", "192k", str(mp3_path)))
     subprocess.run(command, check=True)

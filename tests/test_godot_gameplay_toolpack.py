@@ -160,6 +160,18 @@ def test_gameplay_script_maps_model_ids_to_licensed_profile_roles() -> None:
     assert '"support": licensed_hero_role = "priest"' in script
     assert 'var licensed_enemy_role := "goblin" if licensed_enemy_index % 2 == 0 else "orc"' in script
     assert '"licensed_profile_roles_bound": licensed_profile_roles_bound' in script
+    assert '"--khalinos-demo-autoplay"' in script
+    assert "_draw_scrolling_ground" in script
+    assert "ground_scroll += movement" in script
+    assert "_party_stats().move_speed) / max(1.0, float(config.heroes.size()))" in script
+    assert "enemy.position -= movement" in script
+    assert "var world_column := origin_column + column" in script
+    assert "var frame_delta := minf(delta, 1.0 / 30.0)" in script
+    assert "speed *= 0.45" in script
+    assert "var path_y" not in script
+    assert "PresentationSkin.draw_top_down_arena" not in script
+    assert "draw_circle(position, 31.0" not in script
+    assert "draw_circle(enemy.position, 24.0" not in script
 
 
 def test_registry_resolves_separate_gameplay_binding() -> None:
@@ -234,7 +246,7 @@ def test_gameplay_compiler_is_deterministic_and_materializes_only_bounded_files(
     assert 'PACK_ID := "godot.audio-feedback@1.0.0"' in first.files[
         "scripts/khalinos_audio_feedback.gd"
     ]
-    assert "PresentationSkin.draw_top_down_arena" in gameplay_script
+    assert "PresentationSkin.draw_top_down_arena" not in gameplay_script
     assert 'AudioFeedback.play_cue(self, cue)' in gameplay_script
     assert "CombatFeedback.draw_basic_attack" in gameplay_script
     assert "CombatFeedback.draw_skill" in gameplay_script

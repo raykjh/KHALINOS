@@ -95,11 +95,15 @@ func _play_audio(cue: String) -> void:
     AudioFeedback.play_cue(self, cue)
 
 func _process(delta: float) -> void:
-    elapsed += delta
+    # Asset import or window creation can make the first rendered frame report a
+    # very large delta. Clamp it so a visible journey cannot complete before the
+    # first frame reaches the player.
+    var frame_delta := minf(delta, 1.0 / 60.0)
+    elapsed += frame_delta
     if not started and elapsed >= 0.20:
         start_run()
     if started and not won:
-        simulate_step(delta)
+        simulate_step(frame_delta)
     queue_redraw()
 
 func simulate_step(delta: float) -> void:
@@ -153,29 +157,18 @@ func _nearest_enemy():
 func _draw() -> void:
     var width := float(combat.get("viewport_width", 960))
     var height := float(combat.get("viewport_height", 540))
+    var ground_y := height * 0.78
+    var party_action_y := ground_y - 62.0
     # Preserve lane readability without hiding the selected visual-foundation
     # texture behind an opaque procedural backdrop.
     draw_rect(Rect2(0, 0, width, height), Color(0.74, 0.90, 0.94, 0.38), true)
     draw_rect(Rect2(0, height * 0.58, width, height * 0.42), Color(0.84, 0.77, 0.55, 0.58), true)
     draw_rect(Rect2(0, height * 0.72, width, height * 0.12), Color(0.56, 0.49, 0.34, 0.72), true)
     PresentationSkin.draw_parallax(self, width, height, progress_distance)
-    if licensed_art_helper != null and licensed_art_texture != null:
-        for prop_index in range(6):
-            var prop_x := fposmod(float(prop_index * 211) - progress_distance * 0.22, width + 150.0) - 70.0
-            var prop_role := "tree" if prop_index % 2 == 0 else "rock"
-            var prop_size := Vector2(92, 92) if prop_role == "tree" else Vector2(64, 64)
-            licensed_art_helper.draw_role(
-                self,
-                licensed_art_texture,
-                licensed_art_manifest,
-                prop_role,
-                Rect2(Vector2(prop_x, height * 0.58) - prop_size * Vector2(0.5, 0.72), prop_size),
-                Color(0.72, 0.82, 0.70, 0.82),
-            )
-    draw_line(Vector2(0, height * 0.78), Vector2(width, height * 0.78), Color("f7e7ad"), 4)
+    draw_line(Vector2(0, ground_y), Vector2(width, ground_y), Color("f7e7ad"), 4)
     CombatFeedback.draw_attack_range(
         self,
-        Vector2(170, 360),
+        Vector2(170, party_action_y),
         float(combat.get("attack_range", 300)),
         Color(0.25, 0.65, 1.0, 0.10),
         true,
@@ -185,19 +178,19 @@ func _draw() -> void:
     var pulse := absf(sin(elapsed * 7.0)) * 4.0
     var party_drawn := false
     if licensed_art_helper != null and licensed_art_texture != null:
-        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "warrior", Rect2(100, 302, 74, 74))
-        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "archer", Rect2(158, 322, 68, 68)) and party_drawn
-        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "priest", Rect2(212, 300, 72, 72)) and party_drawn
+        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "warrior", Rect2(100, ground_y - 74.0, 74, 74))
+        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "archer", Rect2(158, ground_y - 68.0, 68, 68)) and party_drawn
+        party_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "priest", Rect2(212, ground_y - 72.0, 72, 72)) and party_drawn
     if not party_drawn:
-        PresentationSkin.draw_side_scroll_party(self, Vector2(170, 350), pulse)
+        PresentationSkin.draw_side_scroll_party(self, Vector2(170, ground_y - 25.0), pulse)
     var enemy_index := 0
     for enemy in enemies:
-        var enemy_pos := Vector2(float(enemy["x"]), 360)
+        var enemy_pos := Vector2(float(enemy["x"]), ground_y - 25.0)
         var hp_ratio := clampf(float(enemy["hp"]) / float(combat["enemy_health"]), 0.0, 1.0)
         var enemy_role: String = ["enemy_scout", "enemy_brute", "enemy_beast", "enemy_caster"][enemy_index % 4]
         var enemy_drawn := false
         if licensed_art_helper != null and licensed_art_texture != null:
-            enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, enemy_role, Rect2(enemy_pos - Vector2(34, 38), Vector2(68, 68)), Color(0.72, 1.0, 0.72, 1.0))
+            enemy_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, enemy_role, Rect2(enemy_pos - Vector2(34, 43), Vector2(68, 68)), Color(0.72, 1.0, 0.72, 1.0))
         if not enemy_drawn:
             PresentationSkin.draw_side_scroll_enemy(self, enemy_pos, hp_ratio, pulse)
         draw_rect(Rect2(enemy_pos.x - 24.0, enemy_pos.y - 49.0, 48.0, 5.0), Color("2a2430"), true)
@@ -216,11 +209,6 @@ func _draw() -> void:
     PresentationSkin.draw_hud_panel(self, Rect2(22, 16, width - 44, 100), Color("f1bd4a"))
     draw_rect(Rect2(36, 28, width - 72, 18), Color("27384a"), true)
     draw_rect(Rect2(39, 31, (width - 78) * ratio, 12), Color("f1bd4a"), true)
-    var destination_drawn := false
-    if licensed_art_helper != null and licensed_art_texture != null:
-        destination_drawn = licensed_art_helper.draw_role(self, licensed_art_texture, licensed_art_manifest, "destination", Rect2(width - 145, 270, 132, 132))
-    if not destination_drawn:
-        PresentationSkin.draw_destination(self, Vector2(width - 75, 350), won)
     draw_string(ThemeDB.fallback_font, Vector2(36, 72), "AUTO MARCH  %d / %d m" % [int(progress_distance), int(destination.get("destination_distance", 0))], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("f4f0df"))
     draw_string(ThemeDB.fallback_font, Vector2(36, 102), "Kills %d   Auto attacks %d" % [total_kills, total_attacks], HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color("cfe4d9"))
     if won:
