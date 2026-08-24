@@ -22,6 +22,7 @@ Use the exact commands in the repository `README.md`. The Godot-capable image mu
 
 ## Evidence index
 
+- `docs/evidence/capability-pack-composition/submission-release-cloud-qualification-20260823.json` — final same-image Trinity and side-scroll release qualification
 - `docs/architecture/khalinos-architecture.png`
 - `docs/evidence/capability-pack-composition/combat-feedback-cloud-qualification-20260821.json`
 - `docs/evidence/capability-pack-composition/live-execution-telemetry-cloud-qualification-20260822.json`

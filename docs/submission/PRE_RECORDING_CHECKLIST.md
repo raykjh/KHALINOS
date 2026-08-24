@@ -27,9 +27,9 @@
 
 ## Release gate
 
-- [ ] PR from `agent/running-horse-animation` to `main` reviewed and merged
-- [ ] Full local regression PASS after final evidence/document update
-- [ ] GitHub CI PASS on the final PR
-- [ ] Annotated `v0.6.0-hackathon-final` tag points to final `main`
-- [ ] Public `/health`, README links, architecture PNG, and evidence JSON rechecked after merge
+- [x] PR #8 from `agent/running-horse-animation` to `main` reviewed and merged as `e8dad4e`
+- [x] Full local regression PASS after final evidence/document update: 196 passed
+- [x] GitHub CI PASS on PR #8 and merge commit `e8dad4e`
+- [x] Annotated executable-release tag `v0.6.0-hackathon-final` points to deployed release merge `e8dad4e`
+- [x] Public `/health`, README links, 1600×900 architecture PNG, and all 74 evidence JSON files rechecked after merge
 - [ ] Recording tabs and local Godot outputs prepared without starting the recorded Cloud run
