@@ -1,0 +1,91 @@
+{
+  "schema_version": "khalinos-capture-readiness-cloud-qualification-v1",
+  "qualified_at_kst": "2026-08-25",
+  "repository": {
+    "remote": "raykjh/KHALINOS",
+    "branch": "main",
+    "commit": "5a9671a",
+    "predecessor_commit": "f19f0cf",
+    "local_regression": {"passed": 197, "failed": 0, "warnings": 5}
+  },
+  "deployment": {
+    "project": "khalinos-agent-20260818",
+    "region": "asia-northeast3",
+    "service": "khalinos",
+    "service_revision": "khalinos-00069-cpm",
+    "worker_job": "khalinos-worker",
+    "worker_memory": "8Gi",
+    "worker_cpu": 2,
+    "worker_timeout_seconds": 1800,
+    "worker_max_retries": 0,
+    "cloud_build_id": "4f52c0a5-73d4-42e5-b11f-2b0ed94f825a",
+    "image": "asia-northeast3-docker.pkg.dev/khalinos-agent-20260818/khalinos/khalinos:submission-5a9671a-godot",
+    "image_digest": "sha256:a765d784b81c151233c55aeb56fb08e95ad63f41495319d020f18ee6fcad4b1c"
+  },
+  "profiles": {
+    "side_scroll": {
+      "run_id": "40012e3058c3422aabc37a1d94c9ca0b",
+      "execution_id": "khalinos-worker-wxwxd",
+      "status": "PASSED",
+      "message": "Godot side-scroll journey passed real mechanics, rendering, and independent verification.",
+      "elapsed": "3:07",
+      "gemini_calls": 12,
+      "receipt_count": 3,
+      "deterministic_checks_passed": 30,
+      "deterministic_issues": 0,
+      "selected_candidate": "V3",
+      "artifact_sha256": "61c618bbf6acd8149c53fa37fd8fda3345fc36e2911ed7cbe97d58cdf224f8a6",
+      "bundle_sha256": "f497f3335b0b918a8824ddd6a88366379e3ee0aaf841e65ed844e58554ffc38d",
+      "visual_asset_sha256": "ee53ebc5837cffa1ccab5974eadb6be84fd47e0881cd580722ef693fea153487",
+      "licensed_art_atlas_sha256": "3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e",
+      "effect_atlas_sha256": "25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9",
+      "toolpack_manifest_sha256": "c673fddea19b0a360d5ebdf6f6f8a9e301c97965f41dac9fc0bca25d6d898ee8",
+      "agent_capability_trace_sha256": "591ce066363a528ffcf11f6bf8d31f2a239edd6fbb8e78ca3d1158c3a2814b06",
+      "visual_boundary": "No castle destination graphic, repeated foreground tree or rock icons, or repeated tree silhouettes. Selected V3 uses mountain ridges and mist; Visual Verifier contract alignment was 9/10."
+    },
+    "trinity": {
+      "run_id": "abfcb1ae60ba44608c351552231578c0",
+      "execution_id": "khalinos-worker-rhhzb",
+      "status": "PASSED",
+      "message": "Godot gameplay vertical slice passed real mechanics, rendering, and independent verification.",
+      "elapsed": "3:22",
+      "gemini_calls": 13,
+      "receipt_count": 4,
+      "deterministic_checks_passed": 59,
+      "deterministic_issues": 0,
+      "selected_candidate": "V3",
+      "artifact_sha256": "38e7dd13fcf1ecc6d8eeffe323e8ad55a8cdef18179ab78bf221fc40c59003f6",
+      "bundle_sha256": "665aa423d6df7b70b059f41a355d1b0f9265d6ebb020e94015fbcca98baa5adb",
+      "visual_asset_sha256": "ec52ab9dca1870790c9dbaeaf279eae2dbde2720c6ceac1af4b7182c8b200492",
+      "licensed_art_atlas_sha256": "310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56",
+      "effect_atlas_sha256": "25636189ae67738e2023a4310bdbb2117d38da4294eb908dded9fc167a3bfdc9",
+      "toolpack_manifest_sha256": "ed429bab76b54f427e2cdde2c6ccb812ac68e90e36498fd2005a9e1d5932f7dc",
+      "agent_capability_trace_sha256": "8f64131b7cbb4e7dbb5b5970d6cdf415f5e5ca5015c4779acad58eb407f06cad",
+      "visual_boundary": "Centered party over scrolling top-down terrain, slower demo motion, automatic demo choices, no side-scroll road band, and no decorative unit rings. Skill-effect circles remain intentional combat feedback."
+    }
+  },
+  "capture_preparation": {
+    "browser_output": "Launch Triage evidence is bright. The prior dark right side was unused OBS canvas, not a Browser artifact defect; the image source now fills 1920x1080 and the legacy source is hidden.",
+    "trinity_output": "A fresh autoplay restart visibly moved the centered party and enemies over scrolling terrain in OBS.",
+    "side_scroll_output": "A fresh local launch visibly grounded units on the road and showed ridge-and-mist parallax without the removed icons.",
+    "recording_started": false,
+    "narration": "English Brian Multilingual narration was regenerated with +4 dB gain and limiter; spoken content ends at 3:50.",
+    "editing_contract": "Use short clean clips, disclose WAIT TIME REMOVED — SAME EXECUTION ID, and show the fresh side-scroll artifact only after the matching run reaches PASS."
+  },
+  "preserved_corrections": [
+    {
+      "evidence": "Side-scroll run b6587ef0f6bb4826a912a0dfa45347ec / khalinos-worker-47pdm passed on the immediately preceding image.",
+      "finding": "Its Visual Verifier still described repeated tree icons in the selected composition.",
+      "correction": "The shared presentation-skin parallax replaced tree-like trunk and circle silhouettes with ridges and mist. The prior PASS is preserved but superseded for capture readiness by run 40012e3058c3422aabc37a1d94c9ca0b."
+    },
+    {
+      "evidence": "The first Trinity route request returned 422 twice for an over-detailed model route response.",
+      "correction": "The goal was restated within the same bounded gameplay profile without weakening mechanics or render criteria."
+    },
+    {
+      "evidence": "Trinity intake f6c2498aeecf4a068e1c0533e9fe7811 was rejected at authorization because SixSense duplicated 'Zero repairs allowed per Quest' as an unobservable completion criterion.",
+      "correction": "Revise outcome preserved all gameplay and render criteria and moved zero repairs to the execution-policy limit where it belongs; the corrected intake then produced the canonical PASS."
+    }
+  ],
+  "claim_boundary": "These records prove real Cloud mechanics, display-backed rendering, and role-separated verification for two bounded Godot prototype profiles. They do not claim commercial game polish, a universal builder, or an external organizational audit."
+}
