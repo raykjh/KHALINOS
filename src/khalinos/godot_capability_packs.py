@@ -212,9 +212,14 @@ static func draw_parallax(canvas: CanvasItem, width: float, height: float, progr
         ]), Color(0.18, 0.31, 0.28, 0.30))
     for index in range(8):
         var x := float(index * 180) - near_offset - 70.0
-        canvas.draw_rect(Rect2(x - 9.0, height * 0.43, 18.0, height * 0.29), Color(0.18, 0.31, 0.20, 0.66), true)
-        canvas.draw_circle(Vector2(x, height * 0.40), 56.0, Color(0.24, 0.46, 0.28, 0.62))
-        canvas.draw_circle(Vector2(x - 31.0, height * 0.44), 37.0, Color(0.31, 0.56, 0.31, 0.48))
+        canvas.draw_colored_polygon(PackedVector2Array([
+            Vector2(x - 120.0, height * 0.72),
+            Vector2(x - 55.0, height * 0.58),
+            Vector2(x + 12.0, height * 0.52),
+            Vector2(x + 92.0, height * 0.61),
+            Vector2(x + 150.0, height * 0.72),
+        ]), Color(0.24, 0.42, 0.32, 0.46))
+    canvas.draw_rect(Rect2(0.0, height * 0.60, width, height * 0.10), Color(0.72, 0.82, 0.74, 0.10), true)
     canvas.draw_rect(Rect2(0.0, height * 0.72, width, height * 0.28), Color(0.21, 0.18, 0.12, 0.30), true)
     for index in range(12):
         var x := fmod(float(index * 104) - progress * 0.48, width + 104.0) - 52.0

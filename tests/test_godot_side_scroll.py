@@ -118,6 +118,10 @@ def test_side_scroll_compiler_is_deterministic_and_owns_exact_outputs(tmp_path: 
     assert 'prop_role := "tree"' not in first.files["scripts/khalinos_side_scroll.gd"]
     assert 'licensed_art_manifest, "destination"' not in first.files["scripts/khalinos_side_scroll.gd"]
     assert "PresentationSkin.draw_destination" not in first.files["scripts/khalinos_side_scroll.gd"]
+    presentation_script = first.files["scripts/khalinos_presentation_skin.gd"]
+    assert "draw_circle(Vector2(x" not in presentation_script
+    assert "draw_rect(Rect2(x - 9.0" not in presentation_script
+    assert "height * 0.52" in presentation_script
     destination = tmp_path / "product"
     GODOT_SIDE_SCROLL_TOOLPACK.execution_adapter.materialize(first, destination)
     assert {path.as_posix() for path in destination.rglob("*") if path.is_file()} == {
