@@ -1,111 +1,86 @@
-# KHALINOS 3:55 submission-video runbook
+# KHALINOS 3:15 Trinity-first master-recording runbook
 
-Use this runbook with [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). The script is the
-second-by-second source of truth; this file prepares the recording environment.
+Use this runbook with [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md). Trinity is the main two-minute demonstration. Side-scroll and Browser are short transfer proofs.
 
 ## Recording contract
 
-- Record short, clean clips and edit out loading screens and dead air, as recommended by the submission guidance.
-- Keep the live proof truthful: authorization, early progress, later progress, PASS, and the fresh artifact must use one execution ID.
-- Put **WAIT TIME REMOVED — SAME EXECUTION ID** over the only long progress jump.
-- Start from the authenticated **Materials** step. Move through Goal, Route/SixSense, and Preview before the recorded authorization click.
-- Start the real side-scroll Cloud execution only after the recorded authorization click. Do not retry the authorization if the first dispatch is accepted.
-- The live execution does not need to reach PASS during the video. Always show its truthful current state.
-- Label earlier artifacts **PREVIOUSLY VERIFIED CLOUD OUTPUT** during the take.
-- Use the approved English narration track; do not add subtitles or narration after recording.
-- Do not reveal account email, billing details, OAuth client IDs, access tokens, environment variables, or private Firestore owner identifiers.
-- Finish the scored content by 3:50 and stop by 3:55.
+- Target final duration: 3:10–3:20; hard stop before 4:00.
+- Show moving Trinity gameplay in the first seven seconds with **RESULT PREVIEW — FULL RUN FOLLOWS**.
+- The master source may be longer because it keeps each real Cloud wait and result in chronological order.
+- Remove only loading, unchanged waiting, and window preparation.
+- Preserve intake, authorization, early telemetry, later telemetry, PASS, and result for every execution used.
+- Display **WAIT TIME REMOVED — SAME … EXECUTION ID** over each progress jump.
+- Introduce Side-scroll and Browser as separate runs with their own visible execution IDs.
+- Do not include a Trinity enemy-count modification. Godot existing-project repair is outside the current ToolPack contract.
+- Capture genuine moving gameplay and system audio; never substitute still frames.
 
-## Approved narration
+## Master recording order
 
-- Voice: Microsoft `en-US-BrianMultilingualNeural` (`Brian Multilingual`).
-- Pitch: default (`+0Hz`).
-- Speed: 1.0× (`+0%`).
-- Exact recording track: `docs/submission/demo-audio/KHALINOS-demo-narration-4m.wav`.
-- MP3 convenience copy: `docs/submission/demo-audio/KHALINOS-demo-narration-4m.mp3`.
-- Segment timing and measured headroom: `docs/submission/demo-audio/manifest.json`.
+1. Capture a clean seven-second Trinity result preview from the prepared verified build.
+2. Trinity **New project**: Materials → Goal → SixSense → Preview → authorize → early telemetry → architecture → Cloud proof → unchanged wait → PASS → fresh gameplay launch.
+3. Side-scroll **New project**: Goal/Preview → authorize → wait → PASS → fresh five-second gameplay result.
+4. Browser **New project**: Goal/Preview → authorize → wait → PASS → bright full-width five-second result.
+5. Return to KHALINOS verified-result view and Trinity for the conclusion.
 
-Prefer the WAV in the editor. The generated track is 240 seconds long, but all
-spoken content ends at 3:50. Trim the final silence at 3:55. Keep genuine game
-sound under the gameplay clips without obscuring narration.
+## Final edit timing
 
-## Chrome tab order
+- 0:00–0:07: moving Trinity result preview.
+- 0:07–0:31: Trinity Materials, Goal, SixSense, Preview.
+- 0:31–1:35: authorize, KHALINOS telemetry, architecture, Cloud proof, disclosed wait cut, PASS.
+- 1:35–2:00: 25 seconds of moving Trinity gameplay.
+- 2:00–2:25: Side-scroll production proof and five-second result.
+- 2:25–2:50: Browser production proof and five-second result.
+- 2:50–3:15: evidence-based conclusion and closing hold.
 
-1. Authenticated KHALINOS Materials step — active at recording start, with **New project** selected and the prepared Goal values retained for the next step.
-2. Full-window architecture image — `C:\memory R\KHALINOS\docs\architecture\khalinos-architecture.png`.
-3. Cloud Run Jobs list filtered to `khalinos-worker`, project `khalinos-agent-20260818`, region `asia-northeast3`; hide the `Creator` column and do not open execution details.
-4. Prepared Browser result image — `C:\memory R\KHALINOS\docs\evidence\browser-product\launch-triage-final-qa-completed.png`.
+## Chrome and OBS preparation
 
-Use Chrome for every web surface. Hide the bookmarks bar, download shelf,
-unrelated tabs, notifications, password-manager prompts, and account menus.
+- Start Chrome on authenticated KHALINOS **Materials** with Trinity prepared as the first profile.
+- Keep only KHALINOS, the full-window architecture image, and filtered Cloud Run view available.
+- Use Chrome for every web surface. Hide bookmarks, downloads, notifications, account menus, and unrelated tabs.
+- OBS scenes: KHALINOS main, architecture, Cloud proof, Browser result, Side-scroll output, Trinity output.
+- Browser result must fill 1920×1080 with no black right-side canvas.
+- Rebind each Godot Window Capture after a fresh launch and fit it before recording the clip.
+- Do not keep Trinity and Side-scroll Godot windows open at the same time. Both builds use the same Godot executable, and OBS may capture the wrong title even when the source selector displays the intended title.
+- For every Godot clip: close the other profile, launch the intended build fresh, explicitly select its exact window title in OBS, and confirm the preview before recording.
+- Recording must be stopped during source preparation or rebinding.
 
 ## Prepared local applications
 
-- Side-scroll project: `C:\memory R\KHALINOS-DEMO-READY-20260824\side-scroll`.
-- Trinity project: `C:\memory R\KHALINOS-DEMO-READY-20260824\trinity`.
-- Browser project: `C:\memory R\KHALINOS-DEMO-READY-20260824\browser`.
-- Approved Godot executable: `E:\memory R data\archive_20260818_first_priority\C-tmp\khalinos-engine-bakeoff\godot\Godot_v4.7.1-stable_win64.exe`.
+- Trinity: `C:\memory R\KHALINOS-DEMO-READY-20260824\trinity`
+- Side-scroll: `C:\memory R\KHALINOS-DEMO-READY-20260824\side-scroll`
+- Browser evidence: `C:\memory R\KHALINOS\docs\evidence\browser-product\launch-triage-final-qa-completed.png`
+- Architecture: `C:\memory R\KHALINOS\docs\architecture\khalinos-architecture.png`
+- Godot: `E:\memory R data\archive_20260818_first_priority\C-tmp\khalinos-engine-bakeoff\godot\Godot_v4.7.1-stable_win64.exe`
 
-Do not use `KHALINOS-DEMO-READY-20260822`: that earlier rehearsal copy does not
-contain the licensed-art atlas. Before recording, confirm the side-scroll atlas
-SHA-256 is `3d7f794dd1e3385e36e93ee8d725ec73a9d2e549cf20e17c550dfaf3b1ebc94e`
-and the Trinity atlas SHA-256 is
-`310350dfa301a8349092e6723f123b7b7f8807e4a26d74ed7ac3539769564b56`.
+Do not use `KHALINOS-DEMO-READY-20260822`.
 
-Record Trinity from a fresh autoplay restart and record the final side-scroll
-artifact from a fresh launch. Rebind each OBS Window Capture to the newly opened
-Godot window and fit it to the canvas before capturing. Confirm window switching
-does not expose unrelated folders.
+## Visual gates
 
-## Live labels and screen order
+- Trinity is visibly moving in the opening seven seconds and throughout its 25-second main result clip.
+- Trinity starts from a fresh autoplay launch; the party remains centered while top-down terrain scrolls.
+- The first captured Trinity frame must show active play with time remaining, not `VICTORY`; the Side-scroll clip must show active travel, not `DESTINATION REACHED`.
+- OBS must show `Trinity Trial (DEBUG)` for Trinity and `Trinity Roadbound (DEBUG)` for Side-scroll, with the other Godot profile closed.
+- Trinity visibly demonstrates enemy approach, attacks, healing, and skill effects without the side-scroll road band or decorative unit rings.
+- Side-scroll visibly moves, attacks, and stays grounded; no castle or repeated foreground prop icons appear.
+- Browser evidence is bright and full-width with no unused OBS canvas.
+- Architecture labels remain readable at 1920×1080.
+- Cloud proof shows project `khalinos-agent-20260818`, region `asia-northeast3`, Job `khalinos-worker`, and the matching execution ID without the Creator column.
+- Desktop notifications and messenger sounds are disabled.
 
-- 0:00–0:12: Materials, Goal, SixSense, and Preview, three seconds each.
-- 0:12–0:35: authorization and genuine early live state.
-- 0:35–0:53: architecture image.
-- 0:53–1:08: matching Google Cloud project, worker, and region.
-- 1:08–1:28: return to the same live execution.
-- 1:28–1:55: moving Trinity gameplay labelled **PREVIOUSLY VERIFIED CLOUD OUTPUT**.
-- 1:55–2:18: full-width bright Browser result with the same label.
-- 2:18–2:38: same KHALINOS execution before the progress cut.
-- 2:38: disclosed **WAIT TIME REMOVED — SAME EXECUTION ID** cut.
-- 2:38–3:20: later state and PASS from the same execution, plus matching Cloud success.
-- 3:20–3:50: fresh side-scroll artifact from that PASSED execution.
-- 3:50–3:55: genuine completion hold.
+## Audio
 
-The label must be present during recording, either in a prepared capture overlay
-or in the visible prepared window. Do not add it in post-production.
+- The previous 4:00 narration track does not match this Trinity-first sequence and must not be used.
+- Approved narration: `docs/submission/demo-audio/KHALINOS-demo-narration-3m15s.wav` (`en-US-BrianMultilingualNeural`, 195 seconds).
+- Capture the narration once through the OBS `DEMO NARRATION` media source. Keep its audio monitoring off and the microphone muted so Desktop Audio cannot create a duplicate echo path.
+- Keep genuine gameplay audio below narration; the narration track measures about -17 dB mean with peak limiting applied.
 
-## Audio and display
+## Current evidence anchors
 
-- Capture at 1920×1080 or higher and at least 30 fps.
-- Keep Chrome at 100% zoom and use consistent Windows scaling.
-- Capture the narration track and system audio without clipping.
-- Leave game sound audible only where the narration track is silent.
-- Disable system notifications and close unrelated applications.
-- Keep a timer visible to the presenter but outside the captured frame.
-
-## Final rehearsal checks
-
-- Public KHALINOS URL and `/health` return HTTP 200.
-- Google sign-in remains active and the Project Library loads.
-- Materials starts authenticated with **New project** selected; the next Goal screen retains the prepared side-scroll project name and bounded requirements.
-- The Route/SixSense request reaches a compatible side-scroll Outcome Preview before authorization.
-- Cloud Console is filtered to the correct Worker Job and region, the `Creator` column is hidden, and no execution detail page is open.
-- The architecture image is readable at full-window scale.
-- The Browser evidence image fills the 1920×1080 OBS canvas and has no black right-side area.
-- Trinity autoplay is moving before its clip begins; the party remains centered over scrolling top-down terrain.
-- Side-scroll starts from 0 m, visibly moves, and completes; its heroes and enemies touch the road line.
-- Side-scroll has no castle destination graphic or repeated foreground prop icons; Trinity has no side-scroll ground band or decorative unit rings.
-- The approved 3:50 WAV plays once and does not loop.
-- The two **PREVIOUSLY VERIFIED CLOUD OUTPUT** labels are visible at the intended times.
-- For a no-cost timing rehearsal, stop before authorization. For an explicitly approved final rehearsal or submission take, authorize exactly once and keep monitoring the truthful live state after recording.
-
-## Evidence anchors
-
-- Final release tag: `v0.6.0-hackathon-final`.
-- Latest image digest: `sha256:56a8f4429365c5170cf4c0c6149a497236b43a51144308154c633d1ed3fec24b`.
-- Trinity PASS: `15100d664c8840c2b85a24d2068e270f`, 59/59 checks.
-- Side-scroll PASS: `c9fa277674c940a685c48de576713239`, 30/30 checks.
-- Browser PASS: `32b5306b2c984683b406012b4ffb79f6`, 12/12 checks.
-- Machine-readable release record: `docs/evidence/capability-pack-composition/submission-release-cloud-qualification-20260823.json`.
-- Browser qualification: `docs/evidence/browser-product/launch-triage-cloud-qualification-20260823.json`.
+- Repository `main`: `1858440fc40325b697f097240732c11673c9d5b9`
+- Deployed code: `5a9671a`
+- API revision: `khalinos-00069-cpm`
+- Image digest: `sha256:a765d784b81c151233c55aeb56fb08e95ad63f41495319d020f18ee6fcad4b1c`
+- Trinity PASS: `abfcb1ae60ba44608c351552231578c0` / `khalinos-worker-rhhzb`, 59/59 checks.
+- Side-scroll PASS: `40012e3058c3422aabc37a1d94c9ca0b` / `khalinos-worker-wxwxd`, 30/30 checks.
+- Browser result: `docs/evidence/browser-product/launch-triage-final-qa-completed.png`.
+- Machine-readable qualification: `docs/evidence/capability-pack-composition/capture-readiness-cloud-qualification-20260825.json`.

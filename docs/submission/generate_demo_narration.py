@@ -1,4 +1,4 @@
-"""Generate the timed four-minute KHALINOS demo narration."""
+"""Generate the timed 3:15 Trinity-first KHALINOS demo narration."""
 
 from __future__ import annotations
 
@@ -28,19 +28,16 @@ class NarrationClip:
 
 
 CLIPS = (
-    NarrationClip("01_prepared_brief", "00:00", "00:12", "This is KHALINOS. The brief is prepared, but no execution has started. I am reviewing Materials, Goal, SixSense, and the expected outcome."),
-    NarrationClip("02_authorize", "00:12", "00:16", "Now I will authorize a real side-scrolling game build."),
-    NarrationClip("03_ai_gap", "00:16", "00:29", "AI is no longer unfamiliar. But there is still a gap between talking with AI, coding with AI, and trusting several agents with real work."),
-    NarrationClip("04_real_work", "00:29", "00:35", "In practice, people still watch, retry, and verify the result."),
-    NarrationClip("05_architecture", "00:35", "00:53", "KHALINOS helps define the goal, acceptance criteria, and budget. After approval, each agent receives only the Capability Packs needed for this job, then moves through planning, production, runtime checks, and verification."),
-    NarrationClip("06_cloud", "00:53", "01:08", "The actual work runs on Google Cloud Run. Firestore holds the live state, and Cloud Storage keeps the artifacts and verification evidence."),
-    NarrationClip("07_visibility", "01:08", "01:28", "The moving horse, active agent, milestones, Gemini calls, receipts, and verifier show what is happening without requiring intervention at every step."),
-    NarrationClip("08_trinity", "01:28", "01:55", "While the live job continues, this previously verified result is Trinity. The same fixed agent team used a different Capability Pack composition for top-down combat, profession progression, visible attacks, skills, and healing."),
-    NarrationClip("09_browser", "01:55", "02:18", "KHALINOS is not limited to game profiles. This Browser profile used a separate Capability Pack composition to produce a launch triage board."),
-    NarrationClip("10_human_judgment", "02:18", "02:38", "Human judgment remains for questions of taste and direction. KHALINOS takes on repeatable planning, production, testing, and bounded repair while the user keeps the decisions that matter."),
-    NarrationClip("11_verification", "02:38", "03:03", "KHALINOS does not turn a failed task into a success story. It releases a result only after runtime checks pass and a role-separated verifier inside the system accepts the evidence."),
-    NarrationClip("12_same_execution", "03:03", "03:20", "This is the same execution ID shown before the wait was removed. The result appears only because that execution reached PASS."),
-    NarrationClip("13_fresh_result", "03:20", "03:50", "This is the result from the execution you just watched: a party moving, fighting automatically, and reaching its destination. Different outputs follow one rule: give agents only the capabilities they need, and accept completion only when the evidence agrees. KHALINOS turns repeated supervision into verified delivery."),
+    NarrationClip("01_working_result", "00:00", "00:07", "This is KHALINOS, and this is a verified game it produced."),
+    NarrationClip("02_trinity_intake", "00:07", "00:31", "I begin with a bounded Trinity survival game. Materials define what is available. Goal states the playable outcome and evidence gates. SixSense keeps the human choice of visual direction. Preview makes the scope, exclusions, budget, and expected proof visible before any work starts."),
+    NarrationClip("03_authorize_and_visibility", "00:31", "00:46", "After authorization, KHALINOS composes only the Capability Packs this profile needs. The active agent, milestones, receipts, Gemini calls, verifier, and execution ID make progress visible without constant supervision."),
+    NarrationClip("04_architecture", "00:46", "01:06", "Gemini participates through Google ADK. A trusted host binds each agent to profile-specific capabilities. Deterministic runtime checks and a role-separated verifier examine the evidence, while repair is bounded instead of repeated blindly."),
+    NarrationClip("05_cloud_proof", "01:06", "01:20", "The work runs on Google Cloud Run in this project and region. Firestore holds live state, Cloud Storage keeps artifacts and evidence, and the Worker Job carries the same execution ID shown in KHALINOS."),
+    NarrationClip("06_same_execution_pass", "01:20", "01:35", "Only unchanged waiting was removed. This is the same Trinity execution ID. KHALINOS does not turn failure into a success story; delivery appears only after runtime checks and verification reach PASS."),
+    NarrationClip("07_trinity_result", "01:35", "02:00", "Here is the result from that verified profile: a centered three-hero party on scrolling top-down terrain, with automatic attacks, visible skills, healing, enemy pressure, cooldowns, and progression. It is a bounded prototype, not a claim of commercial polish."),
+    NarrationClip("08_side_scroll", "02:00", "02:25", "The same agent team can take a different composition. This Side-scroll profile plans horizontal travel, grounded movement, automatic combat, and a destination. Its separate Cloud execution reaches its own checks and produces a moving result."),
+    NarrationClip("09_browser", "02:25", "02:50", "KHALINOS is not limited to games. This Browser profile selects another Capability Pack composition, runs as a separate Cloud execution, and delivers a verified Launch Triage Board rather than a Godot artifact."),
+    NarrationClip("10_conclusion", "02:50", "03:15", "These outputs are different, but the rule stays the same: give agents only the capabilities they need, keep human judgment for direction, and accept completion only when runtime and verification evidence agree. KHALINOS takes on repeatable supervision and delivers bounded, verified results."),
 )
 
 
@@ -62,13 +59,14 @@ async def generate(clip: NarrationClip) -> dict[str, object]:
 async def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     results = [await generate(clip) for clip in CLIPS]
-    wav_path = OUTPUT_DIR / "KHALINOS-demo-narration-4m.wav"
-    mp3_path = OUTPUT_DIR / "KHALINOS-demo-narration-4m.mp3"
+    wav_path = OUTPUT_DIR / "KHALINOS-demo-narration-3m15s.wav"
+    mp3_path = OUTPUT_DIR / "KHALINOS-demo-narration-3m15s.mp3"
     command = [imageio_ffmpeg.get_ffmpeg_exe(), "-y"]
     for result in results:
         command.extend(("-i", str(OUTPUT_DIR / str(result["file"]))))
     delayed_inputs = []
-    filters = ["anullsrc=r=24000:cl=mono:d=240[silence]"]
+    timeline_seconds = 195
+    filters = [f"anullsrc=r=24000:cl=mono:d={timeline_seconds}[silence]"]
     for index, clip in enumerate(CLIPS):
         name = f"clip{index}"
         filters.append(f"[{index}:a]adelay={seconds(clip.start) * 1000}:all=1[{name}]")
@@ -80,7 +78,7 @@ async def main() -> None:
     subprocess.run(command, check=True)
     with wave.open(str(wav_path), "rb") as wav_file:
         wav_duration = wav_file.getnframes() / wav_file.getframerate()
-    manifest = {"voice": VOICE, "rate": RATE, "pitch": PITCH, "timeline_target_seconds": 240, "full_tracks": {"wav": wav_path.name, "wav_duration_seconds": round(wav_duration, 3), "mp3": mp3_path.name, "mp3_duration_seconds": round(MP3(mp3_path).info.length, 3)}, "clips": results}
+    manifest = {"voice": VOICE, "rate": RATE, "pitch": PITCH, "timeline_target_seconds": timeline_seconds, "full_tracks": {"wav": wav_path.name, "wav_duration_seconds": round(wav_duration, 3), "mp3": mp3_path.name, "mp3_duration_seconds": round(MP3(mp3_path).info.length, 3)}, "clips": results}
     (OUTPUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     for result in results:
         print(f"{result['name']}: {result['duration_seconds']:.3f}s / {result['slot_seconds']}s (headroom {result['headroom_seconds']:+.3f}s)")
